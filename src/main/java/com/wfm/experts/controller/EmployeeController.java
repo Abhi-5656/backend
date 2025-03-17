@@ -1,0 +1,100 @@
+package com.wfm.experts.controller;
+
+import com.wfm.experts.entity.tenant.common.Employee;
+import com.wfm.experts.security.JwtUtil;
+import com.wfm.experts.service.EmployeeService;
+import com.wfm.experts.tenancy.TenantContext;
+import com.wfm.experts.util.TenantSchemaUtil;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import jakarta.validation.Valid;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * ✅ Employee Controller - Provides CRUD APIs for Employees.
+ * 🚀 Automatically switches to the correct schema based on JWT token.
+ */
+@RestController
+@RequestMapping("/api/employees") // 🔹 No need to manually pass `tenant` in URL
+public class EmployeeController {
+
+    @Autowired
+    private EmployeeService employeeService;
+
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    @Autowired
+    private TenantSchemaUtil tenantSchemaUtil;
+
+    /**
+     * ✅ Extracts `tenantId` from JWT token & switches schema
+     */
+    private void setTenantSchemaFromToken(String token) {
+        if (token != null && token.startsWith("Bearer")) {
+            token = token.substring(7); // ✅ Remove "Bearer " prefix
+        }
+        UUID tenantId = jwtUtil.extractTenantId(token); // ✅ Extract Tenant ID from JWT
+        System.out.println(tenantId + "tenant id");
+        TenantContext.setTenant(tenantId);
+        tenantSchemaUtil.switchToTenantSchema(); // ✅ Ensure schema is switched
+    }
+
+    /**
+     * ✅ Create a new Employee (Requires JWT Token)
+     */
+    @PostMapping
+    public ResponseEntity<Employee> createEmployee(@RequestHeader("Authorization") String token,
+                                                   @RequestBody @Valid Employee employee) {
+        setTenantSchemaFromToken(token); // ✅ Auto-switch tenant schema
+        Employee savedEmployee = employeeService.createEmployee(employee);
+        return ResponseEntity.ok(savedEmployee);
+    }
+
+    /**
+     * ✅ Get Employee by Email (Requires JWT Token)
+     */
+    @GetMapping("/{email}")
+    public ResponseEntity<Employee> getEmployeeByEmail(@RequestHeader("Authorization") String token,
+                                                       @PathVariable String email) {
+        setTenantSchemaFromToken(token);
+        Employee employee = employeeService.getEmployeeByEmail(email);
+        return ResponseEntity.ok(employee);
+    }
+
+    /**
+     * ✅ Update Employee by Email (Requires JWT Token)
+     */
+    @PutMapping("/{email}")
+    public ResponseEntity<Employee> updateEmployee(@RequestHeader("Authorization") String token,
+                                                   @PathVariable String email,
+                                                   @RequestBody @Valid Employee employee) {
+        setTenantSchemaFromToken(token);
+        Employee updatedEmployee = employeeService.updateEmployee(email, employee);
+        return ResponseEntity.ok(updatedEmployee);
+    }
+
+    /**
+     * ✅ Delete Employee by Email (Requires JWT Token)
+     */
+    @DeleteMapping("/{email}")
+    public ResponseEntity<String> deleteEmployee(@RequestHeader("Authorization") String token,
+                                                 @PathVariable String email) {
+        setTenantSchemaFromToken(token);
+        employeeService.deleteEmployee(email);
+        return ResponseEntity.ok("✅ Employee deleted successfully!");
+    }
+
+    /**
+     * ✅ Get All Employees (Requires JWT Token)
+     */
+    @GetMapping
+    public ResponseEntity<List<Employee>> getAllEmployees(@RequestHeader("Authorization") String token) {
+        setTenantSchemaFromToken(token);
+        List<Employee> employees = employeeService.getAllEmployees();
+        return ResponseEntity.ok(employees);
+    }
+}

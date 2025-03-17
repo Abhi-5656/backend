@@ -1,0 +1,43 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/wfm_core_db
+    username: postgres
+    password: G7xP2mQ9Zb4N8vK3
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update  # Set to 'none' since schema management is handled manually or via Flyway/Liquibase
+    properties:
+      hibernate:
+        multiTenancy: SCHEMA  # Enable schema-based multi-tenancy
+        tenant_identifier_resolver: com.example.config.TenantIdentifierResolver
+        multi_tenant_connection_provider: com.example.config.SchemaMultiTenantConnectionProvider
+        show_sql: true  # Set to true for debugging queries
+        format_sql: true
+  flyway:
+    enabled: false
+    baseline-on-migrate: true
+    default-schema: public  # Apply migrations to the public schema first
+    create-schemas: true  # Ensure new schemas are created automatically
+    locations: classpath:db/migration
+
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE  # Shows query parameters
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
