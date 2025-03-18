@@ -8,7 +8,8 @@ import com.wfm.experts.repository.tenant.common.EmployeeRepository;
 import com.wfm.experts.repository.tenant.common.RoleRepository;
 import com.wfm.experts.service.SubscriptionService;
 import com.wfm.experts.service.TenantService;
-import jdk.swing.interop.SwingInterOpUtils;
+import com.wfm.experts.util.TenantSchemaUtil;
+import com.wfm.experts.tenancy.TenantContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     private final TenantService tenantService;
     private final PasswordEncoder passwordEncoder;
     private final EntityManager entityManager;
+    private final TenantSchemaUtil tenantSchemaUtil;
 
     @Autowired
     public SubscriptionServiceImpl(
@@ -36,15 +38,21 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             RoleRepository roleRepository,
             TenantService tenantService,
             PasswordEncoder passwordEncoder,
-            EntityManager entityManager) {
+            EntityManager entityManager,
+            TenantSchemaUtil tenantSchemaUtil) {
         this.subscriptionRepository = subscriptionRepository;
         this.employeeRepository = employeeRepository;
         this.roleRepository = roleRepository;
         this.tenantService = tenantService;
         this.passwordEncoder = passwordEncoder;
         this.entityManager = entityManager;
+        this.tenantSchemaUtil = tenantSchemaUtil;
     }
 
+    /**
+     * ✅ Creates a new Tenant Subscription along with an Admin Employee.
+     * ✅ Ensures schema creation happens **before** any transactions.
+     */
     @Transactional
     @Override
     public Subscription createSubscription(
@@ -64,22 +72,19 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         String companyName = subscription.getCompanyName();
         String tenantSchema = convertCompanyNameToSchema(companyName);
 
-        // ✅ Step 1: Create Tenant Schema
-        Map<String, Object> tenantData = tenantService.createTenantSchema(companyName);  // 🔥 Updated return type
-        if (tenantData == null || !tenantData.containsKey("tenantId") || !tenantData.containsKey("tenantUrl")) {
+        // ✅ Step 1: Create Tenant Schema **before saving anything**
+        Map<String, Object> tenantData = tenantService.createTenantSchema(companyName);
+        if (tenantData == null || !tenantData.containsKey("tenantId") || !tenantData.containsKey("tenantSchema")) {
             throw new RuntimeException("❌ Error: Tenant schema creation failed.");
         }
 
         // ✅ Use UUID directly (No Conversion Needed)
         UUID tenantId = (UUID) tenantData.get("tenantId");
-        String tenantUrl = (String) tenantData.get("tenantUrl");
+        String tenantSchemaName = (String) tenantData.get("tenantSchema");
 
-        System.out.println("🔹 Tenant Created: ID = " + tenantId + ", URL = " + tenantUrl);
-
-        // ✅ Step 2: Assign Tenant ID & URL to Subscription **Before Saving**
-        subscription.setTenantId(tenantId);  // ✅ Using UUID directly
-        subscription.setTenantUrl(tenantUrl);
-        subscription.setTenantSchema(tenantSchema);
+        // ✅ Step 2: Assign Tenant ID & Schema to Subscription **Before Saving**
+        subscription.setTenantId(tenantId);
+        subscription.setTenantSchema(tenantSchemaName);
         subscription.setAdminEmail(email);
         subscription.setStatus("ACTIVE");
         subscription.setTransactionId("TXN-" + System.currentTimeMillis());
@@ -87,25 +92,27 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         subscription.setActivationDate(new Date());
         subscription.setCompanyGstNumber(subscription.getCompanyGstNumber());
 
-
-
-        // ✅ Step 3: Save Subscription (JPA will auto-save modules)
+        // ✅ Step 3: Save Subscription (No schema switch needed)
         Subscription savedSubscription = subscriptionRepository.save(subscription);
 
-        // ✅ Step 4: Switch to tenant schema and insert Employee
-        switchToTenantSchema(tenantSchema);  // ✅ Switched to UUID-based tenant schema
+        // ✅ Step 4: Now switch schema and create employee in tenant schema
         createEmployeeInTenant(tenantId, firstName, lastName, email, employeeId, phoneNumber);
 
         return savedSubscription;
     }
 
-
+    /**
+     * ✅ Fetch Subscription by ID.
+     */
     @Override
     public Subscription getSubscriptionById(Long id) {
         return subscriptionRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("❌ Subscription not found!"));
     }
 
+    /**
+     * ✅ Fetch All Subscriptions.
+     */
     @Override
     public List<Subscription> getAllSubscriptions() {
         return subscriptionRepository.findAll();
@@ -122,7 +129,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     }
 
     /**
-     * ✅ Creates an Employee in the Tenant with `tenantId`, ensuring `ADMIN` role exists.
+     * ✅ Creates an Admin Employee in the Tenant Schema.
      */
     private void createEmployeeInTenant(UUID tenantId, String firstName, String lastName, String email, String employeeId, String phoneNumber) {
         // ✅ Ensure ADMIN role exists (create it if necessary)
@@ -132,15 +139,19 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             return roleRepository.save(newAdminRole);
         });
 
+        // ✅ Switch to tenant schema before creating the employee
+        TenantContext.setTenant(tenantId); // Set tenant context before schema switching
+        tenantSchemaUtil.switchToTenantSchema(); // Switch schema to the correct tenant schema
+
         Employee employee = new Employee();
         employee.setFirstName(firstName);
         employee.setLastName(lastName);
         employee.setFullName(firstName.trim() + " " + lastName.trim());
         employee.setEmail(email);
         employee.setPhoneNumber(phoneNumber);
-        employee.setRole(adminRole);  // ✅ Use Role entity
+        employee.setRole(adminRole);
         employee.setEmployeeId(employeeId);
-        employee.setTenantId(tenantId); // ✅ Associate Employee with Tenant
+        employee.setTenantId(tenantId);
 
         String rawPassword = generateRandomPassword();
         employee.setPassword(passwordEncoder.encode(rawPassword));
@@ -150,20 +161,13 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     }
 
     /**
-     * ✅ Switches to the Tenant Schema.
-     */
-    private void switchToTenantSchema(String tenantSchema) {
-        entityManager.createNativeQuery("SET search_path TO " + tenantSchema).executeUpdate();
-    }
-
-    /**
      * ✅ Generates a Secure Random Password.
      */
     private String generateRandomPassword() {
         String characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%&!";
-        Random random = new SecureRandom();
+        SecureRandom random = new SecureRandom();
         StringBuilder password = new StringBuilder();
-        for (int i = 0; i < 10; i++) {  // ✅ Generates a 10-character secure password
+        for (int i = 0; i < 10; i++) {  // Generates a 10-character secure password
             password.append(characters.charAt(random.nextInt(characters.length())));
         }
         return password.toString();

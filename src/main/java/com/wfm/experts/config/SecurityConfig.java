@@ -19,7 +19,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.security.core.userdetails.UserDetailsService;
 
 /**
- * ✅ Security Configuration for JWT Authentication and API Security
+ * Security Configuration for JWT Authentication and API Security.
  */
 @Configuration
 public class SecurityConfig {
@@ -34,31 +34,34 @@ public class SecurityConfig {
         this.tenantSchemaUtil = tenantSchemaUtil;
     }
 
+    /**
+     * Configures Security Filters and Authorization Rules.
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .csrf(AbstractHttpConfigurer::disable)  // Disable CSRF for API authentication
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // Stateless (JWT only)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/subscriptions/**").permitAll()
-                        .anyRequest().authenticated()
+                        .requestMatchers("/api/auth/**").permitAll()  // Allow authentication endpoints
+                        .requestMatchers("/api/subscriptions/**").permitAll()  // Allow subscription endpoints
+                        .anyRequest().authenticated()  // Secure all other endpoints
                 )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class); // ✅ Add JWT Filter
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class); // Add JWT Filter
 
         return http.build();
     }
 
     /**
-     * ✅ Register `JwtAuthenticationFilter` as a Bean
+     * Registers `JwtAuthenticationFilter` Bean.
      */
     @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter(UserDetailsService userDetailsService, AuthenticationManager authenticationManager) {
-        return new JwtAuthenticationFilter(jwtUtil, userDetailsService,authenticationManager, tenantSchemaUtil);
+    public JwtAuthenticationFilter jwtAuthenticationFilter(UserDetailsService userDetailsService) {
+        return new JwtAuthenticationFilter(jwtUtil, userDetailsService, tenantSchemaUtil);
     }
 
     /**
-     * ✅ Define `UserDetailsService` with All Required Dependencies
+     * Registers `UserDetailsService` for authentication.
      */
     @Bean
     public UserDetailsService userDetailsService() {
@@ -66,7 +69,7 @@ public class SecurityConfig {
     }
 
     /**
-     * ✅ Password Encoder for Secure User Authentication
+     * Password Encoder for Secure User Authentication.
      */
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -74,7 +77,7 @@ public class SecurityConfig {
     }
 
     /**
-     * ✅ Provide `AuthenticationManager` Bean
+     * Provides `AuthenticationManager` Bean (Only needed for certain cases like username/password).
      */
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {

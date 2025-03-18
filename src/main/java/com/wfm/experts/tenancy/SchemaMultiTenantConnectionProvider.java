@@ -5,16 +5,24 @@ import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
 import java.sql.*;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
 
 /**
- * ✅ Provides multi-tenant database connections by switching schemas dynamically.
+ * ✅ Provides multi-tenant database connections by dynamically switching schemas.
+ * ✅ Uses `UUID tenantId` for secure schema resolution.
  */
 @Component
 public class SchemaMultiTenantConnectionProvider implements MultiTenantConnectionProvider {
 
     private final DataSource dataSource;
     private static final String DEFAULT_SCHEMA = "public";
+    private static final Logger LOGGER = Logger.getLogger(SchemaMultiTenantConnectionProvider.class.getName());
+
+    // ✅ Cache to store tenantId → schema mappings for better performance
+    private static final Map<UUID, String> tenantSchemaCache = new ConcurrentHashMap<>();
 
     public SchemaMultiTenantConnectionProvider(DataSource dataSource) {
         this.dataSource = dataSource;
@@ -32,7 +40,7 @@ public class SchemaMultiTenantConnectionProvider implements MultiTenantConnectio
 
         // ✅ Check if schema exists before switching
         if (!schemaExists(connection, schema)) {
-            System.err.println("❌ ERROR: Schema does not exist: " + schema + ". Falling back to default schema.");
+            LOGGER.warning("❌ Schema does not exist: " + schema + ". Falling back to default schema.");
             schema = DEFAULT_SCHEMA;
         }
 
@@ -52,15 +60,20 @@ public class SchemaMultiTenantConnectionProvider implements MultiTenantConnectio
      */
     private String resolveSchemaName(Connection connection, Object tenantIdentifier) throws SQLException {
         if (tenantIdentifier == null) {
-            return DEFAULT_SCHEMA;  // Use default schema if tenantIdentifier is null
+            return DEFAULT_SCHEMA;  // ✅ Use default schema if tenantIdentifier is null
         }
 
         UUID tenantUuid;
         try {
-            tenantUuid = UUID.fromString(tenantIdentifier.toString()); // Ensure valid UUID conversion
+            tenantUuid = UUID.fromString(tenantIdentifier.toString()); // ✅ Ensure valid UUID conversion
         } catch (IllegalArgumentException e) {
-            System.err.println("❌ ERROR: Invalid UUID format for tenant ID `" + tenantIdentifier + "`.");
-            return DEFAULT_SCHEMA; // Fallback to default schema
+            LOGGER.severe("❌ ERROR: Invalid UUID format for tenant ID `" + tenantIdentifier + "`.");
+            return DEFAULT_SCHEMA; // ✅ Fallback to default schema
+        }
+
+        // ✅ Check Cache Before Querying DB
+        if (tenantSchemaCache.containsKey(tenantUuid)) {
+            return tenantSchemaCache.get(tenantUuid);
         }
 
         // ✅ Fetch schema name from the subscriptions table using the tenant ID
@@ -69,9 +82,11 @@ public class SchemaMultiTenantConnectionProvider implements MultiTenantConnectio
             stmt.setObject(1, tenantUuid); // ✅ Correctly bind UUID type
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getString("tenant_schema"); // ✅ Return the actual schema name
+                    String schema = rs.getString("tenant_schema");
+                    tenantSchemaCache.put(tenantUuid, schema);  // ✅ Cache it for future use
+                    return schema;
                 } else {
-                    System.err.println("⚠️ WARNING: No schema mapping found for tenant ID `" + tenantIdentifier + "`.");
+                    LOGGER.warning("⚠️ No schema mapping found for tenant ID `" + tenantIdentifier + "`.");
                     return DEFAULT_SCHEMA;
                 }
             }
@@ -89,7 +104,7 @@ public class SchemaMultiTenantConnectionProvider implements MultiTenantConnectio
                 if (rs.next()) {
                     return true;
                 } else {
-                    System.err.println("⚠️ WARNING: Schema `" + schema + "` not found in database.");
+                    LOGGER.warning("⚠️ Schema `" + schema + "` not found in database.");
                     return false;
                 }
             }
@@ -103,7 +118,7 @@ public class SchemaMultiTenantConnectionProvider implements MultiTenantConnectio
         try (Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery("SHOW search_path")) {
             if (rs.next()) {
-                System.out.println("✅ Current Active Schema: " + rs.getString(1));
+                LOGGER.info("✅ Current Active Schema: " + rs.getString(1));
             }
         }
     }

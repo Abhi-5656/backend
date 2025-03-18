@@ -2,9 +2,7 @@ package com.wfm.experts.security;
 
 import com.wfm.experts.tenancy.TenantContext;
 import com.wfm.experts.util.TenantSchemaUtil;
-import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -15,24 +13,25 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
 import java.io.IOException;
 import java.util.UUID;
+import java.util.logging.Logger;
 
 /**
- * ✅ JWT Authentication Filter - Extracts token, verifies user, and sets security context.
+ * Custom JWT Authentication filter for extracting tenantId and authenticating the user.
  */
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    private static final Logger LOGGER = Logger.getLogger(JwtAuthenticationFilter.class.getName());
+
     private final JwtUtil jwtUtil;
     private final UserDetailsService userDetailsService;
-    private final AuthenticationManager authenticationManager;
     private final TenantSchemaUtil tenantSchemaUtil;
 
-    public JwtAuthenticationFilter(JwtUtil jwtUtil, UserDetailsService userDetailsService,
-                                   AuthenticationManager authenticationManager, TenantSchemaUtil tenantSchemaUtil) {
+    public JwtAuthenticationFilter(JwtUtil jwtUtil, UserDetailsService userDetailsService, TenantSchemaUtil tenantSchemaUtil) {
         this.jwtUtil = jwtUtil;
         this.userDetailsService = userDetailsService;
-        this.authenticationManager = authenticationManager;
         this.tenantSchemaUtil = tenantSchemaUtil;
     }
 
@@ -42,54 +41,53 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String authorizationHeader = request.getHeader("Authorization");
 
+        // If no "Bearer" token is present, skip further processing
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
             chain.doFilter(request, response);
             return;
         }
 
-        String token = authorizationHeader.substring(7); // Remove "Bearer " prefix
+        String token = authorizationHeader.substring(7); // Extract token by removing "Bearer "
 
         try {
-            // ✅ Extract details from JWT
+            // Extract tenantId from JWT token and set it in the context for tenant schema switching
+            UUID tenantId = extractTenantIdFromJwt(token);
+            TenantContext.setTenant(tenantId); // Store tenant context
+
+            // Extract the user email from JWT token
             String email = jwtUtil.extractEmail(token);
-            UUID tenantId = jwtUtil.extractTenantId(token);
+            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
-            if (email == null || tenantId == null) {
-                throw new RuntimeException("❌ Invalid token! Email or Tenant ID is missing.");
+            if (userDetails == null) {
+                throw new JwtException("User not found with email: " + email);
             }
 
-            // ✅ Validate token
-            if (!jwtUtil.validateToken(token, email)) {
-                throw new RuntimeException("❌ Token validation failed for user: " + email);
-            }
+            // Authenticate the user and set SecurityContext
+            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                    userDetails, null, userDetails.getAuthorities());
+            SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            // ✅ Set Tenant Context
-            TenantContext.setTenant(tenantId);
-
-            // ✅ Switch Schema - Validate before switching
+            // Proceed with the schema switch logic
             tenantSchemaUtil.switchToTenantSchema();
 
-            // ✅ Load user details from DB
-            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-            if (userDetails == null) {
-                throw new RuntimeException("❌ User not found: " + email);
-            }
-
-            // ✅ Authenticate user with Spring Security
-            UsernamePasswordAuthenticationToken authenticationToken =
-                    new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-            SecurityContextHolder.getContext().setAuthentication(authenticationToken);
-
-            System.out.println("✅ Authenticated User: " + email + " in Tenant Schema.");
-
-        } catch (ExpiredJwtException e) {
-            throw new RuntimeException("❌ Token expired! Please login again.", e);
-        } catch (JwtException e) {
-            throw new RuntimeException("❌ Invalid JWT Token! Cannot authenticate user.", e);
-        } catch (Exception e) {
-            throw new RuntimeException("❌ Authentication failed: " + e.getMessage(), e);
+        } catch (JwtException | IllegalArgumentException e) {
+            // If token is invalid, set the response to unauthorized
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("Invalid or expired JWT token");
+            return;
         }
 
-        chain.doFilter(request, response);
+        chain.doFilter(request, response); // Continue with the next filter in the chain
+    }
+
+    /**
+     * Extract tenant_id from the JWT token.
+     */
+    private UUID extractTenantIdFromJwt(String token) {
+        try {
+            return jwtUtil.extractTenantId(token); // Extract tenant ID from JWT
+        } catch (Exception e) {
+            throw new JwtException("Failed to extract tenantId from JWT: " + e.getMessage());
+        }
     }
 }

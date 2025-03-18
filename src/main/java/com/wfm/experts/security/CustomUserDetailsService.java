@@ -11,8 +11,8 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
-import java.util.UUID;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * ✅ Custom implementation of `UserDetailsService` to load Employee details for authentication.
@@ -48,13 +48,10 @@ public class CustomUserDetailsService implements UserDetailsService {
             throw new RuntimeException("❌ Error switching schema for Tenant ID: " + tenantId + " | " + e.getMessage());
         }
 
-        // ✅ Log before fetching user
-        System.out.println("🔍 Fetching user: " + email + " from schema: " + TenantContext.getTenant());
-
         // ✅ Fetch employee details from database
         Optional<Employee> optionalEmployee = employeeRepository.findByEmail(email);
         if (optionalEmployee.isEmpty()) {
-            throw new UsernameNotFoundException("❌ Employee not found with email: " + email + " in schema: " + TenantContext.getTenant());
+            throw new UsernameNotFoundException("❌ Employee not found with email: " + email);
         }
 
         Employee employee = optionalEmployee.get();
