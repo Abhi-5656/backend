@@ -24,11 +24,29 @@ public class TenantResolverServiceImpl implements TenantResolverService {
 
     /**
      * ✅ Resolves the `tenant_id` for a given email.
-     * ✅ Fetches it from the `subscriptions` table.
+     * ✅ Fetches it from the `subscriptions` table based on `companyDomain` (extracted from email).
      */
     @Override
     public UUID resolveTenantId(String email) {
-        Optional<UUID> tenantIdOpt = subscriptionRepository.findTenantIdByAdminEmail(email);
+        String emailDomain = extractEmailDomain(email);  // Extract domain part from email
+
+        System.out.println("Email domain: " + emailDomain);
+
+        // Find tenant ID based on the company domain
+        Optional<UUID> tenantIdOpt = subscriptionRepository.findByCompanyDomain(emailDomain);
+
+        System.out.println("Tenant ID: " + tenantIdOpt.orElse(null));
+
         return tenantIdOpt.orElse(null);  // 🔹 Return `null` if no matching tenant found
+    }
+
+    /**
+     * ✅ Helper method to extract email domain (the part after @)
+     */
+    private String extractEmailDomain(String email) {
+        if (email != null && email.contains("@")) {
+            return email.split("@")[1].toLowerCase();  // Extract the part after '@' (e.g., "wfmexperts.com")
+        }
+        throw new IllegalArgumentException("Invalid email format: " + email);
     }
 }

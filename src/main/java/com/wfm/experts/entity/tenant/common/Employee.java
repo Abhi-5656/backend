@@ -1,11 +1,14 @@
 package com.wfm.experts.entity.tenant.common;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
 import java.util.Date;
 import java.util.UUID;
 
@@ -15,7 +18,8 @@ import java.util.UUID;
 @Table(name = "employees",
         uniqueConstraints = {
                 @UniqueConstraint(columnNames = {"email"}),
-                @UniqueConstraint(columnNames = {"employeeId"})
+                @UniqueConstraint(columnNames = {"employeeId"}),
+                @UniqueConstraint(columnNames = {"phoneNumber"}) // ✅ Added Unique Constraint for Phone Number
         })
 public class Employee {
 
@@ -40,13 +44,14 @@ public class Employee {
     private String email;
 
     @NotBlank(message = "Phone number is required")
-    @Column(nullable = false)
+    @Size(max = 20, message = "Phone number must not exceed 20 characters")
+    @Column(nullable = false, unique = true, length = 20)  // ✅ Now Unique
     private String phoneNumber;
 
     @NotBlank(message = "Employee ID is required")
     @Length(max = 20, message = "Employee ID must not exceed 20 characters")
     @Column(nullable = false, unique = true, length = 20)
-    private String employeeId;  // ✅ Updated from `employeeCode` to `employeeId`
+    private String employeeId;  // ✅ Unique Employee ID
 
     @NotBlank(message = "Password is required")
     @Column(nullable = false)
@@ -56,10 +61,12 @@ public class Employee {
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
 
-    @Column(nullable = false)
-    private UUID tenantId;  // ✅ Added Tenant ID
+//    @Column(nullable = false)
+    @JsonIgnore
+    private UUID tenantId;  // ✅ Added Tenant ID for Multi-Tenancy
 
     @Temporal(TemporalType.TIMESTAMP)
+    @Column(updatable = false)
     private Date createdAt;
 
     @Temporal(TemporalType.TIMESTAMP)

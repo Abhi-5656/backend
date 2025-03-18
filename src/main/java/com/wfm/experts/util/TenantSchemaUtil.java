@@ -31,7 +31,7 @@ public class TenantSchemaUtil {
 
         // Handle the case where Tenant ID is missing in the context (public endpoints or error scenarios)
         if (tenantId == null) {
-            LOGGER.warning("❌ Tenant ID not set in context. Skipping schema switch.");
+            LOGGER.warning("Tenant ID not set in context. Skipping schema switch.");
 
             // If this is a public endpoint, don't need to throw an exception
             // Just skip the schema switch logic
@@ -46,7 +46,7 @@ public class TenantSchemaUtil {
                     .getSingleResult();
 
             if (schemaName == null || schemaName.isBlank()) {
-                throw new RuntimeException("❌ Tenant schema is empty. Check subscription data.");
+                throw new RuntimeException("Tenant schema is empty. Check subscription data.");
             }
 
             // Set schema dynamically for multi-tenancy
@@ -57,7 +57,7 @@ public class TenantSchemaUtil {
 
             LOGGER.info("✅ Switched to Tenant Schema: " + schemaName);
         } catch (Exception e) {
-            throw new RuntimeException("❌ Error switching to tenant schema: " + e.getMessage());
+            throw new RuntimeException("Error switching to tenant schema: " + e.getMessage());
         }
     }
 }

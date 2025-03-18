@@ -1,5 +1,6 @@
 package com.wfm.experts.entity.core;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -28,6 +29,7 @@ public class Subscription {
 
     // ✅ Remove @Id if tenantId is not the primary key
     @Column(nullable = false, unique = true, updatable = false, columnDefinition = "UUID DEFAULT gen_random_uuid()")
+    @JsonIgnore
     private UUID tenantId;
 
     @Column(nullable = false, unique = true)
@@ -66,10 +68,11 @@ public class Subscription {
     @Column(nullable = false)
     private boolean isActive = true;
 
-    @Column(nullable = true)
-    private String tenantUrl;
+    @Column(nullable = false)  // Updated to non-nullable
+    private String companyDomain;  // Renamed field for storing company email domain
 
     @Column(nullable = false)
+    @JsonIgnore
     private String tenantSchema;
 
     // ✅ JPA Will Automatically Save Modules When Saving Subscription

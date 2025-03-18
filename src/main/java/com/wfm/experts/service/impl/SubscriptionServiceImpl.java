@@ -65,7 +65,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
         // ✅ Validate GST Number Format
         if (!isValidGstNumber(subscription.getCompanyGstNumber())) {
-            throw new IllegalArgumentException("❌ Invalid GST Number format.");
+            throw new IllegalArgumentException("Invalid GST Number format.");
         }
 
         // ✅ Convert Company Name to Schema Format
@@ -75,7 +75,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         // ✅ Step 1: Create Tenant Schema **before saving anything**
         Map<String, Object> tenantData = tenantService.createTenantSchema(companyName);
         if (tenantData == null || !tenantData.containsKey("tenantId") || !tenantData.containsKey("tenantSchema")) {
-            throw new RuntimeException("❌ Error: Tenant schema creation failed.");
+            throw new RuntimeException("Error: Tenant schema creation failed.");
         }
 
         // ✅ Use UUID directly (No Conversion Needed)
@@ -88,9 +88,16 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         subscription.setAdminEmail(email);
         subscription.setStatus("ACTIVE");
         subscription.setTransactionId("TXN-" + System.currentTimeMillis());
+        // ✅ Set currency to INR by default
+        subscription.setCurrency("INR");
         subscription.setPurchaseDate(new Date());
         subscription.setActivationDate(new Date());
         subscription.setCompanyGstNumber(subscription.getCompanyGstNumber());
+
+
+        // ✅ Set company domain (the part after @ in the email)
+        String companyDomain = extractCompanyDomain(email);  // Extract domain (after @) from the email
+        subscription.setCompanyDomain(companyDomain);  // Set company domain in the subscription
 
         // ✅ Step 3: Save Subscription (No schema switch needed)
         Subscription savedSubscription = subscriptionRepository.save(subscription);
@@ -107,7 +114,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     @Override
     public Subscription getSubscriptionById(Long id) {
         return subscriptionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("❌ Subscription not found!"));
+                .orElseThrow(() -> new RuntimeException("Subscription not found!"));
     }
 
     /**
@@ -179,5 +186,15 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     private boolean isValidGstNumber(String gstNumber) {
         String gstRegex = "^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{1}[Z]{1}[0-9A-Z]{1}$";
         return gstNumber != null && gstNumber.matches(gstRegex);
+    }
+
+    // Helper method to extract company domain (the part after @)
+    private String extractCompanyDomain(String email) {
+        // Extracting the domain part after '@'
+        if (email != null && email.contains("@")) {
+            return email.split("@")[1].toLowerCase();  // Return the part after @ (e.g., "wfmexperts.com")
+        } else {
+            throw new IllegalArgumentException("Invalid email format: " + email);
+        }
     }
 }

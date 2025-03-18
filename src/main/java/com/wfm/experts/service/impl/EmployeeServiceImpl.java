@@ -26,10 +26,10 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Override
     public Employee authenticateByEmail(String email, String password) {
         Employee employee = employeeRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("❌ Employee not found in Tenant Schema!"));
+                .orElseThrow(() -> new RuntimeException("Employee not found in Tenant Schema!"));
 
         if (!passwordEncoder.matches(password, employee.getPassword())) {
-            throw new RuntimeException("❌ Invalid credentials!");
+            throw new RuntimeException("Invalid credentials!");
         }
         return employee;
     }
@@ -45,14 +45,14 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Override
     public Employee getEmployeeByEmail(String email) {
         return employeeRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("❌ Employee not found!"));
+                .orElseThrow(() -> new RuntimeException("Employee not found!"));
     }
 
     @Transactional
     @Override
     public Employee updateEmployee(String email, Employee updatedEmployee) {
         Employee existingEmployee = employeeRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("❌ Employee not found!"));
+                .orElseThrow(() -> new RuntimeException("Employee not found!"));
 
         existingEmployee.setFirstName(updatedEmployee.getFirstName());
         existingEmployee.setLastName(updatedEmployee.getLastName());
@@ -65,7 +65,7 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Override
     public void deleteEmployee(String email) {
         Employee employee = employeeRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("❌ Employee not found!"));
+                .orElseThrow(() -> new RuntimeException("Employee not found!"));
         employeeRepository.delete(employee);
     }
 

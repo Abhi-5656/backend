@@ -38,20 +38,20 @@ public class CustomUserDetailsService implements UserDetailsService {
         // ✅ Retrieve tenant context
         UUID tenantId = TenantContext.getTenant();
         if (tenantId == null) {
-            throw new RuntimeException("❌ Tenant ID is missing. Cannot authenticate user!");
+            throw new RuntimeException("Tenant ID is missing. Cannot authenticate user!");
         }
 
         // ✅ Ensure the schema switch is successful
         try {
             tenantSchemaUtil.switchToTenantSchema();
         } catch (Exception e) {
-            throw new RuntimeException("❌ Error switching schema for Tenant ID: " + tenantId + " | " + e.getMessage());
+            throw new RuntimeException("Error switching schema for Tenant ID: " + tenantId + " | " + e.getMessage());
         }
 
         // ✅ Fetch employee details from database
         Optional<Employee> optionalEmployee = employeeRepository.findByEmail(email);
         if (optionalEmployee.isEmpty()) {
-            throw new UsernameNotFoundException("❌ Employee not found with email: " + email);
+            throw new UsernameNotFoundException("Employee not found with email: " + email);
         }
 
         Employee employee = optionalEmployee.get();

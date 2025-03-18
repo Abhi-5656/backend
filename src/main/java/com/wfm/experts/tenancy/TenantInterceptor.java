@@ -47,7 +47,7 @@ public class TenantInterceptor implements HandlerInterceptor {
         // Extract tenantId from JWT Token
         UUID tenantId = extractTenantId(request);
         if (tenantId == null) {
-            throw new RuntimeException("❌ Missing Tenant ID! Please provide a valid JWT token.");
+            throw new RuntimeException("Missing Tenant ID! Please provide a valid JWT token.");
         }
 
         // Set the Tenant ID in the TenantContext for schema switching

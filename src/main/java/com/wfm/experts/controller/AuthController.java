@@ -41,10 +41,13 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestBody @Valid AuthRequest request) {
 
+
         // ✅ Extract tenant_id dynamically from email
         UUID tenantId = tenantResolverService.resolveTenantId(request.getEmail());
+
+
         if (tenantId == null) {
-            throw new RuntimeException("❌ Tenant ID not found for this email.");
+            throw new RuntimeException("Tenant ID not found for this email.");
         }
 
         // ✅ Store Tenant ID in Context and Switch Schema
