@@ -67,29 +67,8 @@ public class AuthController {
         // ✅ Get Token Expiry Date
         Date expiryDate = jwtUtil.getTokenExpiryDate(token);
 
-        return ResponseEntity.ok(new AuthResponse(token, refreshToken, expiryDate, "Bearer"));
+        return ResponseEntity.ok(new AuthResponse(token, expiryDate, "Bearer"));
     }
 
-    /**
-     * ✅ Refresh JWT Token using Refresh Token.
-     */
-    @PostMapping("/refresh-token")
-    public ResponseEntity<AuthResponse> refreshToken(@RequestBody String refreshToken) {
-        try {
-            String email = jwtUtil.extractEmail(refreshToken);
-            UUID tenantId = tenantResolverService.resolveTenantId(email);
 
-            if (!jwtUtil.validateToken(refreshToken, email)) {
-                throw new RuntimeException("❌ Invalid refresh token.");
-            }
-
-            // ✅ Generate a new JWT Token
-            String newToken = jwtUtil.generateToken(email, tenantId, "USER");
-
-            return ResponseEntity.ok(new AuthResponse(newToken, refreshToken, jwtUtil.getTokenExpiryDate(newToken), "Bearer"));
-
-        } catch (Exception e) {
-            return ResponseEntity.status(401).body(new AuthResponse(null, null, null, "❌ Token refresh failed: " + e.getMessage()));
-        }
-    }
 }

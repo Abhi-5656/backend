@@ -15,7 +15,7 @@ import java.util.Date;
 public class AuthResponse {
 
     private String token;        // ✅ JWT access token
-    private String refreshToken; // ✅ Refresh token for renewing access
+//    private String refreshToken; // ✅ Refresh token for renewing access
     private Date expiryDate;     // ✅ Token expiration time
     private String tokenType;    // ✅ Usually "Bearer"
 }
