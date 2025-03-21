@@ -10,7 +10,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 import java.util.Date;
-import java.util.UUID;
 
 @Getter
 @Setter
@@ -19,7 +18,7 @@ import java.util.UUID;
         uniqueConstraints = {
                 @UniqueConstraint(columnNames = {"email"}),
                 @UniqueConstraint(columnNames = {"employeeId"}),
-                @UniqueConstraint(columnNames = {"phoneNumber"}) // ✅ Added Unique Constraint for Phone Number
+                @UniqueConstraint(columnNames = {"phoneNumber"}) // ✅ Unique Constraint for Phone Number
         })
 public class Employee {
 
@@ -45,7 +44,7 @@ public class Employee {
 
     @NotBlank(message = "Phone number is required")
     @Size(max = 20, message = "Phone number must not exceed 20 characters")
-    @Column(nullable = false, unique = true, length = 20)  // ✅ Now Unique
+    @Column(nullable = false, unique = true, length = 20)  // ✅ Unique Constraint
     private String phoneNumber;
 
     @NotBlank(message = "Employee ID is required")
@@ -61,9 +60,8 @@ public class Employee {
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
 
-//    @Column(nullable = false)
     @JsonIgnore
-    private UUID tenantId;  // ✅ Added Tenant ID for Multi-Tenancy
+    private String tenantId;
 
     @Temporal(TemporalType.TIMESTAMP)
     @Column(updatable = false)

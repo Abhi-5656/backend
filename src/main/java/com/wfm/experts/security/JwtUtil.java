@@ -2,12 +2,13 @@ package com.wfm.experts.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
 import java.util.Date;
-import java.util.UUID;
 import java.util.function.Function;
+import java.util.logging.Logger;
 
 /**
  * ✅ Utility class for generating and validating JWT tokens.
@@ -16,28 +17,37 @@ import java.util.function.Function;
 @Component
 public class JwtUtil {
 
-    private static final String SECRET_KEY = "your-very-secure-secret-key-must-be-32bytes";  // 🔹 Use .env or config file in production
-    private static final long ACCESS_TOKEN_EXPIRATION = 1000 * 60 * 60 * 10;  // 🔹 10 hours
-    private static final long REFRESH_TOKEN_EXPIRATION = 1000 * 60 * 60 * 24 * 7;  // 🔹 7 days
+    private static final Logger LOGGER = Logger.getLogger(JwtUtil.class.getName());
 
-    private final Key key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes());  // 🔹 Generates secure 256-bit key
+    @Value("${jwt.secret}")  // 🔹 Load from application.properties or .env
+    private String secretKey;
+
+    private final long ACCESS_TOKEN_EXPIRATION = 1000 * 60 * 60 * 10;  // 🔹 10 hours
+    private final long REFRESH_TOKEN_EXPIRATION = 1000 * 60 * 60 * 24 * 7;  // 🔹 7 days
+
+    /**
+     * ✅ Generates a secure key from the configured secret.
+     */
+    private Key getSigningKey() {
+        return Keys.hmacShaKeyFor(secretKey.getBytes());
+    }
 
     /**
      * ✅ Generates a JWT Access Token with multi-tenant details.
      *
      * @param email    User's email
-     * @param tenantId Tenant ID (UUID)
+     * @param tenantId Tenant ID (String-based)
      * @param role     User Role (ADMIN, MANAGER, EMPLOYEE, etc.)
      * @return JWT Access Token
      */
-    public String generateToken(String email, UUID tenantId, String role) {
+    public String generateToken(String email, String tenantId, String role) {
         return Jwts.builder()
                 .setSubject(email)
-                .claim("tenantId", tenantId.toString())  // 🔹 Store UUID as String
+                .claim("tenantId", tenantId)  // 🔹 Store as String
                 .claim("role", role)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + ACCESS_TOKEN_EXPIRATION))
-                .signWith(key, SignatureAlgorithm.HS256)
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
@@ -45,25 +55,27 @@ public class JwtUtil {
      * ✅ Extracts Claims from a JWT Token.
      */
     private Claims extractAllClaims(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())  // 🔹 Secure parsing
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (JwtException e) {
+            LOGGER.warning("JWT parsing failed: " + e.getMessage());
+            throw new JwtException("Invalid JWT token");
+        }
     }
 
     /**
      * ✅ Generates a Refresh Token for renewing access tokens.
-     *
-     * @param email User's email
-     * @return Refresh Token
      */
     public String generateRefreshToken(String email) {
         return Jwts.builder()
                 .setSubject(email)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + REFRESH_TOKEN_EXPIRATION))
-                .signWith(key, SignatureAlgorithm.HS256)
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
@@ -83,11 +95,10 @@ public class JwtUtil {
     }
 
     /**
-     * ✅ Extracts Tenant ID from JWT as `UUID`.
+     * ✅ Extracts Tenant ID from JWT as **String**.
      */
-    public UUID extractTenantId(String token) {
-        String tenantIdString = extractClaim(token, claims -> claims.get("tenantId", String.class));
-        return UUID.fromString(tenantIdString);  // 🔹 Convert back to UUID
+    public String extractTenantId(String token) {
+        return extractClaim(token, claims -> claims.get("tenantId", String.class));  // 🔹 No UUID conversion
     }
 
     /**
@@ -108,8 +119,13 @@ public class JwtUtil {
      * ✅ Validates JWT Token.
      */
     public boolean validateToken(String token, String email) {
-        final String extractedEmail = extractEmail(token);
-        return (extractedEmail.equals(email) && !isTokenExpired(token));
+        try {
+            final String extractedEmail = extractEmail(token);
+            return (extractedEmail.equals(email) && !isTokenExpired(token));
+        } catch (JwtException e) {
+            LOGGER.warning("JWT validation failed: " + e.getMessage());
+            return false;
+        }
     }
 
     /**

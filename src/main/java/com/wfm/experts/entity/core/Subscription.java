@@ -4,17 +4,13 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.Generated;
-import org.hibernate.annotations.GenerationTime;
 
 import java.util.Date;
-import java.util.List;
-import java.util.UUID;
 
 @Getter
 @Setter
 @Entity
-@Table(name = "subscriptions", schema = "public")
+@Table(name = "subscriptions", schema = "public")  // Subscription table in public schema
 public class Subscription {
 
     @Id
@@ -24,16 +20,15 @@ public class Subscription {
     @Column(nullable = false)
     private String entityType;
 
-    @Column(nullable = false)
-    private String companyName;
+    @Column(nullable = false, unique = true)
+    private String companyName;  // The company name (Used to derive `tenantId`)
 
-    // ✅ Remove @Id if tenantId is not the primary key
-    @Column(nullable = false, unique = true, updatable = false, columnDefinition = "UUID DEFAULT gen_random_uuid()")
+    @Column(nullable = false, unique = true, updatable = false, length = 50)
     @JsonIgnore
-    private UUID tenantId;
+    private String tenantId;  // 🔹 Derived from `companyName` (used for path-based multi-tenancy)
 
     @Column(nullable = false, unique = true)
-    private String adminEmail;
+    private String adminEmail;  // Email of the admin user of the tenant
 
     @Column(nullable = false)
     private String subscriptionType;
@@ -68,17 +63,9 @@ public class Subscription {
     @Column(nullable = false)
     private boolean isActive = true;
 
-    @Column(nullable = false)  // Updated to non-nullable
-    private String companyDomain;  // Renamed field for storing company email domain
-
     @Column(nullable = false)
     @JsonIgnore
-    private String tenantSchema;
-
-    // ✅ JPA Will Automatically Save Modules When Saving Subscription
-    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
-    @JoinColumn(name = "subscription_id")
-    private List<SubscriptionModule> modules;
+    private String tenantSchema;  // 🔹 Database schema corresponding to this tenant
 
     @PrePersist
     protected void onCreate() {

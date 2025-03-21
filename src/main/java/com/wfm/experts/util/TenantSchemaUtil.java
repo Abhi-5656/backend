@@ -5,14 +5,12 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.UUID;
 import java.util.logging.Logger;
 
 /**
- * Utility class for managing multi-tenant schema switching dynamically.
- * Ensures database queries run under the correct tenant schema.
+ * ✅ Utility for dynamically switching schemas in a multi-tenant database.
  */
+
 @Component
 public class TenantSchemaUtil {
 
@@ -25,17 +23,13 @@ public class TenantSchemaUtil {
      * Automatically switches to the correct schema based on the tenantId stored in TenantContext.
      */
     @Transactional
-    public void switchToTenantSchema() {
-        // Retrieve the tenantId from the TenantContext (set by JwtAuthenticationFilter)
-        UUID tenantId = TenantContext.getTenant();
+    public void ensureTenantSchemaIsSet() {
+        // Retrieve the tenantId from the TenantContext
+        String tenantId = TenantContext.getTenant();
 
-        // Handle the case where Tenant ID is missing in the context (public endpoints or error scenarios)
         if (tenantId == null) {
             LOGGER.warning("Tenant ID not set in context. Skipping schema switch.");
-
-            // If this is a public endpoint, don't need to throw an exception
-            // Just skip the schema switch logic
-            return;  // Skip schema switching
+            return;  // Skip schema switching if no tenant context is set
         }
 
         try {
@@ -52,12 +46,10 @@ public class TenantSchemaUtil {
             // Set schema dynamically for multi-tenancy
             entityManager.createNativeQuery("SET search_path TO " + schemaName).executeUpdate();
 
-            // Store tenant in context for thread safety (already set by JwtAuthenticationFilter, but ensuring it here)
-            TenantContext.setTenant(tenantId);
-
             LOGGER.info("✅ Switched to Tenant Schema: " + schemaName);
         } catch (Exception e) {
             throw new RuntimeException("Error switching to tenant schema: " + e.getMessage());
         }
     }
 }
+

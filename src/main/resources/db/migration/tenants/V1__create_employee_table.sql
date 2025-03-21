@@ -25,12 +25,15 @@ CREATE TABLE IF NOT EXISTS employees (
     phone_number VARCHAR(20) UNIQUE NOT NULL,  -- ✅ Now Unique
     employee_id VARCHAR(50) UNIQUE NOT NULL,  -- ✅ Unique Employee ID
     password VARCHAR(255) NOT NULL,  -- ✅ Store Encrypted Password
-    tenant_id UUID,  -- ✅ Tenant ID as UUID for Multi-Tenancy
+    tenant_id VARCHAR(50),  -- ✅ Changed from UUID to STRING for Multi-Tenancy
     role_id INT NOT NULL,  -- ✅ Reference Role Table
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- ✅ Default on Insert
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- ✅ Initial Default
     CONSTRAINT fk_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
     );
+
+-- ✅ Create Index for Faster Lookups on `tenant_id`
+CREATE INDEX idx_employees_tenant_id ON employees(tenant_id);
 
 -- ✅ Create Trigger Function to Auto-Update `updated_at`
 CREATE OR REPLACE FUNCTION update_updated_at_column()

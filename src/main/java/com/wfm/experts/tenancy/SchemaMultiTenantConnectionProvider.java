@@ -6,13 +6,12 @@ import org.springframework.stereotype.Component;
 import javax.sql.DataSource;
 import java.sql.*;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 /**
  * ✅ Provides multi-tenant database connections by dynamically switching schemas.
- * ✅ Uses `UUID tenantId` for secure schema resolution.
+ * ✅ Uses `String tenantId` for secure schema resolution.
  */
 @Component
 public class SchemaMultiTenantConnectionProvider implements MultiTenantConnectionProvider {
@@ -22,7 +21,7 @@ public class SchemaMultiTenantConnectionProvider implements MultiTenantConnectio
     private static final Logger LOGGER = Logger.getLogger(SchemaMultiTenantConnectionProvider.class.getName());
 
     // ✅ Cache to store tenantId → schema mappings for better performance
-    private static final Map<UUID, String> tenantSchemaCache = new ConcurrentHashMap<>();
+    private static final Map<String, String> tenantSchemaCache = new ConcurrentHashMap<>();
 
     public SchemaMultiTenantConnectionProvider(DataSource dataSource) {
         this.dataSource = dataSource;
@@ -63,30 +62,24 @@ public class SchemaMultiTenantConnectionProvider implements MultiTenantConnectio
             return DEFAULT_SCHEMA;  // ✅ Use default schema if tenantIdentifier is null
         }
 
-        UUID tenantUuid;
-        try {
-            tenantUuid = UUID.fromString(tenantIdentifier.toString()); // ✅ Ensure valid UUID conversion
-        } catch (IllegalArgumentException e) {
-            LOGGER.severe("❌ ERROR: Invalid UUID format for tenant ID `" + tenantIdentifier + "`.");
-            return DEFAULT_SCHEMA; // ✅ Fallback to default schema
-        }
+        String tenantId = tenantIdentifier.toString(); // ✅ Handle tenantId as String
 
         // ✅ Check Cache Before Querying DB
-        if (tenantSchemaCache.containsKey(tenantUuid)) {
-            return tenantSchemaCache.get(tenantUuid);
+        if (tenantSchemaCache.containsKey(tenantId)) {
+            return tenantSchemaCache.get(tenantId);
         }
 
         // ✅ Fetch schema name from the subscriptions table using the tenant ID
         String query = "SELECT tenant_schema FROM public.subscriptions WHERE tenant_id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setObject(1, tenantUuid); // ✅ Correctly bind UUID type
+            stmt.setString(1, tenantId); // ✅ Correctly bind String type
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     String schema = rs.getString("tenant_schema");
-                    tenantSchemaCache.put(tenantUuid, schema);  // ✅ Cache it for future use
+                    tenantSchemaCache.put(tenantId, schema);  // ✅ Cache it for future use
                     return schema;
                 } else {
-                    LOGGER.warning("⚠️ No schema mapping found for tenant ID `" + tenantIdentifier + "`.");
+                    LOGGER.warning("⚠️ No schema mapping found for tenant ID `" + tenantId + "`.");
                     return DEFAULT_SCHEMA;
                 }
             }

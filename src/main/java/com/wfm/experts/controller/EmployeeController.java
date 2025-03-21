@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 import java.util.List;
-import java.util.UUID;
+import java.util.Optional;
 
 /**
  * ✅ Employee Controller - Provides CRUD APIs for Employees.
@@ -37,10 +37,11 @@ public class EmployeeController {
         if (token != null && token.startsWith("Bearer")) {
             token = token.substring(7); // ✅ Remove "Bearer " prefix
         }
-        UUID tenantId = jwtUtil.extractTenantId(token); // ✅ Extract Tenant ID from JWT
-        System.out.println(tenantId + "tenant id");
+        String tenantId = jwtUtil.extractTenantId(token); // ✅ Extract Tenant ID from JWT
+
+        // ✅ Set Tenant Context (Important for Schema Switching)
         TenantContext.setTenant(tenantId);
-        tenantSchemaUtil.switchToTenantSchema(); // ✅ Ensure schema is switched
+        tenantSchemaUtil.ensureTenantSchemaIsSet(); // ✅ Ensure schema switch
     }
 
     /**
@@ -61,8 +62,8 @@ public class EmployeeController {
     public ResponseEntity<Employee> getEmployeeByEmail(@RequestHeader("Authorization") String token,
                                                        @PathVariable String email) {
         setTenantSchemaFromToken(token);
-        Employee employee = employeeService.getEmployeeByEmail(email);
-        return ResponseEntity.ok(employee);
+        Optional<Employee> employee = employeeService.getEmployeeByEmail(email);
+        return employee.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     /**

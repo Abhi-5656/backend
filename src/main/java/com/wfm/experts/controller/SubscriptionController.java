@@ -33,16 +33,5 @@ public class SubscriptionController {
         return ResponseEntity.ok(createdSubscription);
     }
 
-    // ✅ Get Subscription by ID
-    @GetMapping("/{id}")
-    public ResponseEntity<Subscription> getSubscriptionById(@PathVariable Long id) {
-        return ResponseEntity.ok(subscriptionService.getSubscriptionById(id));
-    }
-
-    // ✅ Get All Subscriptions
-    @GetMapping("/all")
-    public ResponseEntity<?> getAllSubscriptions() {
-        return ResponseEntity.ok(subscriptionService.getAllSubscriptions());
-    }
 
 }

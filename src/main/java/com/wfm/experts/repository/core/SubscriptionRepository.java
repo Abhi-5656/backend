@@ -12,19 +12,18 @@ import java.util.UUID;
 @Repository
 public interface SubscriptionRepository extends JpaRepository<Subscription, Long> {
 
-    // ✅ Find Subscription by ID
-    Optional<Subscription> findById(Long id);
+
+    // ✅ Check if a tenant exists by `tenantId`
+    boolean existsByTenantId(String tenantId);
+
+    // ✅ Find a tenant by `tenantId`
+    Optional<Subscription> findByTenantId(String tenantId);
+
 
     /**
-     * ✅ Fetches `tenant_id` by admin email.
+     * ✅ Finds the Tenant ID based on the provided schema name.
      */
-    @Query("SELECT s.tenantId FROM Subscription s WHERE s.adminEmail = :email")
-    Optional<UUID> findTenantIdByAdminEmail(String email);
+    Optional<String> findTenantIdByTenantSchema(String tenantSchema);
 
-    /**
-     * ✅ Find the `tenantId` by `companyDomain`.
-     * This query selects only the tenantId from the subscriptions table.
-     */
-    @Query("SELECT s.tenantId FROM Subscription s WHERE s.companyDomain = :companyDomain")
-    Optional<UUID> findByCompanyDomain(String companyDomain);  // Query to fetch only the tenantId
+
 }

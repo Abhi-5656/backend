@@ -28,18 +28,5 @@ public interface SubscriptionService {
             String phoneNumber
     ) throws Exception;
 
-    /**
-     * ✅ Retrieves a subscription by ID.
-     */
-    Subscription getSubscriptionById(Long id);
-
-    /**
-     * ✅ Retrieves all subscriptions.
-     */
-    List<Subscription> getAllSubscriptions();
-
-    // ✅ Find Subscription by Tenant ID (Use UUID)
-//    Optional<Subscription> findByTenantId(UUID tenantId);
-
 
 }

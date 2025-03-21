@@ -1,45 +1,37 @@
 package com.wfm.experts.service;
 
 import com.wfm.experts.entity.tenant.common.Employee;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import java.util.List;
-import java.util.UUID;
+import java.util.Optional;
 
-public interface EmployeeService {
-
-    /**
-     * ✅ Authenticate an Employee using Email & Password in a given Tenant
-     */
-    @Transactional
-    Employee authenticateByEmail(String email, String password);
+/**
+ * ✅ Service interface for Employee operations.
+ */
+public interface EmployeeService extends UserDetailsService {
 
     /**
-     * ✅ Create a new Employee
+     * ✅ Create a new employee.
      */
-    @Transactional
     Employee createEmployee(Employee employee);
 
     /**
-     * ✅ Get an Employee by Email
+     * ✅ Get an employee by email.
      */
-    @Transactional(readOnly = true)
-    Employee getEmployeeByEmail(String email);
+    Optional<Employee> getEmployeeByEmail(String email);
 
     /**
-     * ✅ Update an Employee
+     * ✅ Get all employees.
      */
-    @Transactional
-    Employee updateEmployee(String email, Employee employee);
-
-    /**
-     * ✅ Delete an Employee
-     */
-    @Transactional
-    void deleteEmployee(String email);
-
-    /**
-     * ✅ Get All Employees
-     */
-    @Transactional(readOnly = true)
     List<Employee> getAllEmployees();
+
+    /**
+     * ✅ Update an employee by email.
+     */
+    Employee updateEmployee(String email, Employee updatedEmployee);
+
+    /**
+     * ✅ Delete an employee by email.
+     */
+    void deleteEmployee(String email);
 }

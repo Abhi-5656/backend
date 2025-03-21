@@ -8,16 +8,15 @@ import com.wfm.experts.repository.tenant.common.EmployeeRepository;
 import com.wfm.experts.repository.tenant.common.RoleRepository;
 import com.wfm.experts.service.SubscriptionService;
 import com.wfm.experts.service.TenantService;
-import com.wfm.experts.util.TenantSchemaUtil;
+import com.wfm.experts.util.TenantIdUtil;
 import com.wfm.experts.tenancy.TenantContext;
+import com.wfm.experts.util.TenantSchemaUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.persistence.EntityManager;
 import java.security.SecureRandom;
-import java.text.Normalizer;
 import java.util.*;
 
 @Service
@@ -28,7 +27,6 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     private final RoleRepository roleRepository;
     private final TenantService tenantService;
     private final PasswordEncoder passwordEncoder;
-    private final EntityManager entityManager;
     private final TenantSchemaUtil tenantSchemaUtil;
 
     @Autowired
@@ -37,21 +35,17 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             EmployeeRepository employeeRepository,
             RoleRepository roleRepository,
             TenantService tenantService,
-            PasswordEncoder passwordEncoder,
-            EntityManager entityManager,
-            TenantSchemaUtil tenantSchemaUtil) {
+            PasswordEncoder passwordEncoder, TenantSchemaUtil tenantSchemaUtil) {
         this.subscriptionRepository = subscriptionRepository;
         this.employeeRepository = employeeRepository;
         this.roleRepository = roleRepository;
         this.tenantService = tenantService;
         this.passwordEncoder = passwordEncoder;
-        this.entityManager = entityManager;
         this.tenantSchemaUtil = tenantSchemaUtil;
     }
 
     /**
      * ✅ Creates a new Tenant Subscription along with an Admin Employee.
-     * ✅ Ensures schema creation happens **before** any transactions.
      */
     @Transactional
     @Override
@@ -68,78 +62,41 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             throw new IllegalArgumentException("Invalid GST Number format.");
         }
 
-        // ✅ Convert Company Name to Schema Format
-        String companyName = subscription.getCompanyName();
-        String tenantSchema = convertCompanyNameToSchema(companyName);
+        // ✅ Generate `tenantId` from company name using the utility function
+        String tenantId = TenantIdUtil.generateTenantId(subscription.getCompanyName());
 
-        // ✅ Step 1: Create Tenant Schema **before saving anything**
-        Map<String, Object> tenantData = tenantService.createTenantSchema(companyName);
-        if (tenantData == null || !tenantData.containsKey("tenantId") || !tenantData.containsKey("tenantSchema")) {
+        // ✅ Step 1: Create Tenant Schema before saving anything
+        Map<String, Object> tenantData = tenantService.createTenantSchema(subscription.getCompanyName());
+        if (tenantData == null || !tenantData.containsKey("tenantSchema")) {
             throw new RuntimeException("Error: Tenant schema creation failed.");
         }
 
-        // ✅ Use UUID directly (No Conversion Needed)
-        UUID tenantId = (UUID) tenantData.get("tenantId");
         String tenantSchemaName = (String) tenantData.get("tenantSchema");
 
-        // ✅ Step 2: Assign Tenant ID & Schema to Subscription **Before Saving**
+        // ✅ Step 2: Set Subscription Details Before Saving
         subscription.setTenantId(tenantId);
         subscription.setTenantSchema(tenantSchemaName);
         subscription.setAdminEmail(email);
         subscription.setStatus("ACTIVE");
         subscription.setTransactionId("TXN-" + System.currentTimeMillis());
-        // ✅ Set currency to INR by default
-        subscription.setCurrency("INR");
+        subscription.setCurrency("INR"); // Default currency
         subscription.setPurchaseDate(new Date());
         subscription.setActivationDate(new Date());
-        subscription.setCompanyGstNumber(subscription.getCompanyGstNumber());
 
-
-        // ✅ Set company domain (the part after @ in the email)
-        String companyDomain = extractCompanyDomain(email);  // Extract domain (after @) from the email
-        subscription.setCompanyDomain(companyDomain);  // Set company domain in the subscription
-
-        // ✅ Step 3: Save Subscription (No schema switch needed)
+        // ✅ Step 3: Save Subscription
         Subscription savedSubscription = subscriptionRepository.save(subscription);
 
-        // ✅ Step 4: Now switch schema and create employee in tenant schema
+        // ✅ Step 4: Create Admin Employee in Tenant Schema
         createEmployeeInTenant(tenantId, firstName, lastName, email, employeeId, phoneNumber);
 
         return savedSubscription;
     }
 
     /**
-     * ✅ Fetch Subscription by ID.
-     */
-    @Override
-    public Subscription getSubscriptionById(Long id) {
-        return subscriptionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Subscription not found!"));
-    }
-
-    /**
-     * ✅ Fetch All Subscriptions.
-     */
-    @Override
-    public List<Subscription> getAllSubscriptions() {
-        return subscriptionRepository.findAll();
-    }
-
-    /**
-     * ✅ Converts company name to a valid schema name.
-     */
-    private String convertCompanyNameToSchema(String companyName) {
-        return Normalizer.normalize(companyName, Normalizer.Form.NFD)
-                .replaceAll("[^\\p{ASCII}]", "")  // Remove non-ASCII characters
-                .replaceAll("\\s+", "_")         // Replace spaces with underscores
-                .toLowerCase();
-    }
-
-    /**
      * ✅ Creates an Admin Employee in the Tenant Schema.
      */
-    private void createEmployeeInTenant(UUID tenantId, String firstName, String lastName, String email, String employeeId, String phoneNumber) {
-        // ✅ Ensure ADMIN role exists (create it if necessary)
+    private void createEmployeeInTenant(String tenantId, String firstName, String lastName, String email, String employeeId, String phoneNumber) {
+        // ✅ Ensure ADMIN role exists
         Role adminRole = roleRepository.findByRoleName("ADMIN").orElseGet(() -> {
             Role newAdminRole = new Role();
             newAdminRole.setRoleName("ADMIN");
@@ -147,8 +104,10 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         });
 
         // ✅ Switch to tenant schema before creating the employee
-        TenantContext.setTenant(tenantId); // Set tenant context before schema switching
-        tenantSchemaUtil.switchToTenantSchema(); // Switch schema to the correct tenant schema
+        TenantContext.setTenant(tenantId);
+        // ✅ Ensure Schema is Set Before Saving Employee (Fix for transactions)
+        tenantSchemaUtil.ensureTenantSchemaIsSet();
+
 
         Employee employee = new Employee();
         employee.setFirstName(firstName);
@@ -164,7 +123,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         employee.setPassword(passwordEncoder.encode(rawPassword));
 
         employeeRepository.save(employee);
-        System.out.println("🔹 Admin Employee Created: " + email + " | Password: " + rawPassword);
+        System.out.println("Admin Employee Created: " + email + " | Password: " + rawPassword);
     }
 
     /**
@@ -174,7 +133,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         String characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%&!";
         SecureRandom random = new SecureRandom();
         StringBuilder password = new StringBuilder();
-        for (int i = 0; i < 10; i++) {  // Generates a 10-character secure password
+        for (int i = 0; i < 10; i++) {
             password.append(characters.charAt(random.nextInt(characters.length())));
         }
         return password.toString();
@@ -186,15 +145,5 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     private boolean isValidGstNumber(String gstNumber) {
         String gstRegex = "^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{1}[Z]{1}[0-9A-Z]{1}$";
         return gstNumber != null && gstNumber.matches(gstRegex);
-    }
-
-    // Helper method to extract company domain (the part after @)
-    private String extractCompanyDomain(String email) {
-        // Extracting the domain part after '@'
-        if (email != null && email.contains("@")) {
-            return email.split("@")[1].toLowerCase();  // Return the part after @ (e.g., "wfmexperts.com")
-        } else {
-            throw new IllegalArgumentException("Invalid email format: " + email);
-        }
     }
 }

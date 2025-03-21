@@ -5,16 +5,16 @@ import com.wfm.experts.dto.tenant.common.AuthResponse;
 import com.wfm.experts.entity.tenant.common.Employee;
 import com.wfm.experts.security.JwtUtil;
 import com.wfm.experts.service.EmployeeService;
-import com.wfm.experts.service.TenantResolverService;
 import com.wfm.experts.tenancy.TenantContext;
-import com.wfm.experts.util.TenantSchemaUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 import java.util.Date;
-import java.util.UUID;
+import java.util.Optional;
 
 /**
  * ✅ Authentication Controller for handling login and token refresh.
@@ -30,10 +30,7 @@ public class AuthController {
     private JwtUtil jwtUtil;
 
     @Autowired
-    private TenantSchemaUtil tenantSchemaUtil;
-
-    @Autowired
-    private TenantResolverService tenantResolverService;  // ✅ Resolves `tenant_id` dynamically
+    private PasswordEncoder passwordEncoder;
 
     /**
      * ✅ Login API - Authenticate using email & password, then return JWT Token.
@@ -41,37 +38,36 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestBody @Valid AuthRequest request) {
 
-
-        // ✅ Extract tenant_id dynamically from email
-        UUID tenantId = tenantResolverService.resolveTenantId(request.getEmail());
-
-
+        // ✅ Get tenant ID from context (set by TenantInterceptor)
+        String tenantId = TenantContext.getTenant();
         if (tenantId == null) {
-            throw new RuntimeException("Tenant ID not found for this email.");
+            throw new RuntimeException("❌ Tenant ID not found in context.");
         }
 
-        // ✅ Store Tenant ID in Context and Switch Schema
-        TenantContext.setTenant(tenantId);
-        tenantSchemaUtil.switchToTenantSchema();
+        // ✅ Load user from UserDetailsService (EmployeeService)
+        UserDetails userDetails = employeeService.loadUserByUsername(request.getEmail());
 
-        // ✅ Authenticate the user within the tenant schema
-        Employee employee = employeeService.authenticateByEmail(request.getEmail(), request.getPassword());
+        // ✅ Retrieve the Employee from the database (using email from userDetails)
+        Optional<Employee> employeeOpt = employeeService.getEmployeeByEmail(request.getEmail());
+        if (employeeOpt.isEmpty()) {
+            throw new RuntimeException("❌ Employee not found!");
+        }
 
-        // ✅ Generate JWT Token with `tenantId`
-        String token = jwtUtil.generateToken(
-                employee.getEmail(),
-                tenantId,  // ✅ Extracted dynamically
-                employee.getRole().getRoleName()
-        );
+        Employee employee = employeeOpt.get();
 
-        // ✅ Generate Refresh Token
-        String refreshToken = jwtUtil.generateRefreshToken(employee.getEmail());
+        // ✅ Validate password
+        if (!passwordEncoder.matches(request.getPassword(), employee.getPassword())) {
+            throw new RuntimeException("❌ Invalid email or password!");
+        }
+
+        // ✅ Generate JWT Token
+        String token = jwtUtil.generateToken(employee.getEmail(), tenantId, employee.getRole().getRoleName());
+
 
         // ✅ Get Token Expiry Date
         Date expiryDate = jwtUtil.getTokenExpiryDate(token);
 
         return ResponseEntity.ok(new AuthResponse(token, expiryDate, "Bearer"));
     }
-
 
 }
