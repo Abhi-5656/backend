@@ -1,7 +1,7 @@
 package com.wfm.experts.config;
 
 import com.wfm.experts.security.JwtAuthenticationFilter;
-import com.wfm.experts.tenancy.TenantRewriteFilter;
+import com.wfm.experts.tenancy.TenantFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -19,14 +19,11 @@ import org.springframework.context.annotation.Lazy; // ✅ Import @Lazy
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    private final TenantRewriteFilter tenantRewriteFilter;
+    private final TenantFilter tenantFilter;
 
-    // Remove direct EmployeeService injection to avoid circular dependency
-    public SecurityConfig(
-            @Lazy JwtAuthenticationFilter jwtAuthenticationFilter, // @Lazy annotation to break dependency cycle
-            TenantRewriteFilter tenantRewriteFilter) {
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, TenantFilter tenantFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-        this.tenantRewriteFilter = tenantRewriteFilter;
+        this.tenantFilter = tenantFilter;
     }
 
     @Bean
@@ -46,13 +43,14 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/api/subscriptions/**").permitAll() // Public endpoints allowed
-                        .anyRequest().authenticated()  // Require authentication for other requests
+                        .requestMatchers("/api/auth/**", "/api/subscriptions/**").permitAll() // Public endpoints
+                        .anyRequest().authenticated() // Ensure other requests are authenticated
                 )
-                .addFilterBefore(tenantRewriteFilter, UsernamePasswordAuthenticationFilter.class) // Path cleanup filter
+                .addFilterBefore(tenantFilter, UsernamePasswordAuthenticationFilter.class) // Tenant filter to extract and set tenant
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class) // JWT filter
                 .build();
     }
+
 }
 
 
