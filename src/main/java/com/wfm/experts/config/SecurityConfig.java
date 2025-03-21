@@ -1,8 +1,6 @@
 package com.wfm.experts.config;
 
 import com.wfm.experts.security.JwtAuthenticationFilter;
-import com.wfm.experts.service.EmployeeService;
-import com.wfm.experts.tenancy.TenantInterceptor;
 import com.wfm.experts.tenancy.TenantRewriteFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,7 +9,6 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -22,22 +19,19 @@ import org.springframework.context.annotation.Lazy; // ✅ Import @Lazy
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    private final EmployeeService employeeService;
     private final TenantRewriteFilter tenantRewriteFilter;
 
+    // Remove direct EmployeeService injection to avoid circular dependency
     public SecurityConfig(
-            @Lazy JwtAuthenticationFilter jwtAuthenticationFilter, // ✅ Use @Lazy to break cycle
-            TenantInterceptor tenantInterceptor,
-            EmployeeService employeeService, TenantInterceptor tenantInterceptor1, TenantRewriteFilter tenantRewriteFilter) {
+            @Lazy JwtAuthenticationFilter jwtAuthenticationFilter, // @Lazy annotation to break dependency cycle
+            TenantRewriteFilter tenantRewriteFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-        this.employeeService = employeeService;
-
         this.tenantRewriteFilter = tenantRewriteFilter;
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return new BCryptPasswordEncoder(); // Password Encoder bean
     }
 
     @Bean
@@ -45,11 +39,7 @@ public class SecurityConfig {
         return authenticationConfiguration.getAuthenticationManager();
     }
 
-    @Bean
-    public UserDetailsService userDetailsService() {
-        return employeeService;
-    }
-
+    // Spring will automatically wire the EmployeeServiceImpl as UserDetailsService
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
@@ -63,6 +53,6 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class) // JWT filter
                 .build();
     }
-
-
 }
+
+

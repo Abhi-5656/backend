@@ -5,10 +5,12 @@ import com.wfm.experts.repository.tenant.common.EmployeeRepository;
 import com.wfm.experts.service.EmployeeService;
 import com.wfm.experts.tenancy.TenantContext;
 import com.wfm.experts.util.TenantSchemaUtil;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,12 +26,14 @@ public class EmployeeServiceImpl implements EmployeeService, UserDetailsService 
 
     private final EmployeeRepository employeeRepository;
     private final TenantSchemaUtil tenantSchemaUtil;
+    private final PasswordEncoder passwordEncoder; // Inject PasswordEncoder here
 
-    public EmployeeServiceImpl(EmployeeRepository employeeRepository, TenantSchemaUtil tenantSchemaUtil) {
+    // Constructor Injection of PasswordEncoder
+    public EmployeeServiceImpl(EmployeeRepository employeeRepository, TenantSchemaUtil tenantSchemaUtil, PasswordEncoder passwordEncoder) {
         this.employeeRepository = employeeRepository;
         this.tenantSchemaUtil = tenantSchemaUtil;
+        this.passwordEncoder = passwordEncoder; // Assign the password encoder here
     }
-
     /**
      * ✅ Loads an Employee by email for authentication.
      */
@@ -58,6 +62,7 @@ public class EmployeeServiceImpl implements EmployeeService, UserDetailsService 
     @Override
     public Employee createEmployee(Employee employee) {
         ensureSchemaSwitch();
+        employee.setPassword(passwordEncoder.encode(employee.getPassword()));
         return employeeRepository.save(employee);
     }
 
