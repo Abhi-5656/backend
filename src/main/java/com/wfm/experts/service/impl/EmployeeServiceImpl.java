@@ -1,6 +1,7 @@
 package com.wfm.experts.service.impl;
 
 import com.wfm.experts.entity.tenant.common.Employee;
+import com.wfm.experts.exception.InvalidEmailException;
 import com.wfm.experts.repository.tenant.common.EmployeeRepository;
 import com.wfm.experts.service.EmployeeService;
 import com.wfm.experts.tenancy.TenantContext;
@@ -19,7 +20,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * ✅ Implements `UserDetailsService` for Spring Security & CRUD operations for Employees.
+ *Implements `UserDetailsService` for Spring Security & CRUD operations for Employees.
  */
 @Service
 public class EmployeeServiceImpl implements EmployeeService, UserDetailsService {
@@ -35,15 +36,15 @@ public class EmployeeServiceImpl implements EmployeeService, UserDetailsService 
         this.passwordEncoder = passwordEncoder; // Assign the password encoder here
     }
     /**
-     * ✅ Loads an Employee by email for authentication.
+     * Loads an Employee by email for authentication.
      */
     @Override
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+    public UserDetails loadUserByUsername(String email) throws InvalidEmailException {
         ensureSchemaSwitch();
 
         Optional<Employee> optionalEmployee = employeeRepository.findByEmail(email);
         if (optionalEmployee.isEmpty()) {
-            throw new UsernameNotFoundException("Employee not found: " + email);
+            throw new InvalidEmailException("Employee not found with email: " + email);
         }
 
         Employee employee = optionalEmployee.get();
@@ -53,6 +54,7 @@ public class EmployeeServiceImpl implements EmployeeService, UserDetailsService 
                 Collections.singleton(new SimpleGrantedAuthority(employee.getRole().getRoleName()))
         );
     }
+
 
 
     /**

@@ -16,28 +16,17 @@
  *
  */
 
-package com.wfm.experts.entity.tenant.common;
+package com.wfm.experts.exception;
 
-import org.springframework.security.core.GrantedAuthority;
-import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
-@Getter
-@Setter
-@Entity
-@Table(name = "roles")
-public class Role implements GrantedAuthority { // ✅ Implement GrantedAuthority
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false, unique = true)
-    private String roleName;
-
-    @Override
-    public String getAuthority() {
-        return roleName; // ✅ Required for Spring Security
+/**
+ * Exception thrown when the provided password is incorrect.
+ */
+@ResponseStatus(HttpStatus.UNAUTHORIZED)
+public class InvalidPasswordException extends RuntimeException {
+    public InvalidPasswordException(String message) {
+        super("Invalid Password");
     }
 }
