@@ -67,6 +67,9 @@ public class Subscription {
     @JsonIgnore
     private String tenantSchema;  // 🔹 Database schema corresponding to this tenant
 
+    @Column(nullable = false, unique = true)
+    private String tenantURL;  // 🔹 URL for tenant-specific access
+
     @PrePersist
     protected void onCreate() {
         this.purchaseDate = (this.purchaseDate != null) ? this.purchaseDate : new Date();

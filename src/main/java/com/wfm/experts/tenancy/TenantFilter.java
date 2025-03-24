@@ -1,10 +1,10 @@
 package com.wfm.experts.tenancy;
 
 import com.wfm.experts.repository.core.SubscriptionRepository;
+import com.wfm.experts.security.JwtUtil;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;
@@ -14,88 +14,127 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;
+
 @Component
 public class TenantFilter extends OncePerRequestFilter {
 
     private static final Logger LOGGER = Logger.getLogger(TenantFilter.class.getName());
     private static final String PUBLIC_API_PREFIX = "/api/subscriptions"; // Public API for subscriptions
+    private static final String LOGIN_API_PREFIX = "/api/auth/login"; // Exception case for login endpoint
 
     private final SubscriptionRepository subscriptionRepository;
+    private final JwtUtil jwtUtil;  // Inject JwtUtil to extract claims from JWT token
 
-    // Injecting SubscriptionRepository directly
-    public TenantFilter(SubscriptionRepository subscriptionRepository) {
+    // Injecting SubscriptionRepository and JwtUtil directly
+    public TenantFilter(SubscriptionRepository subscriptionRepository, JwtUtil jwtUtil) {
         this.subscriptionRepository = subscriptionRepository;
+        this.jwtUtil = jwtUtil;
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        // Step 1: Extract URI and determine if the request is public
+        // Step 1: Extract URI and determine if the request is public or login endpoint
         String requestUri = request.getRequestURI();
         LOGGER.info("Request URI: " + requestUri);
 
-        if (isPublicRequest(requestUri)) {
-            handlePublicRequest(request, response, filterChain);
+        if (isLoginRequest(requestUri)) {
+            handleLoginRequest(request, response, filterChain);  // Handle login endpoint differently
+        } else if (isPublicRequest(requestUri)) {
+            handlePublicRequest(request, response, filterChain);  // Continue for public API
         } else {
-            handleTenantRequest(request, response, filterChain, requestUri);
+            handleTenantRequest(request, response, filterChain, requestUri);  // Tenant request validation
         }
     }
 
-    /**
-     * Handles requests that are public and don't require tenant validation.
-     */
-    private void handlePublicRequest(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+    private void handleLoginRequest(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
+        LOGGER.info("Login request, only validating tenant ID in path.");
+        // Step 1: Extract tenant ID from the URL path (as we don't validate JWT here)
+        String tenantId = extractTenantIdFromPath(request);
+
+        if (tenantId == null) {
+            handleErrorResponse(response, "Incorrect URL path. Tenant ID is missing.", HttpServletResponse.SC_BAD_REQUEST);
+            return;
+        }
+
+        // Step 2: Validate the tenant ID in the subscription table
+        boolean isValidTenant = subscriptionRepository.existsByTenantId(tenantId);
+
+        if (!isValidTenant) {
+            handleErrorResponse(response, "Invalid Tenant ID.", HttpServletResponse.SC_BAD_REQUEST);
+            return;
+        }
+
+        // Step 3: Continue with the filter chain after tenant validation
+        filterChain.doFilter(request, response);
+    }
+
+    private void handlePublicRequest(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
         LOGGER.info("Public request, continuing filter chain.");
         filterChain.doFilter(request, response);  // Continue with the filter chain for public requests
     }
 
-    /**
-     * Handles requests that need tenant validation and processing.
-     */
     private void handleTenantRequest(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain, String requestUri)
             throws ServletException, IOException {
 
-        // Step 2: Extract tenant ID from the request URI
-        String tenantId = extractTenantIdFromPath(request);
+        // Step 2: Extract tenant ID from the JWT token
+        String token = getJwtTokenFromRequest(request);
+        String jwtTenantId = null;
 
-        if (tenantId == null) {
-            // If no tenantId is found in the URI, respond with an error
-            handleErrorResponse(response, "Incorrect URL path. Tenant ID is missing.", HttpServletResponse.SC_BAD_REQUEST);
-            return;  // Stop processing further
+        if (token != null) {
+            try {
+                jwtTenantId = jwtUtil.extractTenantId(token);
+            } catch (JwtException e) {
+                handleErrorResponse(response, "Invalid JWT token", HttpServletResponse.SC_UNAUTHORIZED);
+                return;  // Stop processing further
+            }
         }
 
-        // Step 3: Validate the tenant ID in the subscription table
-        boolean isValidTenant = subscriptionRepository.existsByTenantId(tenantId);
+        // Step 3: Extract tenant ID from the URL path
+        String urlTenantId = extractTenantIdFromPath(request);
+
+        if (urlTenantId == null) {
+            handleErrorResponse(response, "Incorrect URL path. Tenant ID is missing.", HttpServletResponse.SC_BAD_REQUEST);
+            return;
+        }
+
+        // Step 4: Compare tenant IDs from JWT and URL
+        if (jwtTenantId != null && !jwtTenantId.equals(urlTenantId)) {
+            handleErrorResponse(response, "Tenant ID mismatch between JWT token and request URI.", HttpServletResponse.SC_FORBIDDEN);
+            return;
+        }
+
+        // Step 5: Validate the tenant ID in the subscription table
+        boolean isValidTenant = subscriptionRepository.existsByTenantId(urlTenantId);
 
         if (!isValidTenant) {
-            // If the tenant ID is invalid, return a 400 error with a message
             handleErrorResponse(response, "Invalid Tenant ID.", HttpServletResponse.SC_BAD_REQUEST);
-            return;  // Stop processing further
+            return;
         }
 
-        // Step 4: Set the tenant ID in the TenantContext for use in other parts of the application
-        TenantContext.setTenant(tenantId);
+        // Step 6: Set the tenant ID in the TenantContext for use in other parts of the application
+        TenantContext.setTenant(urlTenantId);
 
-        // Step 5: Clean the URI to remove the tenant ID for spring security and controller processing
+        // Step 7: Clean the URI to remove the tenant ID for spring security and controller processing
         String cleanedUri = cleanUri(requestUri);
 
-        // Step 6: Forward the request with the cleaned URI
+        // Step 8: Forward the request with the cleaned URI
         request.getRequestDispatcher(cleanedUri).forward(request, response);
     }
 
-    /**
-     * Checks if the request URI is a public request (no tenant validation required).
-     * Public URIs are those that start with "/api/subscriptions" and can have anything after that.
-     */
-    private boolean isPublicRequest(String requestUri) {
-        return requestUri.startsWith(PUBLIC_API_PREFIX);  // Use the public API prefix to match all paths starting with "/api/subscriptions"
+    // Helper methods for extracting JWT token and tenant IDs
+
+    private String getJwtTokenFromRequest(HttpServletRequest request) {
+        String bearerToken = request.getHeader("Authorization");
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);  // Extract token from "Bearer <token>"
+        }
+        return null;
     }
 
-    /**
-     * Extracts the tenant ID from the URL path.
-     * Assumes the tenant ID is the first part of the path after the domain.
-     */
     private String extractTenantIdFromPath(HttpServletRequest request) {
         String requestUri = request.getRequestURI();
         String[] pathSegments = requestUri.split("/");
@@ -108,9 +147,6 @@ public class TenantFilter extends OncePerRequestFilter {
         return null;  // No tenantId found in the URI, return null
     }
 
-    /**
-     * Cleans the URI by removing the tenant ID from it.
-     */
     private String cleanUri(String requestUri) {
         String[] pathSegments = requestUri.split("/");
         if (pathSegments.length > 2) {
@@ -125,9 +161,6 @@ public class TenantFilter extends OncePerRequestFilter {
         return requestUri;  // If no tenant ID is in the path, return the original URI
     }
 
-    /**
-     * Generates an error response with the given message and HTTP status code.
-     */
     private void handleErrorResponse(HttpServletResponse response, String message, int statusCode) throws IOException {
         response.setStatus(statusCode);
         Map<String, String> errorResponse = new HashMap<>();
@@ -140,9 +173,6 @@ public class TenantFilter extends OncePerRequestFilter {
         response.getWriter().write(jsonResponse);
     }
 
-    /**
-     * Converts a Map to a JSON string.
-     */
     private String convertMapToJson(Map<String, String> map) {
         StringBuilder jsonBuilder = new StringBuilder("{");
         for (Map.Entry<String, String> entry : map.entrySet()) {
@@ -156,5 +186,11 @@ public class TenantFilter extends OncePerRequestFilter {
         return jsonBuilder.toString();
     }
 
+    private boolean isPublicRequest(String requestUri) {
+        return requestUri.startsWith(PUBLIC_API_PREFIX);  // Use the public API prefix to match all paths starting with "/api/subscriptions"
+    }
 
+    private boolean isLoginRequest(String requestUri) {
+        return requestUri.startsWith(LOGIN_API_PREFIX);  // Handle login endpoint separately
+    }
 }
