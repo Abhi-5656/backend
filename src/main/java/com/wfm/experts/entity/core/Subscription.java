@@ -24,6 +24,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.util.Date;
+import java.util.List;
 
 @Getter
 @Setter
@@ -87,6 +88,11 @@ public class Subscription {
 
     @Column(nullable = false, unique = true)
     private String tenantURL;  // 🔹 URL for tenant-specific access
+
+    // 🔹 Unidirectional One-to-Many Relationship
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "subscription_id")  // Foreign key in subscription_modules
+    private List<SubscriptionModule> modules;
 
     @PrePersist
     protected void onCreate() {
