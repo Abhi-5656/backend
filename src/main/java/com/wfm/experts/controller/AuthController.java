@@ -21,8 +21,7 @@ package com.wfm.experts.controller;
 import com.wfm.experts.dto.tenant.common.AuthRequest;
 import com.wfm.experts.dto.tenant.common.AuthResponse;
 import com.wfm.experts.entity.tenant.common.Employee;
-import com.wfm.experts.exception.InvalidEmailException;
-import com.wfm.experts.exception.InvalidPasswordException;
+import com.wfm.experts.exception.*;
 import com.wfm.experts.security.JwtUtil;
 import com.wfm.experts.service.EmployeeService;
 import com.wfm.experts.tenancy.TenantContext;
@@ -57,7 +56,20 @@ public class AuthController {
      * Login API - Authenticate using email & password, then return JWT Token.
      */
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody @Valid AuthRequest request) {
+    public ResponseEntity<AuthResponse> login(@RequestBody  AuthRequest request) {
+
+        // ✅ Validate if email or password is `null`
+        if (request.getEmail() == null || request.getPassword() == null) {
+            throw new NullCredentialsException("Username or password cannot be null.");
+        }
+
+        // ✅ Validate if email or password is empty (`""`)
+        if (request.getEmail().trim().isEmpty()) {
+            throw new EmptyUsernameException("Username cannot be empty.");
+        }
+        if (request.getPassword().trim().isEmpty()) {
+            throw new EmptyPasswordException("Password cannot be empty.");
+        }
 
         // ✅ Get tenant ID from context
         String tenantId = TenantContext.getTenant();
@@ -90,4 +102,5 @@ public class AuthController {
         // ✅ Return response without expiryDate (only `expiresIn`)
         return ResponseEntity.ok(new AuthResponse(token, "Bearer", expiryDate));
     }
+
 }

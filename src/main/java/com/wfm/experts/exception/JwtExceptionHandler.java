@@ -18,7 +18,6 @@
 
 package com.wfm.experts.exception;
 
-import com.wfm.experts.exception.JwtAuthenticationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -28,17 +27,68 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * ✅ Global Exception Handler for Authentication and JWT-related errors.
+ */
 @RestControllerAdvice
 public class JwtExceptionHandler {
 
+    /**
+     * ✅ Handles JWT Authentication Exceptions.
+     */
     @ExceptionHandler(JwtAuthenticationException.class)
     public ResponseEntity<Map<String, Object>> handleJwtAuthenticationException(JwtAuthenticationException ex) {
-        Map<String, Object> response = new HashMap<>();
-        response.put("timestamp", LocalDateTime.now());
-        response.put("status", HttpStatus.UNAUTHORIZED.value());
-        response.put("error", "Unauthorized");
-        response.put("message", ex.getMessage());
+        return buildErrorResponse(ex.getMessage(), HttpStatus.UNAUTHORIZED);
+    }
 
-        return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+    /**
+     * ✅ Handles Empty Username Exception.
+     */
+    @ExceptionHandler(EmptyUsernameException.class)
+    public ResponseEntity<Map<String, Object>> handleEmptyUsernameException(EmptyUsernameException ex) {
+        return buildErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * ✅ Handles Empty Password Exception.
+     */
+    @ExceptionHandler(EmptyPasswordException.class)
+    public ResponseEntity<Map<String, Object>> handleEmptyPasswordException(EmptyPasswordException ex) {
+        return buildErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * ✅ Handles Null Credentials Exception (when username or password is null).
+     */
+    @ExceptionHandler(NullCredentialsException.class)
+    public ResponseEntity<Map<String, Object>> handleNullCredentialsException(NullCredentialsException ex) {
+        return buildErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * ✅ Handles Invalid Email Exception.
+     */
+    @ExceptionHandler(InvalidEmailException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidEmailException(InvalidEmailException ex) {
+        return buildErrorResponse(ex.getMessage(), HttpStatus.NOT_FOUND);
+    }
+
+    /**
+     * ✅ Handles Invalid Password Exception.
+     */
+    @ExceptionHandler(InvalidPasswordException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidPasswordException(InvalidPasswordException ex) {
+        return buildErrorResponse(ex.getMessage(), HttpStatus.UNAUTHORIZED);
+    }
+
+    /**
+     * ✅ Generic method to create structured JSON error responses.
+     */
+    private ResponseEntity<Map<String, Object>> buildErrorResponse(String message, HttpStatus status) {
+        Map<String, Object> response = new HashMap<>();
+
+//        response.put("error", status.getReasonPhrase());
+        response.put("message", message);
+        return new ResponseEntity<>(response, status);
     }
 }
