@@ -61,11 +61,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     /**
      * Skip JWT authentication for login (`/api/auth/login`) and subscription (`/api/subscriptions`) endpoints
      */
+//    @Override
+//    protected boolean shouldNotFilter(HttpServletRequest request) {
+//        String requestUri = request.getRequestURI();
+//        return requestUri.startsWith("/api/auth/login") || requestUri.startsWith("/api/subscriptions");
+//    }
+
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String requestUri = request.getRequestURI();
-        return requestUri.startsWith("/api/auth/login") || requestUri.startsWith("/api/subscriptions");
+
+        return requestUri.startsWith("/api/auth/login")
+                || requestUri.startsWith("/api/subscriptions")
+                || requestUri.contains("/public/jobs/") && requestUri.endsWith("/apply");
     }
+
+
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
