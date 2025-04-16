@@ -29,7 +29,8 @@ public class LocationDto {
     private Long parentId;
 
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
-    private List<Long> jobTitleIds;
+    private List<JobTitleDto> jobTitles;
+
 
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<LocationDto> children;

@@ -1,5 +1,6 @@
 package com.wfm.experts.setup.orgstructure.service.impl;
 
+import com.wfm.experts.setup.orgstructure.dto.JobTitleDto;
 import com.wfm.experts.setup.orgstructure.dto.LocationDto;
 import com.wfm.experts.setup.orgstructure.entity.BusinessUnit;
 import com.wfm.experts.setup.orgstructure.entity.JobTitle;
@@ -31,12 +32,10 @@ public class LocationServiceImpl implements LocationService {
     public LocationDto create(LocationDto dto) {
         Location location = locationMapper.toEntity(dto);
 
-        // Fetch and set BusinessUnit
         BusinessUnit businessUnit = businessUnitRepository.findById(dto.getBusinessUnitId())
                 .orElseThrow(() -> new ResourceNotFoundException("Business Unit not found"));
         location.setBusinessUnit(businessUnit);
 
-        // Handle parent (root or child)
         if (dto.getParentId() != null) {
             Location parent = locationRepository.findById(dto.getParentId())
                     .orElseThrow(() -> new ResourceNotFoundException("Parent Location not found"));
@@ -47,15 +46,16 @@ public class LocationServiceImpl implements LocationService {
             location.setRoot(true);
         }
 
-        // Optional: assign Job Titles
-        if (dto.getJobTitleIds() != null && !dto.getJobTitleIds().isEmpty()) {
-            List<JobTitle> foundJobTitles = jobTitleRepository.findAllById(dto.getJobTitleIds());
-            List<JobTitle> jobTitles = new ArrayList<>(foundJobTitles); // no conversion issue now
+        // Handle Job Titles
+        if (dto.getJobTitles() != null && !dto.getJobTitles().isEmpty()) {
+            List<Long> jobTitleIds = dto.getJobTitles().stream()
+                    .map(JobTitleDto::getId)
+                    .collect(Collectors.toList());
+            List<JobTitle> jobTitles = jobTitleRepository.findAllById(jobTitleIds);
             location.setJobTitles(jobTitles);
         } else {
-            location.setJobTitles(Collections.EMPTY_LIST);
+            location.setJobTitles(Collections.emptyList());
         }
-
 
         return locationMapper.toDtoWithChildren(locationRepository.save(location));
     }
@@ -71,7 +71,7 @@ public class LocationServiceImpl implements LocationService {
     public List<LocationDto> getAll() {
         List<Location> locations = locationRepository.findAll();
         return locations.stream()
-                .filter(loc -> loc.getParent() == null) // return only top-level nodes
+                .filter(loc -> loc.getParent() == null)
                 .map(locationMapper::toDtoWithChildren)
                 .collect(Collectors.toList());
     }
@@ -87,7 +87,6 @@ public class LocationServiceImpl implements LocationService {
         existing.setEffectiveDate(dto.getEffectiveDate());
         existing.setExpirationDate(dto.getExpirationDate());
 
-        // Update parent (if applicable)
         if (dto.getParentId() != null && !dto.getParentId().equals(id)) {
             Location parent = locationRepository.findById(dto.getParentId())
                     .orElseThrow(() -> new ResourceNotFoundException("Parent Location not found"));
@@ -98,9 +97,12 @@ public class LocationServiceImpl implements LocationService {
             existing.setRoot(true);
         }
 
-        // Update job titles
-        if (dto.getJobTitleIds() != null) {
-            List<JobTitle> jobTitles = new ArrayList<>(jobTitleRepository.findAllById(dto.getJobTitleIds()));
+        // Update Job Titles
+        if (dto.getJobTitles() != null) {
+            List<Long> jobTitleIds = dto.getJobTitles().stream()
+                    .map(JobTitleDto::getId)
+                    .collect(Collectors.toList());
+            List<JobTitle> jobTitles = jobTitleRepository.findAllById(jobTitleIds);
             existing.setJobTitles(jobTitles);
         }
 
@@ -113,5 +115,41 @@ public class LocationServiceImpl implements LocationService {
             throw new ResourceNotFoundException("Location not found with id: " + id);
         }
         locationRepository.deleteById(id);
+    }
+
+    @Override
+    @Transactional
+    public LocationDto assignJobTitle(Long locationId, Long jobTitleId) {
+        Location location = locationRepository.findById(locationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Location not found"));
+
+        JobTitle jobTitle = jobTitleRepository.findById(jobTitleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Job Title not found"));
+
+        if (location.getJobTitles() == null) {
+            location.setJobTitles(new ArrayList<>());
+        }
+
+        // Only add if not already present
+        boolean alreadyAssigned = location.getJobTitles().stream()
+                .anyMatch(j -> j.getId().equals(jobTitleId));
+        if (!alreadyAssigned) {
+            location.getJobTitles().add(jobTitle);
+        }
+
+        return locationMapper.toDtoWithChildren(locationRepository.save(location));
+    }
+
+    @Override
+    @Transactional
+    public LocationDto removeJobTitle(Long locationId, Long jobTitleId) {
+        Location location = locationRepository.findById(locationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Location not found"));
+
+        if (location.getJobTitles() != null) {
+            location.getJobTitles().removeIf(job -> job.getId().equals(jobTitleId));
+        }
+
+        return locationMapper.toDtoWithChildren(locationRepository.save(location));
     }
 }

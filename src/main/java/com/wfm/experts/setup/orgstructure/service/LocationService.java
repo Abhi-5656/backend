@@ -10,4 +10,9 @@ public interface LocationService {
     void delete(Long id);
     LocationDto getById(Long id);
     List<LocationDto> getAll();
+
+    LocationDto assignJobTitle(Long locationId, Long jobTitleId);
+
+    LocationDto removeJobTitle(Long locationId, Long jobTitleId);
+
 }
