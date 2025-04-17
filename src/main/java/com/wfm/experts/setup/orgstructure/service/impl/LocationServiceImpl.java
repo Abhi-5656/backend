@@ -1,5 +1,6 @@
 package com.wfm.experts.setup.orgstructure.service.impl;
 
+import com.wfm.experts.setup.orgstructure.dto.BusinessUnitDto;
 import com.wfm.experts.setup.orgstructure.dto.JobTitleDto;
 import com.wfm.experts.setup.orgstructure.dto.LocationDto;
 import com.wfm.experts.setup.orgstructure.entity.BusinessUnit;
@@ -32,7 +33,12 @@ public class LocationServiceImpl implements LocationService {
     public LocationDto create(LocationDto dto) {
         Location location = locationMapper.toEntity(dto);
 
-        BusinessUnit businessUnit = businessUnitRepository.findById(dto.getBusinessUnitId())
+        BusinessUnitDto businessUnitDto = dto.getBusinessUnit();
+        if (businessUnitDto == null || businessUnitDto.getId() == null) {
+            throw new ResourceNotFoundException("Business Unit must be provided");
+        }
+
+        BusinessUnit businessUnit = businessUnitRepository.findById(businessUnitDto.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Business Unit not found"));
         location.setBusinessUnit(businessUnit);
 
@@ -97,6 +103,14 @@ public class LocationServiceImpl implements LocationService {
             existing.setRoot(true);
         }
 
+        // Set business unit if provided
+        BusinessUnitDto businessUnitDto = dto.getBusinessUnit();
+        if (businessUnitDto != null && businessUnitDto.getId() != null) {
+            BusinessUnit businessUnit = businessUnitRepository.findById(businessUnitDto.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Business Unit not found"));
+            existing.setBusinessUnit(businessUnit);
+        }
+
         // Update Job Titles
         if (dto.getJobTitles() != null) {
             List<Long> jobTitleIds = dto.getJobTitles().stream()
@@ -130,7 +144,6 @@ public class LocationServiceImpl implements LocationService {
             location.setJobTitles(new ArrayList<>());
         }
 
-        // Only add if not already present
         boolean alreadyAssigned = location.getJobTitles().stream()
                 .anyMatch(j -> j.getId().equals(jobTitleId));
         if (!alreadyAssigned) {

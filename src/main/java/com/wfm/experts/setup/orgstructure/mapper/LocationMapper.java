@@ -1,31 +1,38 @@
 package com.wfm.experts.setup.orgstructure.mapper;
 
+import com.wfm.experts.setup.orgstructure.dto.BusinessUnitDto;
 import com.wfm.experts.setup.orgstructure.dto.JobTitleDto;
 import com.wfm.experts.setup.orgstructure.dto.LocationDto;
+import com.wfm.experts.setup.orgstructure.entity.BusinessUnit;
 import com.wfm.experts.setup.orgstructure.entity.JobTitle;
 import com.wfm.experts.setup.orgstructure.entity.Location;
-import org.mapstruct.*;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 import org.mapstruct.factory.Mappers;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Mapper(componentModel = "spring", uses = JobTitleMapper.class)
+@Mapper(
+        componentModel = "spring",
+        uses = { JobTitleMapper.class, BusinessUnitMapper.class }
+)
 public interface LocationMapper {
 
     LocationMapper INSTANCE = Mappers.getMapper(LocationMapper.class);
 
-    // 🔁 Recursive + Full Job Mapping
+    // Convert entity to DTO (with children)
     @Mapping(source = "parent.id", target = "parentId")
-    @Mapping(source = "businessUnit.id", target = "businessUnitId")
+    @Mapping(source = "businessUnit", target = "businessUnit")
     @Mapping(target = "jobTitles", expression = "java(mapJobTitleDtos(location.getJobTitles()))")
     @Mapping(target = "children", expression = "java(mapChildren(location.getChildren()))")
     LocationDto toDtoWithChildren(Location location);
 
     List<LocationDto> toDtoList(List<Location> locations);
 
+    // Convert DTO to entity
     @Mapping(source = "parentId", target = "parent.id")
-    @Mapping(source = "businessUnitId", target = "businessUnit.id")
+    @Mapping(source = "businessUnit", target = "businessUnit")
     Location toEntity(LocationDto dto);
 
     // ===== Helper methods =====
@@ -40,7 +47,6 @@ public interface LocationMapper {
         return jobTitles.stream().map(this::mapJobTitle).collect(Collectors.toList());
     }
 
-    // Manually map since we're using custom logic
     default JobTitleDto mapJobTitle(JobTitle job) {
         if (job == null) return null;
 

@@ -6,7 +6,6 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Set;
 
 @Data
 @NoArgsConstructor
@@ -25,17 +24,16 @@ public class LocationDto {
 
     private String color;
 
-    private Long businessUnitId;
+    private BusinessUnitDto businessUnit; // Modified from Long to DTO
+
     private Long parentId;
 
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<JobTitleDto> jobTitles;
 
-
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<LocationDto> children;
 
-    // Optional: remove this if not used
     @JsonInclude(JsonInclude.Include.NON_DEFAULT)
     private boolean root;
 }
