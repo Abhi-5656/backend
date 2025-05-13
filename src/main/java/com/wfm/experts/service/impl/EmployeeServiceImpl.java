@@ -96,10 +96,10 @@ public class EmployeeServiceImpl implements EmployeeService, UserDetailsService 
         Employee existingEmployee = employeeRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("❌ Employee not found: " + email));
 
-        existingEmployee.setFirstName(updatedEmployee.getFirstName());
-        existingEmployee.setLastName(updatedEmployee.getLastName());
-        existingEmployee.setPhoneNumber(updatedEmployee.getPhoneNumber());
-        existingEmployee.setRole(updatedEmployee.getRole());
+//        existingEmployee.setFirstName(updatedEmployee.getFirstName());
+//        existingEmployee.setLastName(updatedEmployee.getLastName());
+//        existingEmployee.setPhoneNumber(updatedEmployee.getPhoneNumber());
+//        existingEmployee.setRole(updatedEmployee.getRole());
 
         return employeeRepository.save(existingEmployee);
     }
