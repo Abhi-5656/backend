@@ -1,49 +1,51 @@
-package com.wfm.experts.entity.tenant.common; // Assuming this is your common entity package
+package com.wfm.experts.entity.tenant.common;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.wfm.experts.validation.groups.OnAdminCreation;   // Import group
+import com.wfm.experts.validation.groups.OnEmployeeProfile; // Import group
 import jakarta.persistence.Column;
-import jakarta.persistence.Entity; // Changed from @Embeddable
-import jakarta.persistence.GeneratedValue; // For ID generation
-import jakarta.persistence.GenerationType; // For ID generation
-import jakarta.persistence.Id; // For primary key
-import jakarta.persistence.Table; // To specify table name
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.groups.Default; // Import Default
 import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
-/**
- * Entity class representing specific departmental and job context details for an employee.
- * This class now corresponds to its own database table.
- */
 @Getter
 @Setter
-@NoArgsConstructor // Lombok: Adds a no-argument constructor
-@AllArgsConstructor // Lombok: Adds an all-argument constructor
-@Entity // Changed from @Embeddable
-@Table(name = "employee_job_context_details") // Specifies the database table name
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "employee_job_context_details")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class JobContextDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
-    private Long id; // Primary key for this new table
+    private Long id;
 
-    @NotBlank(message = "Department is required")
-    @Column(name = "department_name")
+    // These fields are likely always required, for admin and full employee profiles.
+    @NotBlank(message = "Department is required", groups = {Default.class, OnEmployeeProfile.class}) // OnAdminCreation inherits Default
+    @Column(name = "department_name", nullable = false)
     private String departmentName;
 
-    @NotBlank(message = "Job Grade/Band is required")
-    @Column(name = "job_grade_band")
+    @NotBlank(message = "Job Grade/Band is required", groups = {Default.class, OnEmployeeProfile.class})
+    @Column(name = "job_grade_band", nullable = false)
     private String jobGradeBand;
 
-    @NotBlank(message = "Cost Center is required")
-    @Column(name = "cost_center")
+    @NotBlank(message = "Cost Center is required", groups = {Default.class, OnEmployeeProfile.class})
+    @Column(name = "cost_center", nullable = false)
     private String costCenter;
 
-    @Column(name = "organizational_role_description") // Descriptive text for the organizational role
+    // Organizational Role Description might be optional initially, or become more detailed later.
+    // If it's truly optional always, no validation annotation is needed for presence.
+    // If required for a full profile but not admin: @NotBlank(groups = OnEmployeeProfile.class)
+    @Column(name = "organizational_role_description", columnDefinition = "TEXT") // Nullable in DB by default if no @NotNull/@NotBlank
     private String organizationalRoleDescription;
-
-    // For a unidirectional mapping where OrganizationalInfo owns the relationship,
-    // JobContextDetails does not need a field linking back to OrganizationalInfo.
 }

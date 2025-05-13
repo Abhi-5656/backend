@@ -1,5 +1,6 @@
 package com.wfm.experts.entity.tenant.common;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.wfm.experts.entity.tenant.common.enums.Relationship;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
@@ -13,6 +14,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Embeddable
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class EmergencyContact {
 
     @NotBlank(message = "Emergency contact name is required")

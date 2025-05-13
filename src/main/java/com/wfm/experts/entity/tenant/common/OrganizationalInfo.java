@@ -1,12 +1,12 @@
 package com.wfm.experts.entity.tenant.common;
 
-import com.wfm.experts.entity.tenant.common.enums.EmploymentStatus;
-import com.wfm.experts.entity.tenant.common.enums.EmploymentTypeEnum;
-import com.wfm.experts.entity.tenant.common.enums.WorkMode;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.wfm.experts.validation.groups.OnAdminCreation;   // Import group
+import com.wfm.experts.validation.groups.OnEmployeeProfile; // Import group
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.Valid; // For cascading validation
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.groups.Default; // Import Default
 import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
@@ -19,76 +19,33 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "employee_organizational_info") // Name of the new database table
+@Table(name = "employee_organizational_info")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class OrganizationalInfo {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Fields from EmploymentDetails are now direct fields of OrganizationalInfo
-    // Employment Details
-    @NotNull(message = "Date of Joining is required")
-    @Column(name = "date_of_joining") // Corresponds to EmploymentDetails.dateOfJoining
-    private LocalDate dateOfJoining;
+    // EmploymentDetails is fundamental for organizational context.
+    // It should exist for both admin and full employee profiles.
+    @NotNull(message = "Employment details are required", groups = {Default.class, OnEmployeeProfile.class}) // OnAdminCreation inherits Default
+    @Valid // Cascade validation to EmploymentDetails using its grouped annotations
+    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JoinColumn(name = "employment_details_id", referencedColumnName = "id", unique = true)
+    private EmploymentDetails employmentDetails;
 
-    @NotNull(message = "Employment Type is required")
-    @Enumerated(EnumType.STRING)
-    @Column(name = "employment_type") // Corresponds to EmploymentDetails.employmentType
-    private EmploymentTypeEnum employmentType;
+    // JobContextDetails is also fundamental.
+    @NotNull(message = "Job context details are required", groups = {Default.class, OnEmployeeProfile.class}) // OnAdminCreation inherits Default
+    @Valid // Cascade validation to JobContextDetails using its grouped annotations
+    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JoinColumn(name = "job_context_details_id", referencedColumnName = "id", unique = true)
+    private JobContextDetails jobContextDetails;
 
-    @NotNull(message = "Employment Status is required")
-    @Enumerated(EnumType.STRING)
-    @Column(name = "employment_status") // Corresponds to EmploymentDetails.employmentStatus
-    private EmploymentStatus employmentStatus;
+    // This date signifies when this specific organizational assignment/context becomes effective.
+    // It's likely required for any organizational setup.
+    @NotNull(message = "Organizational assignment effective date is required", groups = {Default.class, OnEmployeeProfile.class})
+    @Column(name = "org_assignment_effective_date", nullable = false)
+    private LocalDate orgAssignmentEffectiveDate;
 
-    @Column(name = "confirmation_date") // Corresponds to EmploymentDetails.confirmationDate
-    private LocalDate confirmationDate;
-
-    @Column(name = "probation_period_months") // Corresponds to EmploymentDetails.probationPeriodMonths
-    @Min(value = 0, message = "Probation period cannot be negative")
-    private Integer probationPeriodMonths;
-
-    @NotNull(message = "Notice Period is required")
-    @Column(name = "notice_period_days") // Corresponds to EmploymentDetails.noticePeriodDays
-    @Min(value = 0, message = "Notice period cannot be negative")
-    private Integer noticePeriodDays;
-
-    @NotNull(message = "Work Mode is required")
-    @Enumerated(EnumType.STRING)
-    @Column(name = "work_mode") // Corresponds to EmploymentDetails.workMode
-    private WorkMode workMode;
-
-    // Departmental & Job Information (fields that are descriptive strings or simple types)
-    @NotBlank(message = "Department is required")
-    @Column(name = "department_name") // Corresponds to EmploymentDetails.departmentName
-    private String departmentName;
-
-    @NotBlank(message = "Job Grade/Band is required")
-    @Column(name = "job_grade_band") // Corresponds to EmploymentDetails.jobGradeBand
-    private String jobGradeBand;
-
-    @NotBlank(message = "Cost Center is required")
-    @Column(name = "cost_center") // Corresponds to EmploymentDetails.costCenter
-    private String costCenter;
-
-    // Descriptive organizational role, distinct from the system Role.
-    @Column(name = "organizational_role_description") // Corresponds to EmploymentDetails.organizationalRoleDescription
-    private String organizationalRoleDescription;
-
-    // Role Effective Date (for the system Role assigned in the main Employee entity)
-    @NotNull(message = "Role Effective Date is required")
-    @Column(name = "role_effective_date") // Corresponds to EmploymentDetails.roleEffectiveDate
-    private LocalDate roleEffectiveDate;
-
-
-    // Note: The Employee entity will hold the foreign key to this OrganizationalInfo table.
-    // This OrganizationalInfo entity does not have a direct reference back to Employee
-    // for a unidirectional mapping owned by Employee.
-
-    // Other fields that are purely part of OrganizationalInfo and not in EmploymentDetails
-    // could be added directly here if any.
-    // For example, if there was a field "OfficeBranchCode":
-    // @Column(name = "office_branch_code")
-    // private String officeBranchCode;
 }
