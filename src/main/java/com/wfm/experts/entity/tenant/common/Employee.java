@@ -57,7 +57,6 @@ public class Employee {
     // but @NotBlank is fundamental.
     @NotBlank(message = "Password is required", groups = {Default.class, OnEmployeeProfile.class}) // Consider if password can be updated separately
     @Column(name = "password", nullable = false)
-    @JsonIgnore
     private String password;
 
     @NotBlank(message = "Primary Mobile Number is required", groups = {Default.class, OnEmployeeProfile.class})

@@ -16,6 +16,13 @@ public interface EmployeeService extends UserDetailsService {
     Employee createEmployee(Employee employee);
 
     /**
+     * ✅ Create multiple new employees.
+     * @param employees List of Employee objects to create.
+     * @return List of created Employee objects.
+     */
+    List<Employee> createMultipleEmployees(List<Employee> employees);
+
+    /**
      * ✅ Get an employee by email.
      */
     Optional<Employee> getEmployeeByEmail(String email);
