@@ -66,14 +66,14 @@ public class NotificationController {
 
         } catch (IllegalArgumentException e) {
             logger.warn("Invalid notification request for ID [{}]: {}",
-                    notificationRequest != null ? notificationRequest.getNotificationId() : "N/A", e.getMessage());
+                    notificationRequest.getNotificationId(), e.getMessage());
             response.put("error", "Invalid request parameters.");
             response.put("message", e.getMessage());
             return ResponseEntity.badRequest().body(response); // HTTP 400 Bad Request
 
         } catch (NotificationProcessingException e) {
             logger.error("Notification processing error for ID [{}]: {}",
-                    notificationRequest != null ? notificationRequest.getNotificationId() : "N/A", e.getMessage(), e);
+                    notificationRequest.getNotificationId(), e.getMessage(), e);
             response.put("error", "Notification processing failed.");
             response.put("message", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response); // HTTP 500
