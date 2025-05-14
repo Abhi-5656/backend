@@ -1,6 +1,6 @@
 package com.wfm.experts.notificationengine.service;
 
-import com.wfm.experts.notificationengine.dto.NotificationRequest;
+import com.wfm.experts.notificationengine.dto.NotificationRequest; // For DTO
 import com.wfm.experts.notificationengine.entity.AppNotification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -10,12 +10,14 @@ import java.util.Optional;
 
 public interface AppNotificationService {
 
-    AppNotification createAppNotification(NotificationRequest notificationRequest); // Existing for single user
+    AppNotification createAppNotification(NotificationRequest notificationRequest);
 
-    // New method for broadcasting to all users of the current tenant
     AppNotification createAndBroadcastAppNotification(NotificationRequest notificationRequest);
 
-    // ... other existing methods
+    // New method for sending to a list of specific users
+    List<AppNotification> createAppNotificationsForSpecificUsers(NotificationRequest baseNotificationRequest, List<String> targetUserIds);
+
+    // ... other existing methods ...
     Page<AppNotification> getUnreadNotificationsForUser(String userId, Pageable pageable);
     Page<AppNotification> getAllNotificationsForUser(String userId, Pageable pageable);
     long getUnreadNotificationCountForUser(String userId);
