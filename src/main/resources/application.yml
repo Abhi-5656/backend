@@ -3,57 +3,53 @@ server:
 
 spring:
   application:
-    name: wfm-backend # Added application name for clarity, adjust if needed
+    name: wfm-backend
   datasource:
     url: jdbc:postgresql://localhost:5432/wfm_core_db
     username: postgres
-    password: G7xP2mQ9Zb4N8vK3 # Consider using environment variables or Spring Cloud Config for secrets
+    password: G7xP2mQ9Zb4N8vK3
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: update # Set to 'validate' or 'none' in production after initial schema setup
+      ddl-auto: update
     properties:
       hibernate:
         multiTenancy: SCHEMA
-        tenant_identifier_resolver: com.wfm.experts.tenancy.TenantIdentifierResolver # Corrected package based on your structure
-        multi_tenant_connection_provider: com.wfm.experts.tenancy.SchemaMultiTenantConnectionProvider # Corrected package
+        tenant_identifier_resolver: com.wfm.experts.tenancy.TenantIdentifierResolver
+        multi_tenant_connection_provider: com.wfm.experts.tenancy.SchemaMultiTenantConnectionProvider
         show_sql: true
         format_sql: true
   flyway:
-    enabled: false # Keep as is, assuming you manage schema differently or enable when needed
+    enabled: false
     baseline-on-migrate: true
     default-schema: public
     create-schemas: true
-    locations: classpath:db/migration/tenants # This seems to be for tenant-specific migrations
+    locations: classpath:db/migration/tenants
 
-  # Spring Mail Configuration
   mail:
-    host: smtp.gmail.com       # <--- YOUR SMTP SERVER HOST
-    port: 587                    # <--- YOUR SMTP SERVER PORT (e.g., 587 for TLS, 465 for SSL)
-    username: rohit.mishra@wfmexperts.com # <--- YOUR EMAIL USERNAME
-    password: wsxv kzoa hanf zcrw    # <--- YOUR EMAIL PASSWORD (or app-specific password)
-    protocol: smtp               # Usually smtp
+    host: smtp.gmail.com
+    port: 587
+    username: rohit.mishra@wfmexperts.com
+    password: wsxv kzoa hanf zcrw
+    protocol: smtp
     properties:
-      mail.smtp.auth: "true"     # Enable SMTP authentication
-      mail.smtp.starttls.enable: "true" # Enable STARTTLS encryption
-      # mail.smtp.ssl.enable: "true" # Uncomment if your server uses SSL directly (usually port 465)
-      # mail.debug: "true"           # Uncomment for verbose JavaMail debugging output
+      mail.smtp.auth: "true"
+      mail.smtp.starttls.enable: "true"
+      # mail.debug: "true"
 
-  # RabbitMQ Configuration
   rabbitmq:
-    host: localhost       # Replace with your RabbitMQ server host if different
-    port: 5672            # Standard RabbitMQ port
-    username: guest       # Replace with your RabbitMQ username
-    password: guest       # Replace with your RabbitMQ password (use secure external config for prod)
-    # virtual-host: /     # Uncomment and set if you use a specific virtual host
-    publisher-confirm-type: correlated # Enables publisher confirms (alternative: simple)
-    publisher-returns: true            # Enables publisher returns for unroutable messages
-    listener:                          # Optional: Listener container settings
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    listener:
       simple:
-        acknowledge-mode: auto # Default is auto. Consider 'manual' for more control in consumers.
+        acknowledge-mode: auto
         retry:
           enabled: true
           initial-interval: 1000ms
@@ -67,67 +63,58 @@ spring:
           max-attempts: 3
           multiplier: 2.0
 
-
-# Custom RabbitMQ Topology and Routing Key Configuration for Notification Engine
-rabbitmq: # This key is distinct from spring.rabbitmq and is for your custom @Value injections
+# Custom RabbitMQ Topology and Routing Key Configuration
+rabbitmq: # Note: This is a custom key, not spring.rabbitmq
   exchange:
-    notification: "notification.exchange.topic" # Main topic exchange for notifications
-    deadLetter: "deadletter.exchange.direct"    # Dead letter direct exchange
+    notification: "notification.exchange.topic"
+    deadLetter: "deadletter.exchange.direct"
   queue:
     email: "email.notification.queue"
-    # sms: "sms.notification.queue" # Uncomment when SMS is implemented
     push: "push.notification.queue"
-    dlq: # Dead Letter Queues
-      email: "email.notification.dlq"
-      # sms: "sms.notification.dlq"   # Uncomment when SMS is implemented
-      push: "push.notification.dlq"
-  routingkey:
-    # Routing keys used by producers to send messages
-    # The part after the prefix can be dynamic (e.g., based on event type)
-    email_prefix: "notification.email"  # e.g., producer might send to "notification.email.user_registered"
-    # sms_prefix: "notification.sms"      # Uncomment when SMS is implemented
-    push_prefix: "notification.push"
-
-    # Binding keys used in RabbitMQConfig to bind queues to exchanges
-    # These often use wildcards for topic exchanges
-    email: "notification.email.#"       # Binds email queue to catch all email notifications
-    # sms: "notification.sms.#"         # Uncomment when SMS is implemented
-    push: "notification.push.#"         # Binds push queue to catch all push notifications
-
-    # Routing keys for DLQs (used when a message is dead-lettered from a primary queue)
+    in_app: "in_app.notification.queue" # New IN_APP queue
     dlq:
-      email: "dlq.email"                # Messages from emailQueue DLX'd here
-      # sms: "dlq.sms"                  # Uncomment when SMS is implemented
-      push: "dlq.push"                # Messages from pushQueue DLX'd here
+      email: "email.notification.dlq"
+      push: "push.notification.dlq"
+      in_app: "in_app.notification.dlq" # New IN_APP DLQ
+  routingkey:
+    email_prefix: "notification.email"
+    push_prefix: "notification.push"
+    in_app_prefix: "notification.inapp" # New IN_APP prefix
+
+    email: "notification.email.#"
+    push: "notification.push.#"
+    in_app: "notification.inapp.#"      # New IN_APP binding key
+
+    dlq:
+      email: "dlq.email"
+      push: "dlq.push"
+      in_app: "dlq.inapp"             # New IN_APP DLQ routing key
 
 # Notification Engine Specific Configurations
 notification:
   email:
-    default-language: "en-US" # Default language for email templates
-    # sms:
-    # default-language: "en-US" # Uncomment when SMS is implemented
-    # default-sender-id: "YourApp" # Uncomment when SMS is implemented
+    default-language: "en-US"
   push:
-    default-language: "en-US"   # Default language for push templates
+    default-language: "en-US"
+  inapp: # Renamed from in_app to inapp for consistency, or keep as in_app if preferred
+    default-language: "en-US"
   templating:
-    default-language: "en-US"   # Global default language for templating service fallback
+    default-language: "en-US"
 
 logging:
   level:
-    com.wfm.experts: DEBUG # Set your project's base package to DEBUG for more logs
-    com.wfm.experts.notificationengine: DEBUG # Specific debug for notification engine
-    org.springframework.amqp: INFO  # Set to DEBUG for verbose RabbitMQ client logs
+    com.wfm.experts: DEBUG
+    com.wfm.experts.notificationengine: DEBUG
+    org.springframework.amqp: INFO
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
-    org.springframework.mail: DEBUG # To see Spring Mail logs, can be TRACE for more detail
+    org.springframework.mail: DEBUG
 
 management:
   endpoints:
     web:
       exposure:
-        include: "*" # Exposes all actuator endpoints (be cautious in production)
+        include: "*"
   endpoint:
     health:
       show-details: always
-      # RabbitMQ health indicator is part of spring-boot-actuator and spring-rabbit
-      # Mail health indicator is also available if actuator is configured

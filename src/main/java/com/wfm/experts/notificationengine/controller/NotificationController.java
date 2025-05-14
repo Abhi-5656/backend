@@ -19,7 +19,7 @@ import java.util.Map;
 
 /**
  * REST Controller for handling incoming notification requests.
- * This controller provides an endpoint to submit notifications to the engine.
+ * This controller provides an endpoint to submit notifications to the engine for any channel.
  */
 @RestController
 @RequestMapping("/api/notifications") // Base path for notification-related endpoints
@@ -35,13 +35,13 @@ public class NotificationController {
     }
 
     /**
-     * Endpoint to submit a new notification request.
+     * Endpoint to submit a new notification request for any channel (EMAIL, PUSH_FCM, PUSH_APNS, IN_APP).
      * The request is validated and then passed to the orchestration service
-     * for further processing and queuing.
+     * for further processing and queuing. The 'channel' field in the NotificationRequest
+     * DTO determines how it will be processed.
      *
      * @param notificationRequest The {@link NotificationRequest} DTO containing the details
-     * of the notification to be sent. This should be
-     * annotated with validation constraints if needed.
+     * of the notification to be sent.
      * @return A {@link ResponseEntity} indicating the outcome of the request submission.
      * - 202 Accepted: If the request is successfully received and queued for processing.
      * - 400 Bad Request: If the request is invalid (e.g., missing required fields).
@@ -50,13 +50,12 @@ public class NotificationController {
     @PostMapping("/send")
     public ResponseEntity<Map<String, Object>> sendNotification(@Valid @RequestBody NotificationRequest notificationRequest) {
         // @Valid annotation triggers JSR 380 bean validation if constraints are defined on NotificationRequest DTO.
-        // For example, you could add @NotBlank, @NotNull, @Email on fields in NotificationRequest.
-        // BindingResult can be injected as a parameter to handle validation errors more granularly if needed.
-
         Map<String, Object> response = new HashMap<>();
 
         try {
-            logger.info("Received request to send notification with ID: {}", notificationRequest.getNotificationId());
+            logger.info("Received request to send notification with ID: {} for channel: {}",
+                    notificationRequest.getNotificationId(), notificationRequest.getChannel());
+
             // Delegate to the orchestration service
             notificationOrchestrationService.processNotificationRequest(notificationRequest);
 
@@ -91,5 +90,4 @@ public class NotificationController {
 
     // You could add other endpoints here later, for example:
     // - GET /api/v1/notifications/{notificationId}/status  (to query the status of a notification from NotificationLog)
-    // - POST /api/v1/notifications/batch-send (to submit multiple notifications in one request)
 }

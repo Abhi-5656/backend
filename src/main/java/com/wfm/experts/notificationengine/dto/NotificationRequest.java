@@ -13,29 +13,45 @@ import java.util.Objects;
  */
 public class NotificationRequest implements Serializable {
 
-    private static final long serialVersionUID = 1L; // Original serialVersionUID
+    private static final long serialVersionUID = 1L; // Keep or update as per your serialization strategy
 
-    private String notificationId;
-    private String userId;
-    private ChannelType channel;
-    private String recipientAddress;
-    private String templateId;
-    private Map<String, Object> payload;
-    private Map<String, String> metadata;
+    private String notificationId;      // Unique ID for this specific notification instance
+    private String userId;              // ID of the user to whom the notification is intended
+    private ChannelType channel;        // Enum indicating the target channel (EMAIL, PUSH_FCM, PUSH_APNS, IN_APP)
+    private String recipientAddress;    // The actual address for the channel (e.g., email, phone, device token, or null for IN_APP if userId is primary target)
+    private String templateId;          // Identifier for the notification template to be used
+    private Map<String, Object> payload; // Key-value pairs for template variables and other channel-specific data
+    private Map<String, String> metadata; // Additional metadata (e.g., source service)
 
+    /**
+     * Enum to define the supported notification channels.
+     */
     public enum ChannelType {
         EMAIL,
-        // SMS, // Assuming SMS is still on hold
+        // SMS, // SMS is on hold
         PUSH_FCM,
-        PUSH_APNS
+        PUSH_APNS,
+        IN_APP // Added for In-App Notifications
     }
 
+    // Constructors
     public NotificationRequest() {
+        // Generate a default unique ID if not provided
         this.notificationId = UUID.randomUUID().toString();
     }
 
+    /**
+     * Constructor for basic notification request.
+     *
+     * @param userId           ID of the target user.
+     * @param channel          The notification channel.
+     * @param recipientAddress The specific address for the channel (e.g., email, device token).
+     * For IN_APP, this might be null if userId is sufficient.
+     * @param templateId       The ID of the template to use.
+     * @param payload          Data for template rendering and channel-specific needs.
+     */
     public NotificationRequest(String userId, ChannelType channel, String recipientAddress, String templateId, Map<String, Object> payload) {
-        this();
+        this(); // Calls the default constructor to set notificationId
         this.userId = userId;
         this.channel = channel;
         this.recipientAddress = recipientAddress;
@@ -43,6 +59,17 @@ public class NotificationRequest implements Serializable {
         this.payload = payload;
     }
 
+    /**
+     * Full constructor.
+     *
+     * @param notificationId   A specific notification ID (if not using the auto-generated one).
+     * @param userId           ID of the target user.
+     * @param channel          The notification channel.
+     * @param recipientAddress The specific address for the channel.
+     * @param templateId       The ID of the template to use.
+     * @param payload          Data for template rendering.
+     * @param metadata         Additional metadata.
+     */
     public NotificationRequest(String notificationId, String userId, ChannelType channel, String recipientAddress, String templateId, Map<String, Object> payload, Map<String, String> metadata) {
         this.notificationId = (notificationId != null && !notificationId.trim().isEmpty()) ? notificationId : UUID.randomUUID().toString();
         this.userId = userId;
@@ -111,6 +138,7 @@ public class NotificationRequest implements Serializable {
         this.metadata = metadata;
     }
 
+    // toString() for logging and debugging
     @Override
     public String toString() {
         return "NotificationRequest{" +
@@ -124,6 +152,7 @@ public class NotificationRequest implements Serializable {
                 '}';
     }
 
+    // equals() and hashCode()
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
