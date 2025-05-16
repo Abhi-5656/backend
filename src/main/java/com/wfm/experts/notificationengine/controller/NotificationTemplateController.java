@@ -90,7 +90,6 @@ public class NotificationTemplateController {
             return ResponseEntity.notFound().build();
         }
     }
-
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteTemplate(@PathVariable Long id) {
         logger.info("Received request to delete template with DB ID: {}", id);

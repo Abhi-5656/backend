@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional; // Import Transactional
 
 import java.util.Map;
 import java.util.Optional;
@@ -40,6 +41,7 @@ public class TemplatingServiceImpl implements TemplatingService {
     }
 
     @Override
+    @Transactional(readOnly = true) // Ensures LOB access is within a transaction
     public Optional<RenderedTemplateContent> getAndRenderTemplate(
             String templateId,
             NotificationRequest.ChannelType channel,
@@ -56,7 +58,7 @@ public class TemplatingServiceImpl implements TemplatingService {
                 templateRepository.findFirstByTemplateIdAndChannelAndLanguageAndIsActiveTrueOrderByVersionDesc(
                         templateId, channel, language);
 
-        System.out.println(templateOptional+"Template Optional");
+        // System.out.println(templateOptional+"Template Optional"); // Original debug line
 
         // If not found for the specified language, try with the default language as a fallback
         if (templateOptional.isEmpty() && !language.equals(defaultLanguage)) {
@@ -69,7 +71,10 @@ public class TemplatingServiceImpl implements TemplatingService {
         if (templateOptional.isEmpty()) {
             logger.error("No active template found for ID '{}', channel '{}', language '{}' (or default language '{}').",
                     templateId, channel, language, defaultLanguage);
-            return Optional.empty(); // Or throw a specific "TemplateNotFoundException"
+            // No need to throw TemplateProcessingException here for not found,
+            // Optional.empty() is the correct return for "not found".
+            // The orElseThrow in the calling service (AppNotificationServiceImpl) handles the case where it *expects* a template.
+            return Optional.empty();
         }
 
         NotificationTemplate template = templateOptional.get();
@@ -83,7 +88,7 @@ public class TemplatingServiceImpl implements TemplatingService {
                 renderedSubject = render(template.getSubject(), payload);
             }
             return Optional.of(new RenderedTemplateContent(renderedSubject, renderedBody));
-        } catch (Exception e) {
+        } catch (Exception e) { // Catch broader exceptions during rendering itself if any
             logger.error("Error rendering template ID '{}', Version '{}'. Error: {}",
                     template.getTemplateId(), template.getVersion(), e.getMessage(), e);
             throw new TemplateProcessingException("Failed to render template " + template.getTemplateId() + ": " + e.getMessage(), e);
@@ -91,6 +96,7 @@ public class TemplatingServiceImpl implements TemplatingService {
     }
 
     @Override
+    @Transactional(readOnly = true) // Ensures LOB access is within a transaction
     public Optional<NotificationTemplate> getRawTemplate(
             String templateId,
             NotificationRequest.ChannelType channel,
@@ -153,8 +159,8 @@ public class TemplatingServiceImpl implements TemplatingService {
                 // Option 1: Leave placeholder as is
                 // matcher.appendReplacement(sb, matcher.group(0));
                 // Option 2: Replace with empty string (or a default like "[MISSING_KEY]")
-                matcher.appendReplacement(sb, "");
-                logger.warn("Placeholder key '{}' not found in payload or value is null. Replaced with empty string.", key);
+                matcher.appendReplacement(sb, ""); // Current behavior: replace missing/null with empty string
+                logger.warn("Placeholder key '{}' not found in payload or value is null for template rendering. Replaced with empty string.", key);
             }
         }
         matcher.appendTail(sb);
@@ -172,14 +178,17 @@ public class TemplatingServiceImpl implements TemplatingService {
     @SuppressWarnings("unchecked")
     private Object getNestedValue(Map<String, Object> payload, String key) {
         if (key.contains(".")) {
-            String[] keys = key.split("\\.", 2);
+            String[] keys = key.split("\\.", 2); // Split only on the first dot
             Object nestedObject = payload.get(keys[0]);
             if (nestedObject instanceof Map) {
+                // Recursively get the value from the nested map
                 return getNestedValue((Map<String, Object>) nestedObject, keys[1]);
             } else {
-                return null; // Key path not fully navigable
+                // If the path doesn't lead to another map, but there are still dots, the key is not found as nested.
+                return null;
             }
         } else {
+            // Base case: no dots, just get the value directly from the current map
             return payload.get(key);
         }
     }
