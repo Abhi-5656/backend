@@ -114,19 +114,19 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
     }
 
     @Override
-    public void afterSendCompletion(Message<?> message, MessageChannel channel, boolean sent, Exception ex) {
+    public void afterSendCompletion(Message<?>  message, MessageChannel channel, boolean sent, Exception ex) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
         if (accessor != null && (
                 StompCommand.SEND.equals(accessor.getCommand()) ||
                         StompCommand.SUBSCRIBE.equals(accessor.getCommand()) ||
                         StompCommand.DISCONNECT.equals(accessor.getCommand()))) {
-            logger.debug("🧹 STOMP {} :: Clearing TenantContext for user: {}",
+            logger.debug("STOMP {} :: Clearing TenantContext for user: {}",
                     accessor.getCommand(), accessor.getUser() != null ? accessor.getUser().getName() : "anonymous");
             TenantContext.clear();
         }
 
         if (ex != null) {
-            logger.error("❗ STOMP Error during {}: {}", accessor != null ? accessor.getCommand() : "unknown", ex.getMessage(), ex);
+            logger.error("STOMP Error during {}: {}", accessor != null ? accessor.getCommand() : "unknown", ex.getMessage(), ex);
             TenantContext.clear();
         }
     }
