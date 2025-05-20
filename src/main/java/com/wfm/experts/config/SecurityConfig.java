@@ -68,14 +68,18 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/api/auth/**",
-                                "/api/subscriptions/**",
-                                "/public/**",                     // ✅ Public job/apply
-                                "/swagger-ui/**", "/v3/api-docs/**" // optional
+                                "/api/auth/**",          // Authentication endpoints
+                                "/api/subscriptions/**", // Subscription endpoints
+                                "/public/**",            // Publicly accessible job application endpoints
+                                "/ws/**",                // WebSocket handshake endpoint and its subpaths
+                                "/swagger-ui/**",        // Swagger UI (optional)
+                                "/v3/api-docs/**"      // OpenAPI docs (optional)
                         ).permitAll()
-                        .anyRequest().authenticated()
+                        .anyRequest().authenticated() // All other requests require authentication
                 )
+                // TenantFilter runs before JwtAuthenticationFilter to set up TenantContext
                 .addFilterBefore(tenantFilter, UsernamePasswordAuthenticationFilter.class)
+                // JwtAuthenticationFilter runs after TenantFilter to handle JWT for HTTP requests
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
@@ -99,7 +103,8 @@ public class SecurityConfig {
 
             config.setAllowedOrigins(List.of(
                     "http://localhost:4200",
-                    "http://192.168.29.187:4200" // ✅ Added IP-based frontend access
+                    "http://192.168.29.187:4200", // ✅ Added IP-based frontend access
+                    "http://192.168.29.164:4200"
             ));
             config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
             config.setAllowedHeaders(List.of("Authorization", "Content-Type"));

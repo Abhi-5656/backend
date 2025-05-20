@@ -22,6 +22,8 @@ public class TenantFilter extends OncePerRequestFilter {
     private static final Logger LOGGER = Logger.getLogger(TenantFilter.class.getName());
     private static final String PUBLIC_API_PREFIX = "/api/subscriptions";
     private static final String LOGIN_API_PREFIX = "/api/auth/login";
+    private static final String WEBSOCKET_PREFIX = "/ws"; // Add your actual WebSocket endpoint here
+
 
     private final SubscriptionRepository subscriptionRepository;
     private final JwtUtil jwtUtil;
@@ -144,9 +146,13 @@ public class TenantFilter extends OncePerRequestFilter {
         response.getWriter().write(objectMapper.writeValueAsString(Map.of("error", message)));
     }
 
-    private boolean isPublicRequest(String requestUri) {
-        return requestUri.startsWith(PUBLIC_API_PREFIX);
-    }
+//    private boolean isPublicRequest(String requestUri) {
+//        return requestUri.startsWith(PUBLIC_API_PREFIX);
+//    }
+private boolean isPublicRequest(String uri) {
+    return uri.startsWith(PUBLIC_API_PREFIX);
+//            || uri.startsWith(WEBSOCKET_PREFIX);
+}
 
     private boolean isLoginRequest(String requestUri) {
         return requestUri.startsWith(LOGIN_API_PREFIX);

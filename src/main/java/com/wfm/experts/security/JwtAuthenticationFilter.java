@@ -67,24 +67,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 //        return requestUri.startsWith("/api/auth/login") || requestUri.startsWith("/api/subscriptions");
 //    }
 
-    @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        String requestUri = request.getRequestURI();
-
-        return requestUri.startsWith("/api/auth/login")
-                || requestUri.startsWith("/api/subscriptions")
-                || requestUri.contains("/public/jobs/") && requestUri.endsWith("/apply");
-
-    }
 //    @Override
 //    protected boolean shouldNotFilter(HttpServletRequest request) {
 //        String requestUri = request.getRequestURI();
 //
 //        return requestUri.startsWith("/api/auth/login")
 //                || requestUri.startsWith("/api/subscriptions")
-//                || (requestUri.contains("/public/jobs/") && requestUri.endsWith("/apply"))
-//                || requestUri.startsWith("/ws"); // ✅ WebSocket endpoint excluded
+//                || (requestUri.contains("/public/jobs/") && requestUri.endsWith("/apply"));
+//
 //    }
+
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String requestUri = request.getRequestURI();
+
+        return requestUri.startsWith("/api/auth/login")
+                || requestUri.startsWith("/api/subscriptions")
+                || (requestUri.contains("/public/jobs/") && requestUri.endsWith("/apply"))
+                || requestUri.startsWith("/ws"); // ✅ WebSocket endpoint excluded
+
+    }
 
 
 
