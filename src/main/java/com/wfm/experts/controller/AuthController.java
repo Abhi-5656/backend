@@ -21,6 +21,7 @@ package com.wfm.experts.controller;
 import com.wfm.experts.dto.tenant.common.AuthRequest;
 import com.wfm.experts.dto.tenant.common.AuthResponse;
 import com.wfm.experts.entity.tenant.common.Employee;
+import com.wfm.experts.entity.tenant.common.Role;
 import com.wfm.experts.exception.*;
 import com.wfm.experts.security.JwtUtil;
 import com.wfm.experts.service.EmployeeService;
@@ -33,7 +34,10 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 import java.util.Date;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Authentication Controller for handling login and token refresh.
@@ -55,15 +59,60 @@ public class AuthController {
     /**
      * Login API - Authenticate using email & password, then return JWT Token.
      */
+//    @PostMapping("/login")
+//    public ResponseEntity<AuthResponse> login(@RequestBody  AuthRequest request) {
+//
+//        // ✅ Validate if email or password is `null`
+//        if (request.getEmail() == null || request.getPassword() == null) {
+//            throw new NullCredentialsException("Username or password cannot be null.");
+//        }
+//
+//        // ✅ Validate if email or password is empty (`""`)
+//        if (request.getEmail().trim().isEmpty()) {
+//            throw new EmptyUsernameException("Username cannot be empty.");
+//        }
+//        if (request.getPassword().trim().isEmpty()) {
+//            throw new EmptyPasswordException("Password cannot be empty.");
+//        }
+//
+//        // ✅ Get tenant ID from context
+//        String tenantId = TenantContext.getTenant();
+//        if (tenantId == null) {
+//            throw new RuntimeException("Tenant ID not found in context.");
+//        }
+//
+//        // ✅ Load user details
+//        UserDetails userDetails = employeeService.loadUserByUsername(request.getEmail());
+//
+//        // ✅ Retrieve Employee from database
+//        Optional<Employee> employeeOpt = employeeService.getEmployeeByEmail(request.getEmail());
+//        if (employeeOpt.isEmpty()) {
+//            throw new InvalidEmailException("Email not found: " + request.getEmail());
+//        }
+//
+//        Employee employee = employeeOpt.get();
+//
+//        // ✅ Validate password
+//        if (!passwordEncoder.matches(request.getPassword(), employee.getPassword())) {
+//            throw new InvalidPasswordException("Invalid password for email: " + request.getEmail());
+//        }
+//
+//        // ✅ Generate JWT Token
+//        String token = jwtUtil.generateToken(employee.getEmail(), tenantId, employee.getRole().getRoleName());
+//
+//        // ✅ Get Token Expiry Date
+//        Date expiryDate = jwtUtil.getTokenExpiryDate(token);
+//
+//        // ✅ Return response without expiryDate (only `expiresIn`)
+//        return ResponseEntity.ok(new AuthResponse(token, "Bearer", expiryDate));
+//    }
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody  AuthRequest request) {
+    public ResponseEntity<AuthResponse> login(@RequestBody AuthRequest request) {
 
-        // ✅ Validate if email or password is `null`
+        // --- Input Validation ---
         if (request.getEmail() == null || request.getPassword() == null) {
             throw new NullCredentialsException("Username or password cannot be null.");
         }
-
-        // ✅ Validate if email or password is empty (`""`)
         if (request.getEmail().trim().isEmpty()) {
             throw new EmptyUsernameException("Username cannot be empty.");
         }
@@ -71,36 +120,51 @@ public class AuthController {
             throw new EmptyPasswordException("Password cannot be empty.");
         }
 
-        // ✅ Get tenant ID from context
+        // --- Tenant Context ---
         String tenantId = TenantContext.getTenant();
         if (tenantId == null) {
             throw new RuntimeException("Tenant ID not found in context.");
         }
 
-        // ✅ Load user details
-        UserDetails userDetails = employeeService.loadUserByUsername(request.getEmail());
+        // --- Load User and Employee Info ---
+        employeeService.loadUserByUsername(request.getEmail()); // throws if not found
 
-        // ✅ Retrieve Employee from database
         Optional<Employee> employeeOpt = employeeService.getEmployeeByEmail(request.getEmail());
         if (employeeOpt.isEmpty()) {
             throw new InvalidEmailException("Email not found: " + request.getEmail());
         }
-
         Employee employee = employeeOpt.get();
 
-        // ✅ Validate password
+        // --- Password Validation ---
         if (!passwordEncoder.matches(request.getPassword(), employee.getPassword())) {
             throw new InvalidPasswordException("Invalid password for email: " + request.getEmail());
         }
 
-        // ✅ Generate JWT Token
-        String token = jwtUtil.generateToken(employee.getEmail(), tenantId, employee.getRole().getRoleName());
+        // --- Full Name (safe concatenation, trims, handles nulls) ---
+        String fullName = "";
+        if (employee.getPersonalInfo() != null) {
+            String first = employee.getPersonalInfo().getFirstName();
+            String last = employee.getPersonalInfo().getLastName();
+            fullName = ((first != null ? first.trim() : "") + " " + (last != null ? last.trim() : "")).trim();
+        }
 
-        // ✅ Get Token Expiry Date
-        Date expiryDate = jwtUtil.getTokenExpiryDate(token);
+        // --- Multi-Role (getRole() should be getRoles()) ---
+        List<String> roles = (employee.getRoles() != null)
+                ? employee.getRoles().stream()
+                .map(Role::getRoleName)
+                .filter(Objects::nonNull)
+                .toList()
+                : List.of();
 
-        // ✅ Return response without expiryDate (only `expiresIn`)
-        return ResponseEntity.ok(new AuthResponse(token, "Bearer", expiryDate));
+        // --- Generate JWT Token ---
+        String token = jwtUtil.generateToken(employee.getEmail(), tenantId, roles, fullName);
+
+        // --- Expires In ---
+        String expiresIn = jwtUtil.extractClaim(token, claims -> claims.get("expiresIn", String.class));
+
+        return ResponseEntity.ok(new AuthResponse(token, "Bearer", expiresIn));
     }
+
+
 
 }

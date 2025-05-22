@@ -75,14 +75,14 @@ public class EmployeeController {
         return employee.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    @PutMapping("/{email}")
-    public ResponseEntity<Employee> updateEmployee(@RequestHeader("Authorization") String token,
-                                                   @PathVariable String email,
-                                                   @Validated(OnEmployeeProfile.class) @RequestBody Employee employee) {
-        setTenantSchemaFromToken(token);
-        Employee updatedEmployee = employeeService.updateEmployee(email, employee);
-        return ResponseEntity.ok(updatedEmployee);
-    }
+//    @PutMapping("/{email}")
+//    public ResponseEntity<Employee> updateEmployee(@RequestHeader("Authorization") String token,
+//                                                   @PathVariable String email,
+//                                                   @Validated(OnEmployeeProfile.class) @RequestBody Employee employee) {
+//        setTenantSchemaFromToken(token);
+//        Employee updatedEmployee = employeeService.updateEmployee(email, employee);
+//        return ResponseEntity.ok(updatedEmployee);
+//    }
 
     @DeleteMapping("/{email}")
     public ResponseEntity<Void> deleteEmployee(@RequestHeader("Authorization") String token,

@@ -27,6 +27,7 @@ import org.springframework.stereotype.Component;
 import java.security.Key;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 import java.util.TimeZone;
 import java.util.function.Function;
 import java.util.logging.Logger;
@@ -60,15 +61,30 @@ public class JwtUtil {
     /**
      * ✅ Generates a JWT Access Token with expiration time (15 minutes).
      */
-    public String generateToken(String email, String tenantId, String role) {
+//    public String generateToken(String email, String tenantId, String role) {
+//        Date expirationDate = new Date(System.currentTimeMillis() + accessTokenExpiration);
+//        String expiresIn = calculateExpiresIn(expirationDate);
+//
+//        return Jwts.builder()
+//                .setSubject(email)
+//                .claim("tenantId", tenantId)
+//                .claim("role", role)
+//                .claim("expiresIn", expiresIn)  // ✅ Human-readable expiration time (e.g., "15 minutes")
+//                .setIssuedAt(new Date())
+//                .setExpiration(expirationDate)
+//                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+//                .compact();
+//    }
+    public String generateToken(String email, String tenantId, List<String> roles, String fullName) {
         Date expirationDate = new Date(System.currentTimeMillis() + accessTokenExpiration);
         String expiresIn = calculateExpiresIn(expirationDate);
 
         return Jwts.builder()
                 .setSubject(email)
                 .claim("tenantId", tenantId)
-                .claim("role", role)
-                .claim("expiresIn", expiresIn)  // ✅ Human-readable expiration time (e.g., "15 minutes")
+                .claim("role", roles)            // <--- Array of roles
+                .claim("fullName", fullName)
+                .claim("expiresIn", expiresIn)
                 .setIssuedAt(new Date())
                 .setExpiration(expirationDate)
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)

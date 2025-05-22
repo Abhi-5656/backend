@@ -22,7 +22,9 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.groups.Default; // Import Default
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 @Getter
 @Setter
@@ -65,10 +67,20 @@ public class Employee {
     private String phoneNumber;
 
     // --- System Role ---
+//    @NotNull(message = "System Role is required", groups = {Default.class, OnEmployeeProfile.class})
+//    @ManyToOne(fetch = FetchType.EAGER)
+//    @JoinColumn(name = "role_id", nullable = false)
+//    private Role role;
+    // --- System Roles (One Employee can have Many Roles) ---
     @NotNull(message = "System Role is required", groups = {Default.class, OnEmployeeProfile.class})
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "role_id", nullable = false)
-    private Role role;
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "employee_roles",
+            joinColumns = @JoinColumn(name = "employee_id", referencedColumnName = "id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id", referencedColumnName = "id")
+    )
+    private List<Role> roles = new ArrayList<>();
+
 
     // --- Personal Information (Validation cascaded based on active group) ---
     @NotNull(message = "Personal information is required", groups = {Default.class, OnEmployeeProfile.class}) // Ensures PersonalInfo object exists

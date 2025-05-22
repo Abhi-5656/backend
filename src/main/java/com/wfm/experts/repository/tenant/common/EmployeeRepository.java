@@ -11,12 +11,15 @@ import java.util.Optional;
 @Repository
 public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
-    // ✅ Find Employee by Employee ID
+    // Find Employee by Employee ID
     Optional<Employee> findByEmployeeId(String employeeId);
 
-    // ✅ Find Employee by Email (Use this for login authentication)
+    // Find Employee by Email (Use this for login authentication)
     Optional<Employee> findByEmail(String email);
 
-    // ✅ Find Employees by Role
-    List<Employee> findByRole(Role role);
+    // ✅ Find Employees who have the given role in their roles list
+    List<Employee> findByRoles(Role role);
+
+    // (Optional) Find Employees with any of a set of roles
+    List<Employee> findByRolesIn(List<Role> roles);
 }

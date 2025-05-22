@@ -32,6 +32,7 @@ import java.net.UnknownHostException;
 import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 // import java.util.Optional; // Not directly used here but useful generally
 import java.util.logging.Level;
@@ -142,7 +143,9 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         adminEmployee.setPassword(passwordEncoder.encode(rawPassword)); // Encode and set
 
         adminEmployee.setPhoneNumber(phoneNumber);
-        adminEmployee.setRole(adminRole);
+//        adminEmployee.setRole(adminRole);
+        adminEmployee.setRoles(List.of(adminRole));
+
         adminEmployee.setTenantId(tenantId); // Set tenantId on employee object as well
 
         PersonalInfo personalInfo = new PersonalInfo();

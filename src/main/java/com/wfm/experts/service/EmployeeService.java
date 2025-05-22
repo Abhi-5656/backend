@@ -35,7 +35,7 @@ public interface EmployeeService extends UserDetailsService {
     /**
      * ✅ Update an employee by email.
      */
-    Employee updateEmployee(String email, Employee updatedEmployee);
+//    Employee updateEmployee(String email, Employee updatedEmployee);
 
     /**
      * ✅ Delete an employee by email.

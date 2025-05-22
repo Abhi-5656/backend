@@ -1,11 +1,7 @@
 package com.wfm.experts.service.impl;
 
-import com.wfm.experts.entity.tenant.common.Employee;
+import com.wfm.experts.entity.tenant.common.*;
 // Import necessary entities if you need to pre-populate them for bulk creation
-import com.wfm.experts.entity.tenant.common.PersonalInfo;
-import com.wfm.experts.entity.tenant.common.OrganizationalInfo;
-import com.wfm.experts.entity.tenant.common.EmploymentDetails;
-import com.wfm.experts.entity.tenant.common.JobContextDetails;
 import com.wfm.experts.entity.tenant.common.enums.EmploymentStatus;
 import com.wfm.experts.entity.tenant.common.enums.EmploymentType;
 import com.wfm.experts.entity.tenant.common.enums.WorkMode;
@@ -52,17 +48,39 @@ public class EmployeeServiceImpl implements EmployeeService, UserDetailsService 
         this.passwordEncoder = passwordEncoder;
     }
 
-    @Override
-    public UserDetails loadUserByUsername(String email) throws InvalidEmailException {
-        ensureSchemaSwitch();
-        Employee employee = employeeRepository.findByEmail(email)
-                .orElseThrow(() -> new InvalidEmailException("Employee not found with email: " + email));
-        return new org.springframework.security.core.userdetails.User(
-                employee.getEmail(),
-                employee.getPassword(),
-                Collections.singleton(new SimpleGrantedAuthority(employee.getRole().getRoleName()))
-        );
+//    @Override
+//    public UserDetails loadUserByUsername(String email) throws InvalidEmailException {
+//        ensureSchemaSwitch();
+//        Employee employee = employeeRepository.findByEmail(email)
+//                .orElseThrow(() -> new InvalidEmailException("Employee not found with email: " + email));
+//        return new org.springframework.security.core.userdetails.User(
+//                employee.getEmail(),
+//                employee.getPassword(),
+//                Collections.singleton(new SimpleGrantedAuthority(employee.getRole().getRoleName()))
+//        );
+//    }
+@Override
+public UserDetails loadUserByUsername(String email) throws InvalidEmailException {
+    ensureSchemaSwitch();
+    Employee employee = employeeRepository.findByEmail(email)
+            .orElseThrow(() -> new InvalidEmailException("Employee not found with email: " + email));
+
+    // Multi-role support: collect all authorities
+    List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+    if (employee.getRoles() != null) {
+        for (Role role : employee.getRoles()) {
+            if (role != null && role.getRoleName() != null) {
+                authorities.add(new SimpleGrantedAuthority(role.getRoleName()));
+            }
+        }
     }
+
+    return new org.springframework.security.core.userdetails.User(
+            employee.getEmail(),
+            employee.getPassword(),
+            authorities
+    );
+}
 
     @Transactional
     @Override
@@ -170,77 +188,77 @@ public class EmployeeServiceImpl implements EmployeeService, UserDetailsService 
         return employeeRepository.findAll();
     }
 
-    @Transactional
-    @Override
-    public Employee updateEmployee(String email, @Valid Employee updatedEmployee) { // Added @Valid
-        ensureSchemaSwitch();
-        Employee existingEmployee = employeeRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("❌ Employee not found: " + email));
-
-        // Smartly update fields from updatedEmployee to existingEmployee
-        // This avoids nullifying fields not present in the payload and handles child entities.
-        updateExistingEmployeeData(existingEmployee, updatedEmployee);
-
-        return employeeRepository.save(existingEmployee);
-    }
-
-    private void updateExistingEmployeeData(Employee existing, Employee incoming) {
-        // Update direct Employee fields
-        if (incoming.getEmployeeId() != null) existing.setEmployeeId(incoming.getEmployeeId());
-        // Email is typically not changed as it's an identifier, but if allowed:
-        // if (incoming.getEmail() != null) existing.setEmail(incoming.getEmail());
-        if (incoming.getPhoneNumber() != null) existing.setPhoneNumber(incoming.getPhoneNumber());
-        if (incoming.getRole() != null) existing.setRole(incoming.getRole());
-        // Password should be handled via a separate "changePassword" flow for security
-        // if (incoming.getPassword() != null && !incoming.getPassword().isEmpty()) {
-        //    existing.setPassword(passwordEncoder.encode(incoming.getPassword()));
-        // }
-
-        // Update PersonalInfo
-        if (incoming.getPersonalInfo() != null) {
-            if (existing.getPersonalInfo() == null) existing.setPersonalInfo(new PersonalInfo());
-            PersonalInfo exPI = existing.getPersonalInfo();
-            PersonalInfo incPI = incoming.getPersonalInfo();
-            if (incPI.getFirstName() != null) exPI.setFirstName(incPI.getFirstName());
-            if (incPI.getMiddleName() != null) exPI.setMiddleName(incPI.getMiddleName());
-            if (incPI.getLastName() != null) exPI.setLastName(incPI.getLastName());
-            if (incPI.getGender() != null) exPI.setGender(incPI.getGender());
-            if (incPI.getDateOfBirth() != null) exPI.setDateOfBirth(incPI.getDateOfBirth());
-            // ... copy all other updatable PersonalInfo fields
-        }
-
-        // Update OrganizationalInfo and its children
-        if (incoming.getOrganizationalInfo() != null) {
-            if (existing.getOrganizationalInfo() == null) existing.setOrganizationalInfo(new OrganizationalInfo());
-            OrganizationalInfo exOI = existing.getOrganizationalInfo();
-            OrganizationalInfo incOI = incoming.getOrganizationalInfo();
-
-            if (incOI.getOrgAssignmentEffectiveDate() != null) exOI.setOrgAssignmentEffectiveDate(incOI.getOrgAssignmentEffectiveDate());
-
-            if (incOI.getEmploymentDetails() != null) {
-                if (exOI.getEmploymentDetails() == null) exOI.setEmploymentDetails(new EmploymentDetails());
-                EmploymentDetails exED = exOI.getEmploymentDetails();
-                EmploymentDetails incED = incOI.getEmploymentDetails();
-                if (incED.getDateOfJoining() != null) exED.setDateOfJoining(incED.getDateOfJoining());
-                if (incED.getEmploymentType() != null) exED.setEmploymentType(incED.getEmploymentType());
-                // ... copy all other updatable EmploymentDetails fields
-            }
-
-            if (incOI.getJobContextDetails() != null) {
-                if (exOI.getJobContextDetails() == null) exOI.setJobContextDetails(new JobContextDetails());
-                JobContextDetails exJCD = exOI.getJobContextDetails();
-                JobContextDetails incJCD = incOI.getJobContextDetails();
-                if (incJCD.getDepartmentName() != null) exJCD.setDepartmentName(incJCD.getDepartmentName());
-                // ... copy all other updatable JobContextDetails fields
-            }
-        }
-        // Update work structure assignments if provided
-        if (incoming.getWorkLocation() != null) existing.setWorkLocation(incoming.getWorkLocation());
-        if (incoming.getBusinessUnit() != null) existing.setBusinessUnit(incoming.getBusinessUnit());
-        if (incoming.getJobTitle() != null) existing.setJobTitle(incoming.getJobTitle());
-        if (incoming.getReportingManager() != null) existing.setReportingManager(incoming.getReportingManager());
-        if (incoming.getHrManager() != null) existing.setHrManager(incoming.getHrManager());
-    }
+//    @Transactional
+//    @Override
+//    public Employee updateEmployee(String email, @Valid Employee updatedEmployee) { // Added @Valid
+//        ensureSchemaSwitch();
+//        Employee existingEmployee = employeeRepository.findByEmail(email)
+//                .orElseThrow(() -> new RuntimeException("❌ Employee not found: " + email));
+//
+//        // Smartly update fields from updatedEmployee to existingEmployee
+//        // This avoids nullifying fields not present in the payload and handles child entities.
+//        updateExistingEmployeeData(existingEmployee, updatedEmployee);
+//
+//        return employeeRepository.save(existingEmployee);
+//    }
+//
+//    private void updateExistingEmployeeData(Employee existing, Employee incoming) {
+//        // Update direct Employee fields
+//        if (incoming.getEmployeeId() != null) existing.setEmployeeId(incoming.getEmployeeId());
+//        // Email is typically not changed as it's an identifier, but if allowed:
+//        // if (incoming.getEmail() != null) existing.setEmail(incoming.getEmail());
+//        if (incoming.getPhoneNumber() != null) existing.setPhoneNumber(incoming.getPhoneNumber());
+//        if (incoming.getRole() != null) existing.setRole(incoming.getRole());
+//        // Password should be handled via a separate "changePassword" flow for security
+//        // if (incoming.getPassword() != null && !incoming.getPassword().isEmpty()) {
+//        //    existing.setPassword(passwordEncoder.encode(incoming.getPassword()));
+//        // }
+//
+//        // Update PersonalInfo
+//        if (incoming.getPersonalInfo() != null) {
+//            if (existing.getPersonalInfo() == null) existing.setPersonalInfo(new PersonalInfo());
+//            PersonalInfo exPI = existing.getPersonalInfo();
+//            PersonalInfo incPI = incoming.getPersonalInfo();
+//            if (incPI.getFirstName() != null) exPI.setFirstName(incPI.getFirstName());
+//            if (incPI.getMiddleName() != null) exPI.setMiddleName(incPI.getMiddleName());
+//            if (incPI.getLastName() != null) exPI.setLastName(incPI.getLastName());
+//            if (incPI.getGender() != null) exPI.setGender(incPI.getGender());
+//            if (incPI.getDateOfBirth() != null) exPI.setDateOfBirth(incPI.getDateOfBirth());
+//            // ... copy all other updatable PersonalInfo fields
+//        }
+//
+//        // Update OrganizationalInfo and its children
+//        if (incoming.getOrganizationalInfo() != null) {
+//            if (existing.getOrganizationalInfo() == null) existing.setOrganizationalInfo(new OrganizationalInfo());
+//            OrganizationalInfo exOI = existing.getOrganizationalInfo();
+//            OrganizationalInfo incOI = incoming.getOrganizationalInfo();
+//
+//            if (incOI.getOrgAssignmentEffectiveDate() != null) exOI.setOrgAssignmentEffectiveDate(incOI.getOrgAssignmentEffectiveDate());
+//
+//            if (incOI.getEmploymentDetails() != null) {
+//                if (exOI.getEmploymentDetails() == null) exOI.setEmploymentDetails(new EmploymentDetails());
+//                EmploymentDetails exED = exOI.getEmploymentDetails();
+//                EmploymentDetails incED = incOI.getEmploymentDetails();
+//                if (incED.getDateOfJoining() != null) exED.setDateOfJoining(incED.getDateOfJoining());
+//                if (incED.getEmploymentType() != null) exED.setEmploymentType(incED.getEmploymentType());
+//                // ... copy all other updatable EmploymentDetails fields
+//            }
+//
+//            if (incOI.getJobContextDetails() != null) {
+//                if (exOI.getJobContextDetails() == null) exOI.setJobContextDetails(new JobContextDetails());
+//                JobContextDetails exJCD = exOI.getJobContextDetails();
+//                JobContextDetails incJCD = incOI.getJobContextDetails();
+//                if (incJCD.getDepartmentName() != null) exJCD.setDepartmentName(incJCD.getDepartmentName());
+//                // ... copy all other updatable JobContextDetails fields
+//            }
+//        }
+//        // Update work structure assignments if provided
+//        if (incoming.getWorkLocation() != null) existing.setWorkLocation(incoming.getWorkLocation());
+//        if (incoming.getBusinessUnit() != null) existing.setBusinessUnit(incoming.getBusinessUnit());
+//        if (incoming.getJobTitle() != null) existing.setJobTitle(incoming.getJobTitle());
+//        if (incoming.getReportingManager() != null) existing.setReportingManager(incoming.getReportingManager());
+//        if (incoming.getHrManager() != null) existing.setHrManager(incoming.getHrManager());
+//    }
 
 
     @Transactional
