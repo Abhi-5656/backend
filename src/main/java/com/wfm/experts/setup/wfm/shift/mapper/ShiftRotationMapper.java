@@ -13,11 +13,9 @@ public interface ShiftRotationMapper {
     ShiftRotationDayDTO toDayDto(ShiftRotationDay entity);
     ShiftRotationDay toDayEntity(ShiftRotationDayDTO dto);
 
-    // Batch methods (if needed)
     List<ShiftRotationDayDTO> toDayDtoList(List<ShiftRotationDay> entities);
     List<ShiftRotationDay> toDayEntityList(List<ShiftRotationDayDTO> dtos);
 
-    // For PATCH/PUT updates
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     void updateEntityFromDto(ShiftRotationDTO dto, @MappingTarget ShiftRotation entity);
 }

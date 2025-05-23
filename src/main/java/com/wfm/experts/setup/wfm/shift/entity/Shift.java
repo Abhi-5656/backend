@@ -35,7 +35,7 @@ public class Shift {
 
     private LocalDate calendarDate;      // NEW FIELD
 
-    private Boolean weeklyOff = false;   // NEW FIELD
+//    private Boolean weeklyOff = false;   // NEW FIELD
 
     private LocalDateTime createdAt;
 

@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS shifts (
     end_time TIME NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,
     calendar_date DATE,
-    weekly_off BOOLEAN DEFAULT FALSE,
+--     weekly_off BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP,
     updated_at TIMESTAMP
     );
@@ -25,13 +25,14 @@ CREATE TABLE IF NOT EXISTS shift_rotations (
     is_active BOOLEAN DEFAULT TRUE
     );
 
--- Create shift_rotation_days table (multi-week mapping)
+-- Create shift_rotation_days table (multi-week mapping, with week off support)
 CREATE TABLE IF NOT EXISTS shift_rotation_days (
                                                    id BIGSERIAL PRIMARY KEY,
                                                    shift_rotation_id BIGINT NOT NULL REFERENCES shift_rotations(id) ON DELETE CASCADE,
     week INT NOT NULL, -- 1-based week number
-    weekday VARCHAR(10) NOT NULL, -- e.g. "Sun", "Mon", etc.
-    shift_id BIGINT NOT NULL REFERENCES shifts(id) ON DELETE CASCADE
+    weekday VARCHAR(10) NOT NULL, -- "Sun", "Mon", ...
+    shift_id BIGINT REFERENCES shifts(id) ON DELETE CASCADE, -- now nullable!
+    week_off BOOLEAN DEFAULT FALSE
     );
 
 CREATE INDEX IF NOT EXISTS idx_shift_rotation_days_rotation_id ON shift_rotation_days(shift_rotation_id);

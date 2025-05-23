@@ -13,7 +13,7 @@ public class ShiftDTO {
     private String endTime;        // "HH:mm"
     private Boolean isActive;
     private String calendarDate;   // "yyyy-MM-dd"
-    private Boolean weeklyOff;
+//    private Boolean weeklyOff;
     private String createdAt;
     private String updatedAt;
 }

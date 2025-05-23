@@ -21,26 +21,28 @@ public class ShiftRotationServiceImpl implements ShiftRotationService {
     private final ShiftRotationDayRepository shiftRotationDayRepo;
     private final ShiftRepository shiftRepo;
     private final ShiftRotationMapper shiftRotationMapper;
-    private final ShiftMapper shiftMapper;
 
     @Override
     public ShiftRotationDTO create(ShiftRotationDTO dto) {
         ShiftRotation shiftRotation = shiftRotationMapper.toEntity(dto);
         shiftRotation = shiftRotationRepo.save(shiftRotation);
 
-        // Flatten and persist all days with their week number
         if (dto.getWeeksPattern() != null) {
             for (WeekPatternDTO weekPattern : dto.getWeeksPattern()) {
                 Integer weekNo = weekPattern.getWeek();
                 if (weekPattern.getDays() != null) {
                     for (ShiftRotationDayDTO dayDTO : weekPattern.getDays()) {
-                        Shift shift = shiftRepo.findById(dayDTO.getShift().getId())
-                                .orElseThrow(() -> new RuntimeException("Shift not found for day: " + dayDTO.getWeekday()));
+                        Shift shift = null;
+                        if (dayDTO.getShift() != null && !Boolean.TRUE.equals(dayDTO.getWeekOff())) {
+                            shift = shiftRepo.findById(dayDTO.getShift().getId())
+                                    .orElseThrow(() -> new RuntimeException("Shift not found for day: " + dayDTO.getWeekday()));
+                        }
                         ShiftRotationDay day = ShiftRotationDay.builder()
                                 .shiftRotation(shiftRotation)
                                 .week(weekNo)
                                 .weekday(dayDTO.getWeekday())
                                 .shift(shift)
+                                .weekOff(Boolean.TRUE.equals(dayDTO.getWeekOff()))
                                 .build();
                         shiftRotationDayRepo.save(day);
                     }
@@ -57,23 +59,25 @@ public class ShiftRotationServiceImpl implements ShiftRotationService {
         shiftRotationMapper.updateEntityFromDto(dto, rotation);
         rotation = shiftRotationRepo.save(rotation);
 
-        // Remove all old days
         List<ShiftRotationDay> existingDays = shiftRotationDayRepo.findByShiftRotationId(id);
         shiftRotationDayRepo.deleteAll(existingDays);
 
-        // Add new days as in create
         if (dto.getWeeksPattern() != null) {
             for (WeekPatternDTO weekPattern : dto.getWeeksPattern()) {
                 Integer weekNo = weekPattern.getWeek();
                 if (weekPattern.getDays() != null) {
                     for (ShiftRotationDayDTO dayDTO : weekPattern.getDays()) {
-                        Shift shift = shiftRepo.findById(dayDTO.getShift().getId())
-                                .orElseThrow(() -> new RuntimeException("Shift not found for day: " + dayDTO.getWeekday()));
+                        Shift shift = null;
+                        if (dayDTO.getShift() != null && !Boolean.TRUE.equals(dayDTO.getWeekOff())) {
+                            shift = shiftRepo.findById(dayDTO.getShift().getId())
+                                    .orElseThrow(() -> new RuntimeException("Shift not found for day: " + dayDTO.getWeekday()));
+                        }
                         ShiftRotationDay day = ShiftRotationDay.builder()
                                 .shiftRotation(rotation)
                                 .week(weekNo)
                                 .weekday(dayDTO.getWeekday())
                                 .shift(shift)
+                                .weekOff(Boolean.TRUE.equals(dayDTO.getWeekOff()))
                                 .build();
                         shiftRotationDayRepo.save(day);
                     }
@@ -89,11 +93,16 @@ public class ShiftRotationServiceImpl implements ShiftRotationService {
         ShiftRotation rotation = shiftRotationRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("ShiftRotation not found"));
 
-        // Group days by week number
         List<ShiftRotationDay> days = shiftRotationDayRepo.findByShiftRotationId(id);
         Map<Integer, List<ShiftRotationDayDTO>> weekMap = new HashMap<>();
         for (ShiftRotationDay day : days) {
-            weekMap.computeIfAbsent(day.getWeek(), k -> new ArrayList<>()).add(shiftRotationMapper.toDayDto(day));
+            ShiftRotationDayDTO dayDTO = shiftRotationMapper.toDayDto(day);
+            // Handle null shift for week off
+            if (Boolean.TRUE.equals(day.getWeekOff())) {
+                dayDTO.setWeekOff(true);
+                dayDTO.setShift(null);
+            }
+            weekMap.computeIfAbsent(day.getWeek(), k -> new ArrayList<>()).add(dayDTO);
         }
         List<WeekPatternDTO> weeksPattern = new ArrayList<>();
         weekMap.keySet().stream().sorted().forEach(weekNo -> {
