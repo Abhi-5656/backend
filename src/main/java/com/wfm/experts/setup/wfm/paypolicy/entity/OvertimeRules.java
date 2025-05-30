@@ -1,8 +1,10 @@
 package com.wfm.experts.setup.wfm.paypolicy.entity;
 
 import com.wfm.experts.setup.wfm.paypolicy.enums.*;
+import com.wfm.experts.setup.wfm.shift.entity.Shift;
 import jakarta.persistence.*;
 import lombok.*;
+import java.util.List;
 
 @Entity
 @Table(name = "overtime_rules")
@@ -53,4 +55,12 @@ public class OvertimeRules {
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "pre_shift_inclusion_id")
     private PreShiftInclusion preShiftInclusion;
+
+    @ManyToMany
+    @JoinTable(
+            name = "overtime_rules_shifts",
+            joinColumns = @JoinColumn(name = "overtime_rules_id"),
+            inverseJoinColumns = @JoinColumn(name = "shift_id")
+    )
+    private List<Shift> shifts;
 }

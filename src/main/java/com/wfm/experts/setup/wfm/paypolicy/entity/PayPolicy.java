@@ -1,10 +1,8 @@
 package com.wfm.experts.setup.wfm.paypolicy.entity;
 
-import com.wfm.experts.setup.wfm.shift.entity.Shift;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
-import java.util.List;
 
 @Entity
 @Table(name = "pay_policies")
@@ -49,12 +47,4 @@ public class PayPolicy {
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "holiday_pay_rules_id")
     private HolidayPayRules holidayPayRules;
-
-    @ManyToMany
-    @JoinTable(
-            name = "pay_policy_shifts",
-            joinColumns = @JoinColumn(name = "pay_policy_id"),
-            inverseJoinColumns = @JoinColumn(name = "shift_id")
-    )
-    private List<Shift> shifts;
 }

@@ -1,5 +1,6 @@
 package com.wfm.experts.setup.wfm.paypolicy.dto;
 
+import com.wfm.experts.setup.wfm.shift.dto.ShiftDTO;
 import lombok.*;
 import java.time.LocalDate;
 import java.util.List;
