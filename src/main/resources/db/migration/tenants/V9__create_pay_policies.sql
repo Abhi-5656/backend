@@ -89,7 +89,7 @@ CREATE TABLE overtime_rules (
 
 -- ======================================
 -- 6. OvertimeRules ↔ Shifts mapping (Many-to-Many)
--- (shifts table already exists)
+-- (Assumes a 'shifts' table already exists)
 -- ======================================
 CREATE TABLE overtime_rules_shifts (
                                        overtime_rules_id BIGINT REFERENCES overtime_rules(id) ON DELETE CASCADE,
@@ -131,7 +131,19 @@ CREATE TABLE holiday_pay_rules (
 );
 
 -- ======================================
--- 9. Pay Policy (core)
+-- 9. Attendance Rule (NEW)
+-- ======================================
+CREATE TABLE attendance_rules (
+                                  id BIGSERIAL PRIMARY KEY,
+                                  enabled BOOLEAN NOT NULL,
+                                  full_day_hours INTEGER,
+                                  full_day_minutes INTEGER,
+                                  half_day_hours INTEGER,
+                                  half_day_minutes INTEGER
+);
+
+-- ======================================
+-- 10. Pay Policy (core)
 -- ======================================
 CREATE TABLE pay_policies (
                               id BIGSERIAL PRIMARY KEY,
@@ -143,5 +155,6 @@ CREATE TABLE pay_policies (
                               break_rules_id BIGINT REFERENCES break_rules(id) ON DELETE CASCADE,
                               overtime_rules_id BIGINT REFERENCES overtime_rules(id) ON DELETE CASCADE,
                               pay_period_rules_id BIGINT REFERENCES pay_period_rules(id) ON DELETE CASCADE,
-                              holiday_pay_rules_id BIGINT REFERENCES holiday_pay_rules(id) ON DELETE CASCADE
+                              holiday_pay_rules_id BIGINT REFERENCES holiday_pay_rules(id) ON DELETE CASCADE,
+                              attendance_rule_id BIGINT REFERENCES attendance_rules(id) ON DELETE CASCADE
 );

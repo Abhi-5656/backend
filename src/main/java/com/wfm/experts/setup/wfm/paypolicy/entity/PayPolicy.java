@@ -47,4 +47,8 @@ public class PayPolicy {
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "holiday_pay_rules_id")
     private HolidayPayRules holidayPayRules;
+
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "attendance_rule_id")
+    private AttendanceRule attendanceRule;
 }
