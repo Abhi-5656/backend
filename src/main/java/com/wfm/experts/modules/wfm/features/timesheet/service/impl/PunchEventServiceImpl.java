@@ -124,24 +124,16 @@ public class PunchEventServiceImpl implements PunchEventService {
         );
     }
 
-    /**
-     * Helper for querying all punches by employee for a date (midnight to midnight)
-     */
     public List<PunchEventDTO> getPunchEventsByEmployeeAndDate(String employeeId, LocalDate date) {
         LocalDateTime start = date.atStartOfDay();
         LocalDateTime end = date.atTime(LocalTime.MAX);
         return getPunchEventsByEmployeeAndPeriod(employeeId, start, end);
     }
 
-    // --- Automatic shift detection based on IN punch and shift start time ---
     private Shift detectShiftForPunch(String employeeId, LocalDateTime punchEventTime) {
         LocalDate punchDate = punchEventTime.toLocalDate();
         LocalTime punchLocalTime = punchEventTime.toLocalTime();
-
-        // Optionally: you can filter shifts for this employeeId if you have assignment logic
         List<Shift> shifts = shiftRepository.findAllActiveShiftsForDate(punchDate);
-
-        // Pick shift with startTime closest to (but not after) punch time
         return shifts.stream()
                 .filter(shift -> shift.getStartTime() != null)
                 .filter(shift -> !shift.getStartTime().isAfter(punchLocalTime))

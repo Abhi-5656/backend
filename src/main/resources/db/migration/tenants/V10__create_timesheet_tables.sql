@@ -12,7 +12,9 @@ CREATE TABLE timesheets (
                             rule_results_json TEXT,                    -- for PayPolicyRuleResultDTO JSON
                             calculated_at DATE,                        -- when recalculated (date only)
                             created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-                            updated_at TIMESTAMP
+                            updated_at TIMESTAMP,
+    -- Ensures only one timesheet record per employee per day
+                            CONSTRAINT uc_employee_work_date UNIQUE (employee_id, work_date)
 );
 
 CREATE INDEX idx_timesheets_employee_date ON timesheets (employee_id, work_date);
@@ -42,15 +44,12 @@ CREATE TABLE punch_events (
                               CONSTRAINT fk_punch_events_shift
                                   FOREIGN KEY (shift_id)
                                       REFERENCES shifts (id)
-                                      ON DELETE SET NULL
+                                      ON DELETE SET NULL,
+    -- Ensures an employee cannot have the same punch type at the exact same timestamp,
+    -- but allows different punch types at the same timestamp.
+                              CONSTRAINT uc_employee_event_time_type UNIQUE (employee_id, event_time, punch_type)
 );
 
 CREATE INDEX idx_punch_events_employee_time ON punch_events (employee_id, event_time);
 CREATE INDEX idx_punch_events_timesheet ON punch_events (timesheet_id);
 CREATE INDEX idx_punch_events_shift_id ON punch_events (shift_id);
-
--- ================================
--- Enforce: No duplicate punch at same timestamp for employee
--- ================================
-ALTER TABLE punch_events
-    ADD CONSTRAINT uc_employee_event_time UNIQUE (employee_id, event_time);

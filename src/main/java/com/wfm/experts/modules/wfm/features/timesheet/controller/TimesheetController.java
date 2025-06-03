@@ -1,5 +1,6 @@
 package com.wfm.experts.modules.wfm.features.timesheet.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.wfm.experts.modules.wfm.features.timesheet.dto.TimesheetDTO;
 import com.wfm.experts.modules.wfm.features.timesheet.service.TimesheetService;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +19,7 @@ public class TimesheetController {
     private final TimesheetService timesheetService;
 
     @PostMapping
-    public ResponseEntity<TimesheetDTO> createTimesheet(@RequestBody TimesheetDTO timesheetDTO) {
+    public ResponseEntity<TimesheetDTO> createTimesheet(@RequestBody TimesheetDTO timesheetDTO) throws JsonProcessingException {
         TimesheetDTO created = timesheetService.createTimesheet(timesheetDTO);
         return ResponseEntity.ok(created);
     }

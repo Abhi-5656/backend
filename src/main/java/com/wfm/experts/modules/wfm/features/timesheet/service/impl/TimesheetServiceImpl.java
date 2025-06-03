@@ -29,24 +29,43 @@ public class TimesheetServiceImpl implements TimesheetService {
 
     @Override
     public TimesheetDTO createTimesheet(TimesheetDTO timesheetDTO) {
-        // Step 1: Save the Timesheet (excluding punch events at first)
-        Timesheet timesheet = timesheetMapper.toEntity(timesheetDTO);
-        timesheet.setPunchEvents(new ArrayList<>()); // Avoid JPA cascade issues
+        // Upsert logic: Find existing timesheet first!
+        Optional<Timesheet> existingOpt = timesheetRepository.findByEmployeeIdAndWorkDate(
+                timesheetDTO.getEmployeeId(),
+                timesheetDTO.getWorkDate()
+        );
+
+        Timesheet timesheet;
+        if (existingOpt.isPresent()) {
+            // -- Update existing --
+            timesheet = existingOpt.get();
+            timesheet.setWorkDurationMinutes(timesheetDTO.getWorkDurationMinutes());
+            timesheet.setTotalWorkDuration(timesheetDTO.getTotalWorkDuration());
+
+            timesheet.setStatus(timesheetDTO.getStatus());
+            timesheet.setRuleResultsJson(timesheetDTO.getRuleResultsJson());
+            timesheet.setCalculatedAt(timesheetDTO.getCalculatedAt());
+            // Optional: handle punchEvents, see note below
+        } else {
+            // -- Insert new --
+            timesheet = timesheetMapper.toEntity(timesheetDTO);
+            timesheet.setPunchEvents(new ArrayList<>());
+        }
+
         Timesheet savedTimesheet = timesheetRepository.save(timesheet);
 
-        // Step 2: Process and save punch events, linking them to this timesheet
+        // Process and save punch events, linking them to this timesheet
         List<PunchEventDTO> savedPunchEvents = new ArrayList<>();
         if (timesheetDTO.getPunchEvents() != null && !timesheetDTO.getPunchEvents().isEmpty()) {
             for (PunchEventDTO punchEventDTO : timesheetDTO.getPunchEvents()) {
-                punchEventDTO.setTimesheetId(savedTimesheet.getId()); // Set timesheet reference in DTO
+                punchEventDTO.setTimesheetId(savedTimesheet.getId());
                 PunchEventDTO savedPunch = punchEventService.createPunchEvent(punchEventDTO);
                 savedPunchEvents.add(savedPunch);
             }
         }
 
-        // Step 3: Return TimesheetDTO with the punch events (if needed)
         TimesheetDTO result = timesheetMapper.toDto(savedTimesheet);
-        result.setPunchEvents(savedPunchEvents); // Attach saved punch events to DTO
+        result.setPunchEvents(savedPunchEvents);
         return result;
     }
 
@@ -57,12 +76,9 @@ public class TimesheetServiceImpl implements TimesheetService {
 
         timesheetDTO.setId(id);
         Timesheet updated = timesheetMapper.toEntity(timesheetDTO);
-        updated.setCreatedAt(existing.getCreatedAt()); // preserve createdAt
+        updated.setCreatedAt(existing.getCreatedAt());
 
         Timesheet saved = timesheetRepository.save(updated);
-
-        // Optionally, handle punch events update logic here (e.g. add/update/delete punches)
-        // This depends on your business rules—ask if you want full update logic!
 
         return timesheetMapper.toDto(saved);
     }

@@ -1,5 +1,6 @@
 package com.wfm.experts.modules.wfm.features.timesheet.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.wfm.experts.modules.wfm.features.timesheet.enums.PunchType;
 import com.wfm.experts.modules.wfm.features.timesheet.enums.PunchEventStatus;
 import lombok.*;
@@ -14,6 +15,7 @@ public class PunchEventDTO {
 
     private Long id;
     private String employeeId; // <<<< CHANGED HERE
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss") // GOOD
     private LocalDateTime eventTime;
     private PunchType punchType;
     private PunchEventStatus status;

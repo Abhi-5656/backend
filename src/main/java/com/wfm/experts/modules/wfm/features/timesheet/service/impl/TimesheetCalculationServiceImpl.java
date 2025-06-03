@@ -34,14 +34,21 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
     private final PunchEventRepository punchEventRepository;
     private final TimesheetRepository timesheetRepository;
     private final PayPolicyRuleExecutor payPolicyRuleExecutor;
-    private final ObjectMapper objectMapper; // For serializing rule results to JSON
+    private final ObjectMapper objectMapper;
 
+    /**
+     * Processes punch events for a given employee and date, computes total work duration,
+     * executes all relevant pay policy rules, and upserts the Timesheet record.
+     *
+     * @param employeeId The employee's unique ID.
+     * @param date       The work date for calculation.
+     */
     @Override
     @Transactional
     public void processPunchEvents(String employeeId, LocalDate date) {
         log.info("Processing timesheet for employee: {} on date: {}", employeeId, date);
 
-        // 1. Find the active pay policy assignment for this employee on this date
+        // 1. Get active pay policy assignment for this employee on this date
         Optional<PayPolicyAssignment> assignmentOpt =
                 payPolicyAssignmentRepository.findByEmployeeIdAndEffectiveDateLessThanEqualAndExpirationDateGreaterThanEqual(
                         employeeId, date, date);
@@ -53,7 +60,7 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
         }
         PayPolicyAssignment assignment = assignmentOpt.get();
 
-        // 2. Fetch PayPolicy
+        // 2. Fetch pay policy
         Optional<PayPolicy> policyOpt = payPolicyRepository.findById(assignment.getPayPolicyId());
         if (policyOpt.isEmpty()) {
             log.error("PayPolicy {} not found for assignment {}", assignment.getPayPolicyId(), assignment.getId());
@@ -62,7 +69,7 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
         }
         PayPolicy policy = policyOpt.get();
 
-        // 3. Get all punches for employee on this date (midnight to 23:59:59)
+        // 3. Fetch all punches for employee on this date (00:00 - 23:59:59)
         LocalDateTime startOfDay = date.atStartOfDay();
         LocalDateTime endOfDay = date.atTime(23, 59, 59);
         List<PunchEvent> punches = punchEventRepository
@@ -74,7 +81,7 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
             return;
         }
 
-        // 4. Build the execution context for rules
+        // 4. Build context and execute rules
         PayPolicyExecutionContext context = PayPolicyExecutionContext.builder()
                 .employeeId(employeeId)
                 .date(date)
@@ -82,21 +89,21 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
                 .punchEvents(punches)
                 .build();
 
-        // 5. Extract and execute rules
         List<PayPolicyRule> rules = extractRulesFromPolicy(policy);
         List<PayPolicyRuleResultDTO> ruleResults = payPolicyRuleExecutor.executeRules(rules, context);
 
-        // 6. Compute total work minutes (custom logic, e.g., sum duration between IN/OUT pairs)
+        // 5. Compute total work minutes (custom logic - sum of all IN/OUT pairs)
         int totalWorkMinutes = computeTotalWorkMinutes(punches);
 
-        // 7. Save/update Timesheet entity
+        // 6. Upsert timesheet
         saveOrUpdateTimesheet(employeeId, date, totalWorkMinutes, ruleResults);
 
-        log.info("Timesheet processed for employee: {} on date: {} ({} minutes, {} rules)", employeeId, date, totalWorkMinutes, ruleResults.size());
+        log.info("Timesheet processed for employee: {} on date: {} ({} minutes, {} rules)",
+                employeeId, date, totalWorkMinutes, ruleResults.size());
     }
 
     /**
-     * INTERNAL HELPER: Assembles rule objects configured on PayPolicy into a list for rule execution.
+     * Helper: Extracts rules from a PayPolicy.
      */
     private List<PayPolicyRule> extractRulesFromPolicy(PayPolicy policy) {
         List<PayPolicyRule> rules = new ArrayList<>();
@@ -111,19 +118,15 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
     }
 
     /**
-     * Helper to create/update timesheet with rule results stored as JSON.
+     * Helper: Upserts the Timesheet entity for an employee on a given date, saving rule results as JSON.
      */
     private void saveOrUpdateTimesheet(String employeeId, LocalDate date, int workMinutes, List<PayPolicyRuleResultDTO> ruleResults) {
         Timesheet timesheet = timesheetRepository.findByEmployeeIdAndWorkDate(employeeId, date)
                 .orElseGet(() -> Timesheet.builder()
                         .employeeId(employeeId)
-                        .workDate(date) // <-- CORRECT FIELD NAME!
+                        .workDate(date)
                         .build());
         timesheet.setWorkDurationMinutes(workMinutes);
-        // ... other setters
-
-
-    // Store rule results as JSON (for traceability)
         try {
             timesheet.setRuleResultsJson(objectMapper.writeValueAsString(ruleResults));
         } catch (JsonProcessingException e) {
@@ -131,13 +134,11 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
             timesheet.setRuleResultsJson("[]");
         }
         timesheet.setCalculatedAt(LocalDate.now());
-
         timesheetRepository.save(timesheet);
     }
 
     /**
-     * Example work-minutes calculation from punch events (replace with your logic).
-     * This version: Sums durations between all consecutive IN and OUT punches.
+     * Helper: Sums work minutes by pairing IN/OUT punches.
      */
     private int computeTotalWorkMinutes(List<PunchEvent> punches) {
         punches.sort(Comparator.comparing(PunchEvent::getEventTime));
