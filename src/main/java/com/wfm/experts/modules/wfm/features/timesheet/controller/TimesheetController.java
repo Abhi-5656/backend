@@ -37,7 +37,7 @@ public class TimesheetController {
     }
 
     @GetMapping("/employee/{employeeId}/date/{workDate}")
-    public ResponseEntity<TimesheetDTO> getByEmployeeAndDate(@PathVariable Long employeeId,
+    public ResponseEntity<TimesheetDTO> getByEmployeeAndDate(@PathVariable String employeeId,
                                                              @PathVariable String workDate) {
         Optional<TimesheetDTO> timesheet = timesheetService.getTimesheetByEmployeeAndDate(
                 employeeId, LocalDate.parse(workDate));
@@ -46,7 +46,7 @@ public class TimesheetController {
 
     @GetMapping("/employee/{employeeId}/range")
     public ResponseEntity<List<TimesheetDTO>> getByEmployeeAndDateRange(
-            @PathVariable Long employeeId,
+            @PathVariable String employeeId,
             @RequestParam String start,
             @RequestParam String end) {
         List<TimesheetDTO> timesheets = timesheetService.getTimesheetsByEmployeeAndDateRange(

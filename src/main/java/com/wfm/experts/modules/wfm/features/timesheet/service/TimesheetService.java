@@ -14,9 +14,9 @@ public interface TimesheetService {
 
     Optional<TimesheetDTO> getTimesheetById(Long id);
 
-    Optional<TimesheetDTO> getTimesheetByEmployeeAndDate(Long employeeId, LocalDate workDate);
+    Optional<TimesheetDTO> getTimesheetByEmployeeAndDate(String employeeId, LocalDate workDate);
 
-    List<TimesheetDTO> getTimesheetsByEmployeeAndDateRange(Long employeeId, LocalDate start, LocalDate end);
+    List<TimesheetDTO> getTimesheetsByEmployeeAndDateRange(String employeeId, LocalDate start, LocalDate end);
 
     void deleteTimesheet(Long id);
 }

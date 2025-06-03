@@ -1,8 +1,12 @@
 package com.wfm.experts.setup.wfm.paypolicy.entity;
 
+import com.wfm.experts.setup.wfm.paypolicy.rule.PayPolicyRule;
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "pay_policies")
@@ -11,6 +15,7 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @Builder
 public class PayPolicy {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -51,4 +56,20 @@ public class PayPolicy {
     @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "attendance_rule_id")
     private AttendanceRule attendanceRule;
+
+    /**
+     * Return all rules in a list for rule engine execution
+     * Only non-null rules are included
+     */
+    public List<PayPolicyRule> getRules() {
+        List<PayPolicyRule> rules = new ArrayList<>();
+        if (attendanceRule != null) rules.add(attendanceRule);
+        if (roundingRules != null) rules.add(roundingRules);
+        if (punchEventRules != null) rules.add(punchEventRules);
+        if (breakRules != null) rules.add(breakRules);
+        if (overtimeRules != null) rules.add(overtimeRules);
+        if (payPeriodRules != null) rules.add(payPeriodRules);
+        if (holidayPayRules != null) rules.add(holidayPayRules);
+        return rules;
+    }
 }

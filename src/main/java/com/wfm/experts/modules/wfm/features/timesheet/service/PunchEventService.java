@@ -14,7 +14,7 @@ public interface PunchEventService {
 
     Optional<PunchEventDTO> getPunchEventById(Long id);
 
-    List<PunchEventDTO> getPunchEventsByEmployeeAndPeriod(Long employeeId, LocalDateTime start, LocalDateTime end);
+    List<PunchEventDTO> getPunchEventsByEmployeeAndPeriod(String employeeId, LocalDateTime start, LocalDateTime end);
 
     List<PunchEventDTO> getPunchEventsByTimesheetId(Long timesheetId);
 

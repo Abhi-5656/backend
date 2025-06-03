@@ -1,6 +1,9 @@
 package com.wfm.experts.setup.wfm.paypolicy.entity;
 
+import com.wfm.experts.setup.wfm.paypolicy.dto.PayPolicyRuleResultDTO;
+import com.wfm.experts.setup.wfm.paypolicy.engine.context.PayPolicyExecutionContext;
 import com.wfm.experts.setup.wfm.paypolicy.enums.*;
+import com.wfm.experts.setup.wfm.paypolicy.rule.PayPolicyRule;
 import com.wfm.experts.setup.wfm.shift.entity.Shift;
 import jakarta.persistence.*;
 import lombok.*;
@@ -12,7 +15,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class OvertimeRules {
+public class OvertimeRules implements PayPolicyRule {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -63,4 +66,28 @@ public class OvertimeRules {
             inverseJoinColumns = @JoinColumn(name = "shift_id")
     )
     private List<Shift> shifts;
+
+
+    // --- Implement PayPolicyRule ---
+
+    @Override
+    public String getName() {
+        return "OvertimeRules";
+    }
+
+    @Override
+    public boolean evaluate(PayPolicyExecutionContext context) {
+        return enabled;
+    }
+
+    @Override
+    public PayPolicyRuleResultDTO execute(PayPolicyExecutionContext context) {
+        // TODO: Implement Overtime calculation logic here, this is just a stub
+        return PayPolicyRuleResultDTO.builder()
+                .ruleName(getName())
+                .result("NOT_IMPLEMENTED")
+                .success(true)
+                .message("OvertimeRules executed - implement your logic here.")
+                .build();
+    }
 }

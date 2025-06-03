@@ -9,7 +9,12 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "punch_events")
+@Table(
+        name = "punch_events",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uc_employee_event_time", columnNames = {"employee_id", "event_time"})
+        }
+)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -21,7 +26,7 @@ public class PunchEvent {
     private Long id;
 
     @Column(name = "employee_id", nullable = false)
-    private Long employeeId;
+    private String employeeId;
 
     @Column(name = "event_time", nullable = false)
     private LocalDateTime eventTime;
@@ -51,7 +56,7 @@ public class PunchEvent {
     @JoinColumn(name = "timesheet_id")
     private Timesheet timesheet;
 
-    // NEW: Link to Shift (many punches to one shift)
+    // Link to Shift (many punches to one shift)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "shift_id")
     private Shift shift;
@@ -61,6 +66,9 @@ public class PunchEvent {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Column(name = "exception_flag")
+    private Boolean exceptionFlag;
 
     @PrePersist
     protected void onCreate() {

@@ -13,7 +13,7 @@ import java.util.List;
 public class TimesheetDTO {
 
     private Long id;
-    private Long employeeId;
+    private String employeeId;
     private LocalDate workDate;
     private Double totalWorkDuration;    // in hours
     private Double overtimeDuration;     // in hours

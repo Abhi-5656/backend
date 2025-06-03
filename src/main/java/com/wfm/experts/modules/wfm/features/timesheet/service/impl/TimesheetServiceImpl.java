@@ -73,13 +73,13 @@ public class TimesheetServiceImpl implements TimesheetService {
     }
 
     @Override
-    public Optional<TimesheetDTO> getTimesheetByEmployeeAndDate(Long employeeId, LocalDate workDate) {
+    public Optional<TimesheetDTO> getTimesheetByEmployeeAndDate(String employeeId, LocalDate workDate) {
         return timesheetRepository.findByEmployeeIdAndWorkDate(employeeId, workDate)
                 .map(timesheetMapper::toDto);
     }
 
     @Override
-    public List<TimesheetDTO> getTimesheetsByEmployeeAndDateRange(Long employeeId, LocalDate start, LocalDate end) {
+    public List<TimesheetDTO> getTimesheetsByEmployeeAndDateRange(String employeeId, LocalDate start, LocalDate end) {
         return timesheetRepository.findByEmployeeIdAndWorkDateBetween(employeeId, start, end)
                 .stream()
                 .map(timesheetMapper::toDto)

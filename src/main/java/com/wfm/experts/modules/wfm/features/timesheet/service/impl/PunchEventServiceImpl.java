@@ -8,6 +8,7 @@ import com.wfm.experts.modules.wfm.features.timesheet.exception.ShiftNotFoundExc
 import com.wfm.experts.modules.wfm.features.timesheet.mapper.PunchEventMapper;
 import com.wfm.experts.modules.wfm.features.timesheet.repository.PunchEventRepository;
 import com.wfm.experts.modules.wfm.features.timesheet.service.PunchEventService;
+import com.wfm.experts.modules.wfm.features.timesheet.service.TimesheetCalculationService;
 import com.wfm.experts.setup.wfm.shift.entity.Shift;
 import com.wfm.experts.setup.wfm.shift.repository.ShiftRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,14 +30,15 @@ public class PunchEventServiceImpl implements PunchEventService {
     private final PunchEventRepository punchEventRepository;
     private final ShiftRepository shiftRepository;
     private final PunchEventMapper punchEventMapper;
+    private final TimesheetCalculationService timesheetCalculationService;
 
     @Override
     public PunchEventDTO createPunchEvent(PunchEventDTO punchEventDTO) {
         PunchEvent punchEvent = punchEventMapper.toEntity(punchEventDTO);
 
-        // Only detect and set shift for IN punches
+        // Detect and set shift for IN punches
         if (punchEvent.getPunchType() == PunchType.IN) {
-            Shift matchedShift = detectShiftForPunch(punchEvent.getEventTime());
+            Shift matchedShift = detectShiftForPunch(punchEvent.getEmployeeId(), punchEvent.getEventTime());
             if (matchedShift == null) {
                 throw new ShiftNotFoundException("No shift found for date: " + punchEvent.getEventTime().toLocalDate()
                         + " and punch time: " + punchEvent.getEventTime().toLocalTime());
@@ -45,6 +47,13 @@ public class PunchEventServiceImpl implements PunchEventService {
         }
 
         PunchEvent saved = punchEventRepository.save(punchEvent);
+
+        // Trigger timesheet recalculation after every punch event
+        timesheetCalculationService.processPunchEvents(
+                punchEvent.getEmployeeId(),
+                punchEvent.getEventTime().toLocalDate()
+        );
+
         return punchEventMapper.toDto(saved);
     }
 
@@ -58,7 +67,7 @@ public class PunchEventServiceImpl implements PunchEventService {
 
         // Shift detection logic on update for IN punches
         if (updated.getPunchType() == PunchType.IN) {
-            Shift matchedShift = detectShiftForPunch(updated.getEventTime());
+            Shift matchedShift = detectShiftForPunch(updated.getEmployeeId(), updated.getEventTime());
             if (matchedShift == null) {
                 throw new ShiftNotFoundException("No shift found for date: " + updated.getEventTime().toLocalDate()
                         + " and punch time: " + updated.getEventTime().toLocalTime());
@@ -69,6 +78,13 @@ public class PunchEventServiceImpl implements PunchEventService {
         }
 
         PunchEvent saved = punchEventRepository.save(updated);
+
+        // Trigger timesheet recalculation after every punch event update
+        timesheetCalculationService.processPunchEvents(
+                updated.getEmployeeId(),
+                updated.getEventTime().toLocalDate()
+        );
+
         return punchEventMapper.toDto(saved);
     }
 
@@ -79,7 +95,7 @@ public class PunchEventServiceImpl implements PunchEventService {
     }
 
     @Override
-    public List<PunchEventDTO> getPunchEventsByEmployeeAndPeriod(Long employeeId, LocalDateTime start, LocalDateTime end) {
+    public List<PunchEventDTO> getPunchEventsByEmployeeAndPeriod(String employeeId, LocalDateTime start, LocalDateTime end) {
         return punchEventRepository.findByEmployeeIdAndEventTimeBetween(employeeId, start, end)
                 .stream()
                 .map(punchEventMapper::toDto)
@@ -96,17 +112,33 @@ public class PunchEventServiceImpl implements PunchEventService {
 
     @Override
     public void deletePunchEvent(Long id) {
-        if (!punchEventRepository.existsById(id)) {
-            throw new PunchEventNotFoundException("PunchEvent not found: " + id);
-        }
+        PunchEvent punchEvent = punchEventRepository.findById(id)
+                .orElseThrow(() -> new PunchEventNotFoundException("PunchEvent not found: " + id));
+
         punchEventRepository.deleteById(id);
+
+        // Trigger timesheet recalculation after deletion
+        timesheetCalculationService.processPunchEvents(
+                punchEvent.getEmployeeId(),
+                punchEvent.getEventTime().toLocalDate()
+        );
+    }
+
+    /**
+     * Helper for querying all punches by employee for a date (midnight to midnight)
+     */
+    public List<PunchEventDTO> getPunchEventsByEmployeeAndDate(String employeeId, LocalDate date) {
+        LocalDateTime start = date.atStartOfDay();
+        LocalDateTime end = date.atTime(LocalTime.MAX);
+        return getPunchEventsByEmployeeAndPeriod(employeeId, start, end);
     }
 
     // --- Automatic shift detection based on IN punch and shift start time ---
-    private Shift detectShiftForPunch(LocalDateTime punchEventTime) {
+    private Shift detectShiftForPunch(String employeeId, LocalDateTime punchEventTime) {
         LocalDate punchDate = punchEventTime.toLocalDate();
         LocalTime punchLocalTime = punchEventTime.toLocalTime();
 
+        // Optionally: you can filter shifts for this employeeId if you have assignment logic
         List<Shift> shifts = shiftRepository.findAllActiveShiftsForDate(punchDate);
 
         // Pick shift with startTime closest to (but not after) punch time

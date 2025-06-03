@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 public class PunchEventDTO {
 
     private Long id;
-    private Long employeeId;
+    private String employeeId; // <<<< CHANGED HERE
     private LocalDateTime eventTime;
     private PunchType punchType;
     private PunchEventStatus status;

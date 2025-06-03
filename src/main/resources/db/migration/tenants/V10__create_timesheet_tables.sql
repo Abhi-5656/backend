@@ -3,11 +3,14 @@
 -- ================================
 CREATE TABLE timesheets (
                             id BIGSERIAL PRIMARY KEY,
-                            employee_id BIGINT NOT NULL,
+                            employee_id VARCHAR(64) NOT NULL,
                             work_date DATE NOT NULL,
-                            total_work_duration DOUBLE PRECISION,
-                            overtime_duration DOUBLE PRECISION,
+                            work_duration_minutes INTEGER,             -- total minutes worked in day
+                            total_work_duration DOUBLE PRECISION,      -- hours, e.g., 7.5
+                            overtime_duration INTEGER,                 -- overtime in minutes
                             status VARCHAR(32),
+                            rule_results_json TEXT,                    -- for PayPolicyRuleResultDTO JSON
+                            calculated_at DATE,                        -- when recalculated (date only)
                             created_at TIMESTAMP NOT NULL DEFAULT NOW(),
                             updated_at TIMESTAMP
 );
@@ -19,7 +22,7 @@ CREATE INDEX idx_timesheets_employee_date ON timesheets (employee_id, work_date)
 -- ================================
 CREATE TABLE punch_events (
                               id BIGSERIAL PRIMARY KEY,
-                              employee_id BIGINT NOT NULL,
+                              employee_id VARCHAR(64) NOT NULL,
                               event_time TIMESTAMP NOT NULL,
                               punch_type VARCHAR(16) NOT NULL,
                               status VARCHAR(16) NOT NULL,
@@ -28,7 +31,8 @@ CREATE TABLE punch_events (
                               geo_long DOUBLE PRECISION,
                               notes VARCHAR(255),
                               timesheet_id BIGINT,
-                              shift_id BIGINT, -- NEW COLUMN
+                              shift_id BIGINT,
+                              exception_flag BOOLEAN DEFAULT FALSE,
                               created_at TIMESTAMP NOT NULL DEFAULT NOW(),
                               updated_at TIMESTAMP,
                               CONSTRAINT fk_punch_events_timesheet
@@ -37,7 +41,7 @@ CREATE TABLE punch_events (
                                       ON DELETE CASCADE,
                               CONSTRAINT fk_punch_events_shift
                                   FOREIGN KEY (shift_id)
-                                      REFERENCES shifts(id)
+                                      REFERENCES shifts (id)
                                       ON DELETE SET NULL
 );
 
@@ -46,7 +50,7 @@ CREATE INDEX idx_punch_events_timesheet ON punch_events (timesheet_id);
 CREATE INDEX idx_punch_events_shift_id ON punch_events (shift_id);
 
 -- ================================
--- Optional: Unique constraint to prevent duplicate punches for an employee at the same time
+-- Enforce: No duplicate punch at same timestamp for employee
 -- ================================
--- ALTER TABLE punch_events
---     ADD CONSTRAINT uc_employee_event_time UNIQUE (employee_id, event_time);
+ALTER TABLE punch_events
+    ADD CONSTRAINT uc_employee_event_time UNIQUE (employee_id, event_time);

@@ -10,9 +10,10 @@ import java.util.List;
 
 @Repository
 public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
-    // Find a timesheet for an employee and a specific work date
-    Optional<Timesheet> findByEmployeeIdAndWorkDate(Long employeeId, LocalDate workDate);
+    // Preferred: For new code, always use String employeeId
+    Optional<Timesheet> findByEmployeeIdAndWorkDate(String employeeId, LocalDate workDate);
 
-    // Find all timesheets for an employee in a date range
-    List<Timesheet> findByEmployeeIdAndWorkDateBetween(Long employeeId, LocalDate start, LocalDate end);
+    List<Timesheet> findByEmployeeIdAndWorkDateBetween(String employeeId, LocalDate start, LocalDate end);
+
+
 }
