@@ -1,5 +1,6 @@
 package com.wfm.experts.setup.wfm.shift.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 
 @Getter @Setter @Builder
@@ -12,8 +13,9 @@ public class ShiftDTO {
     private String startTime;      // "HH:mm"
     private String endTime;        // "HH:mm"
     private Boolean isActive;
-    private String calendarDate;   // "yyyy-MM-dd"
 //    private Boolean weeklyOff;
+    @JsonIgnore
     private String createdAt;
+    @JsonIgnore
     private String updatedAt;
 }

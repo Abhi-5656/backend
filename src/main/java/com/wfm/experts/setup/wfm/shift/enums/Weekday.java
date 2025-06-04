@@ -10,13 +10,20 @@ public enum Weekday {
     public static Weekday fromString(String value) {
         if (value == null) return null;
         switch (value.trim().toLowerCase()) {
-            case "sun": return SUN;
-            case "mon": return MON;
-            case "tue": return TUE;
-            case "wed": return WED;
-            case "thu": return THU;
-            case "fri": return FRI;
-            case "sat": return SAT;
+            case "sun":
+                return SUN;
+            case "mon":
+                return MON;
+            case "tue":
+                return TUE;
+            case "wed":
+                return WED;
+            case "thu":
+                return THU;
+            case "fri":
+                return FRI;
+            case "sat":
+                return SAT;
             default:
                 throw new IllegalArgumentException(
                         "Invalid weekday: " + value +
@@ -28,5 +35,26 @@ public enum Weekday {
     @JsonValue
     public String toJson() {
         return this.name();
+    }
+
+    public static Weekday from(java.time.DayOfWeek dayOfWeek) {
+        switch (dayOfWeek) {
+            case SUNDAY:
+                return SUN;
+            case MONDAY:
+                return MON;
+            case TUESDAY:
+                return TUE;
+            case WEDNESDAY:
+                return WED;
+            case THURSDAY:
+                return THU;
+            case FRIDAY:
+                return FRI;
+            case SATURDAY:
+                return SAT;
+            default:
+                throw new IllegalArgumentException("Unsupported DayOfWeek: " + dayOfWeek);
+        }
     }
 }

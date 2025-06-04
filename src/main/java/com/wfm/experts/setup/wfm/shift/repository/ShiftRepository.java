@@ -13,8 +13,6 @@ public interface ShiftRepository extends JpaRepository<Shift, Long> {
     Optional<Shift> findByShiftName(String shiftName);
     boolean existsByShiftName(String shiftName);
 
-    // In ShiftRepository:
-    @Query("SELECT s FROM Shift s WHERE s.isActive = true AND (s.calendarDate = :date OR s.calendarDate IS NULL)")
-    List<Shift> findAllActiveShiftsForDate(@Param("date") LocalDate date);
+    
 
 }

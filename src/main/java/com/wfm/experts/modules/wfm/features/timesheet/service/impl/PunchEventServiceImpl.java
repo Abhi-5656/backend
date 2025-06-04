@@ -37,14 +37,14 @@ public class PunchEventServiceImpl implements PunchEventService {
         PunchEvent punchEvent = punchEventMapper.toEntity(punchEventDTO);
 
         // Detect and set shift for IN punches
-        if (punchEvent.getPunchType() == PunchType.IN) {
-            Shift matchedShift = detectShiftForPunch(punchEvent.getEmployeeId(), punchEvent.getEventTime());
-            if (matchedShift == null) {
-                throw new ShiftNotFoundException("No shift found for date: " + punchEvent.getEventTime().toLocalDate()
-                        + " and punch time: " + punchEvent.getEventTime().toLocalTime());
-            }
-            punchEvent.setShift(matchedShift);
-        }
+//        if (punchEvent.getPunchType() == PunchType.IN) {
+//            Shift matchedShift = detectShiftForPunch(punchEvent.getEmployeeId(), punchEvent.getEventTime());
+//            if (matchedShift == null) {
+//                throw new ShiftNotFoundException("No shift found for date: " + punchEvent.getEventTime().toLocalDate()
+//                        + " and punch time: " + punchEvent.getEventTime().toLocalTime());
+//            }
+//            punchEvent.setShift(matchedShift);
+//        }
 
         PunchEvent saved = punchEventRepository.save(punchEvent);
 
@@ -65,17 +65,17 @@ public class PunchEventServiceImpl implements PunchEventService {
         PunchEvent updated = punchEventMapper.toEntity(punchEventDTO);
         updated.setId(id);
 
-        // Shift detection logic on update for IN punches
-        if (updated.getPunchType() == PunchType.IN) {
-            Shift matchedShift = detectShiftForPunch(updated.getEmployeeId(), updated.getEventTime());
-            if (matchedShift == null) {
-                throw new ShiftNotFoundException("No shift found for date: " + updated.getEventTime().toLocalDate()
-                        + " and punch time: " + updated.getEventTime().toLocalTime());
-            }
-            updated.setShift(matchedShift);
-        } else {
-            updated.setShift(null);
-        }
+//        // Shift detection logic on update for IN punches
+//        if (updated.getPunchType() == PunchType.IN) {
+//            Shift matchedShift = detectShiftForPunch(updated.getEmployeeId(), updated.getEventTime());
+//            if (matchedShift == null) {
+//                throw new ShiftNotFoundException("No shift found for date: " + updated.getEventTime().toLocalDate()
+//                        + " and punch time: " + updated.getEventTime().toLocalTime());
+//            }
+//            updated.setShift(matchedShift);
+//        } else {
+//            updated.setShift(null);
+//        }
 
         PunchEvent saved = punchEventRepository.save(updated);
 
@@ -130,15 +130,15 @@ public class PunchEventServiceImpl implements PunchEventService {
         return getPunchEventsByEmployeeAndPeriod(employeeId, start, end);
     }
 
-    private Shift detectShiftForPunch(String employeeId, LocalDateTime punchEventTime) {
-        LocalDate punchDate = punchEventTime.toLocalDate();
-        LocalTime punchLocalTime = punchEventTime.toLocalTime();
-        List<Shift> shifts = shiftRepository.findAllActiveShiftsForDate(punchDate);
-        return shifts.stream()
-                .filter(shift -> shift.getStartTime() != null)
-                .filter(shift -> !shift.getStartTime().isAfter(punchLocalTime))
-                .min(Comparator.comparing(shift -> Math.abs(
-                        punchLocalTime.toSecondOfDay() - shift.getStartTime().toSecondOfDay())))
-                .orElse(null);
-    }
+//    private Shift detectShiftForPunch(String employeeId, LocalDateTime punchEventTime) {
+//        LocalDate punchDate = punchEventTime.toLocalDate();
+//        LocalTime punchLocalTime = punchEventTime.toLocalTime();
+//        List<Shift> shifts = shiftRepository.findAllActiveShiftsForDate(punchDate);
+//        return shifts.stream()
+//                .filter(shift -> shift.getStartTime() != null)
+//                .filter(shift -> !shift.getStartTime().isAfter(punchLocalTime))
+//                .min(Comparator.comparing(shift -> Math.abs(
+//                        punchLocalTime.toSecondOfDay() - shift.getStartTime().toSecondOfDay())))
+//                .orElse(null);
+//    }
 }

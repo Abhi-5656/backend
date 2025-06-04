@@ -9,8 +9,6 @@ import java.util.List;
 @Mapper(componentModel = "spring")
 public interface JobTitleMapper {
 
-
-
     JobTitleDto toDto(JobTitle jobTitle);
 
     List<JobTitleDto> toDtoList(List<JobTitle> jobTitles);
