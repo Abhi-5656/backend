@@ -25,11 +25,17 @@ public class Shift {
 
     private String color;
 
-    @Column(nullable = false)
-    private LocalTime startTime;
+//    @Column(nullable = false)
+//    private LocalTime startTime;
+//
+//    @Column(nullable = false)
+//    private LocalTime endTime;
+      @Column(nullable = false, updatable = false)
+      private LocalTime startTime;
 
-    @Column(nullable = false)
-    private LocalTime endTime;
+     @Column(nullable = false, updatable = false)
+     private LocalTime endTime;
+
 
     private Boolean isActive = true;
 
