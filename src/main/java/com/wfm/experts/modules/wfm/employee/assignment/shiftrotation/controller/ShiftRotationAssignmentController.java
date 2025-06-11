@@ -1,5 +1,6 @@
 package com.wfm.experts.modules.wfm.employee.assignment.shiftrotation.controller;
 
+import com.wfm.experts.modules.wfm.employee.assignment.shiftrotation.dto.MultiShiftRotationAssignmentRequestDTO;
 import com.wfm.experts.modules.wfm.employee.assignment.shiftrotation.dto.ShiftRotationAssignmentDTO;
 import com.wfm.experts.modules.wfm.employee.assignment.shiftrotation.entity.ShiftRotationAssignment;
 import com.wfm.experts.modules.wfm.employee.assignment.shiftrotation.mapper.ShiftRotationAssignmentMapper;
@@ -19,10 +20,21 @@ public class ShiftRotationAssignmentController {
     private final ShiftRotationAssignmentService service;
     private final ShiftRotationAssignmentMapper mapper;
 
-    @PostMapping
-    public ResponseEntity<ShiftRotationAssignmentDTO> create(@RequestBody ShiftRotationAssignmentDTO dto) {
-        ShiftRotationAssignment saved = service.createAssignment(dto);
-        return ResponseEntity.ok(mapper.toDto(saved));
+//    @PostMapping
+//    public ResponseEntity<ShiftRotationAssignmentDTO> create(@RequestBody ShiftRotationAssignmentDTO dto) {
+//        ShiftRotationAssignment saved = service.createAssignment(dto);
+//        return ResponseEntity.ok(mapper.toDto(saved));
+//    }
+
+    @PostMapping("/bulk")
+    public ResponseEntity<List<ShiftRotationAssignmentDTO>> assignShiftRotationToMultipleEmployees(
+            @RequestBody MultiShiftRotationAssignmentRequestDTO requestDTO
+    ) {
+        List<ShiftRotationAssignment> assignments = service.assignShiftRotationToMultipleEmployees(requestDTO);
+        List<ShiftRotationAssignmentDTO> dtos = assignments.stream()
+                .map(mapper::toDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
     }
 
     @PutMapping("/{id}")

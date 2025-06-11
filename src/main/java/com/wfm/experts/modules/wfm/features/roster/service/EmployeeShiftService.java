@@ -1,6 +1,7 @@
 package com.wfm.experts.modules.wfm.features.roster.service;
 
 import com.wfm.experts.modules.wfm.features.roster.dto.EmployeeShiftDTO;
+import com.wfm.experts.modules.wfm.features.roster.dto.EmployeeShiftRosterDTO;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -10,16 +11,16 @@ public interface EmployeeShiftService {
     /**
      * Generate employee shifts based on assigned shift rotation.
      *
-     * @param employeeId The employee's ID
+
      * @param startDate  Start date for generation (inclusive)
      * @param endDate    End date for generation (inclusive)
      */
-    void generateShiftsFromRotation(String employeeId, LocalDate startDate, LocalDate endDate);
+//    void generateShiftsFromRotation(String employeeId, LocalDate startDate, LocalDate endDate);
+    void generateShiftsFromRotation(List<String> employeeIds, LocalDate startDate, LocalDate endDate);
 
     /**
      * Get all EmployeeShiftDTOs for a given employee within the date range (inclusive).
      */
-    List<EmployeeShiftDTO> getShiftsForEmployeeInRange(String employeeId, LocalDate startDate, LocalDate endDate);
 
     /**
      * Soft-delete an employee shift (never physically removes).
@@ -33,4 +34,15 @@ public interface EmployeeShiftService {
      * @param updatedBy Who is performing the update (for audit).
      */
     void softUpdateShift(Long shiftId, String updatedBy);
+
+    /**
+     * Get the roster view: all employees × dates in range, with or without assigned shift.
+     * If an employee has no shift assigned for a date, shift is null.
+     *
+     * @param startDate Inclusive start date
+     * @param endDate   Inclusive end date
+     * @return List of EmployeeShiftRosterDTO (one per employee per date)
+     */
+    List<EmployeeShiftRosterDTO> getEmployeeRosterForDateRange(LocalDate startDate, LocalDate endDate);
 }
+

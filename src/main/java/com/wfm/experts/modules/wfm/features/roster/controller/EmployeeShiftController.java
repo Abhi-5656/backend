@@ -1,8 +1,10 @@
 package com.wfm.experts.modules.wfm.features.roster.controller;
 
 import com.wfm.experts.modules.wfm.features.roster.dto.EmployeeShiftDTO;
+import com.wfm.experts.modules.wfm.features.roster.dto.EmployeeShiftRosterDTO;
 import com.wfm.experts.modules.wfm.features.roster.service.EmployeeShiftService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -18,16 +20,26 @@ public class EmployeeShiftController {
 
     private final EmployeeShiftService employeeShiftService;
 
-    @GetMapping
-    public List<EmployeeShiftDTO> getShifts(
-            @RequestParam("employeeId") String employeeId,
-            @RequestParam("start") String start,
-            @RequestParam("end") String end
+//    @GetMapping
+//    public List<EmployeeShiftDTO> getShifts(
+//            @RequestParam("employeeId") String employeeId,
+//            @RequestParam("start") String start,
+//            @RequestParam("end") String end
+//    ) {
+//        return employeeShiftService.getShiftsForEmployeeInRange(
+//                employeeId,
+//                LocalDate.parse(start),
+//                LocalDate.parse(end)
+//        );
+//    }
+
+
+
+    @GetMapping("/employee-shift-roster")
+    public List<EmployeeShiftRosterDTO> getEmployeeRosterForDateRange(
+            @RequestParam("startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam("endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
     ) {
-        return employeeShiftService.getShiftsForEmployeeInRange(
-                employeeId,
-                LocalDate.parse(start),
-                LocalDate.parse(end)
-        );
+        return employeeShiftService.getEmployeeRosterForDateRange(startDate, endDate);
     }
 }
