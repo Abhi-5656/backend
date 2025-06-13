@@ -2,6 +2,7 @@ package com.wfm.experts.modules.wfm.features.roster.service.impl;
 
 import com.wfm.experts.modules.wfm.employee.assignment.shiftrotation.entity.ShiftRotationAssignment;
 import com.wfm.experts.modules.wfm.employee.assignment.shiftrotation.repository.ShiftRotationAssignmentRepository;
+import com.wfm.experts.modules.wfm.features.roster.dto.BulkEmployeeShiftUpdateRequestDTO;
 import com.wfm.experts.modules.wfm.features.roster.dto.EmployeeShiftDTO;
 import com.wfm.experts.modules.wfm.features.roster.dto.EmployeeShiftRosterDTO;
 import com.wfm.experts.modules.wfm.features.roster.dto.EmployeeShiftRosterProjection;
@@ -12,7 +13,9 @@ import com.wfm.experts.setup.wfm.shift.dto.ShiftDTO;
 import com.wfm.experts.setup.wfm.shift.entity.Shift;
 import com.wfm.experts.setup.wfm.shift.entity.ShiftRotationDay;
 import com.wfm.experts.setup.wfm.shift.enums.Weekday;
+import com.wfm.experts.setup.wfm.shift.repository.ShiftRepository;
 import com.wfm.experts.setup.wfm.shift.repository.ShiftRotationDayRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +32,7 @@ public class EmployeeShiftServiceImpl implements EmployeeShiftService {
     private final ShiftRotationAssignmentRepository assignmentRepository;
     private final ShiftRotationDayRepository shiftRotationDayRepository;
     private final EmployeeShiftRepository employeeShiftRepository;
+    private final ShiftRepository shiftRepository;
 
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
@@ -317,6 +321,68 @@ public void generateShiftsFromRotation(List<String> employeeIds, LocalDate start
     private String deriveWeekday(LocalDate date) {
         return date != null ? date.getDayOfWeek().name() : null;
     }
+
+    @Override
+    @Transactional
+    public void bulkAssignOrUpdateShifts(BulkEmployeeShiftUpdateRequestDTO request) {
+        // Fetch the Shift entity (if provided)
+        Shift shift = null;
+        if (request.getShiftId() != null) {
+            shift = shiftRepository.findById(request.getShiftId())
+                    .orElseThrow(() -> new RuntimeException("Shift not found: " + request.getShiftId()));
+        }
+        String assignedBy = request.getAssignedBy();
+        List<String> employeeIds = request.getEmployeeIds();
+        List<LocalDate> calendarDates = request.getCalendarDates();
+
+        // Fetch all existing (not deleted) assignments for these employees/dates in one go
+        List<EmployeeShift> existingAssignments =
+                employeeShiftRepository.findByEmployeeIdInAndCalendarDateBetweenAndDeletedFalse(
+                        employeeIds,
+                        Collections.min(calendarDates),
+                        Collections.max(calendarDates)
+                );
+
+        // Build a map for quick lookup: (employeeId + calendarDate) -> EmployeeShift
+        Map<String, EmployeeShift> existingMap = new HashMap<>();
+        for (EmployeeShift es : existingAssignments) {
+            String key = es.getEmployeeId() + "|" + es.getCalendarDate();
+            existingMap.put(key, es);
+        }
+
+        List<EmployeeShift> toSave = new ArrayList<>();
+
+        // Iterate over every (employee, date) combination
+        for (String employeeId : employeeIds) {
+            for (LocalDate calendarDate : calendarDates) {
+                String key = employeeId + "|" + calendarDate;
+                EmployeeShift previous = existingMap.get(key);
+
+                if (previous != null) {
+                    // 1. Soft-delete the old assignment (set deleted = true)
+                    previous.setDeleted(true);
+                    employeeShiftRepository.save(previous);
+                }
+
+                // 2. Insert new (current) assignment
+                EmployeeShift newAssignment = EmployeeShift.builder()
+                        .employeeId(employeeId)
+                        .shift(shift)
+                        .calendarDate(calendarDate)
+                        .isWeekOff(false)
+                        .isHoliday(false)
+                        .weekday(calendarDate.getDayOfWeek().name())
+                        .deleted(false)
+                        .assignedBy(assignedBy)
+                        .build();
+                toSave.add(newAssignment);
+            }
+        }
+
+        // Save all new assignments in batch
+        employeeShiftRepository.saveAll(toSave);
+    }
+
 
 
 }

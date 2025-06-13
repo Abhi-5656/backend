@@ -1,5 +1,6 @@
 package com.wfm.experts.modules.wfm.features.roster.service;
 
+import com.wfm.experts.modules.wfm.features.roster.dto.BulkEmployeeShiftUpdateRequestDTO;
 import com.wfm.experts.modules.wfm.features.roster.dto.EmployeeShiftDTO;
 import com.wfm.experts.modules.wfm.features.roster.dto.EmployeeShiftRosterDTO;
 
@@ -44,5 +45,16 @@ public interface EmployeeShiftService {
      * @return List of EmployeeShiftRosterDTO (one per employee per date)
      */
     List<EmployeeShiftRosterDTO> getEmployeeRosterForDateRange(LocalDate startDate, LocalDate endDate);
+
+    /**
+     * Bulk assign or update a shift for multiple employees over multiple dates.
+     *
+     * If an EmployeeShift already exists for (employee, date), update the shift assignment.
+     * If not, insert a new EmployeeShift row.
+     *
+     * @param request DTO containing employeeIds, calendarDates, shiftId, and assignedBy.
+     */
+    void bulkAssignOrUpdateShifts(BulkEmployeeShiftUpdateRequestDTO request);
+
 }
 

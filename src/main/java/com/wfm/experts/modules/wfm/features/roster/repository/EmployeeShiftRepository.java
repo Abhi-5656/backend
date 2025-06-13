@@ -3,7 +3,9 @@ package com.wfm.experts.modules.wfm.features.roster.repository;
 import com.wfm.experts.modules.wfm.features.roster.dto.EmployeeShiftDTO;
 import com.wfm.experts.modules.wfm.features.roster.dto.EmployeeShiftRosterProjection;
 import com.wfm.experts.modules.wfm.features.roster.entity.EmployeeShift;
+import com.wfm.experts.setup.wfm.shift.entity.Shift;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -66,6 +68,18 @@ ORDER BY e.employee_id, d.calendar_date
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
     );
+
+//
+//    @Modifying
+//    @Query("UPDATE EmployeeShift es SET es.shift = :shift, es.deleted = false, es.assignedBy = :assignedBy " +
+//            "WHERE es.employeeId IN :employeeIds AND es.calendarDate IN :calendarDates")
+//    int bulkUpdateEmployeeShifts(
+//            @Param("shift") Shift shift,
+//            @Param("employeeIds") List<String> employeeIds,
+//            @Param("calendarDates") List<LocalDate> calendarDates,
+//            @Param("assignedBy") String assignedBy
+//    );
+
 
 
 
