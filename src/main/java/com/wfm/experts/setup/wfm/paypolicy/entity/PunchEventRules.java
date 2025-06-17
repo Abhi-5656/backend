@@ -1,10 +1,18 @@
 package com.wfm.experts.setup.wfm.paypolicy.entity;
 
+import com.wfm.experts.modules.wfm.features.roster.entity.EmployeeShift;
+import com.wfm.experts.modules.wfm.features.timesheet.entity.PunchEvent;
+import com.wfm.experts.modules.wfm.features.timesheet.enums.PunchType;
 import com.wfm.experts.setup.wfm.paypolicy.rule.PayPolicyRule;
 import com.wfm.experts.setup.wfm.paypolicy.engine.context.PayPolicyExecutionContext;
 import com.wfm.experts.setup.wfm.paypolicy.dto.PayPolicyRuleResultDTO;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.time.Duration;
+import java.time.LocalTime;
+import java.util.Comparator;
+import java.util.List;
 
 @Entity
 @Table(name = "punch_event_rules")
@@ -34,22 +42,54 @@ public class PunchEventRules implements PayPolicyRule {
 
     @Override
     public boolean evaluate(PayPolicyExecutionContext context) {
-        // Implement your evaluation logic (e.g., is this rule enabled and context has punches)
-        return enabled;
+        return enabled && context.getFact("shift") instanceof EmployeeShift;
     }
 
     @Override
     public PayPolicyRuleResultDTO execute(PayPolicyExecutionContext context) {
-        // Implement your rule logic (example skeleton, customize as needed)
-        // Evaluate punch events for early/late IN/OUT and return a result
+        EmployeeShift shift = (EmployeeShift) context.getFact("shift");
+        if (shift == null || shift.getShift() == null) {
+            return PayPolicyRuleResultDTO.builder().ruleName(getName()).result("NO_SHIFT").success(false).message("No scheduled shift found for this day.").build();
+        }
 
-        boolean passed = true; // Your punch evaluation logic here
+        LocalTime shiftStartTime = shift.getShift().getStartTime();
+        LocalTime shiftEndTime = shift.getShift().getEndTime();
+        List<PunchEvent> punches = context.getPunchEvents();
+        punches.sort(Comparator.comparing(PunchEvent::getEventTime));
+
+        StringBuilder violations = new StringBuilder();
+
+        // Check first IN punch
+        punches.stream().filter(p -> p.getPunchType() == PunchType.IN).findFirst().ifPresent(inPunch -> {
+            LocalTime punchTime = inPunch.getEventTime().toLocalTime();
+            long diffMinutes = Duration.between(shiftStartTime, punchTime).toMinutes();
+
+            if (diffMinutes > lateIn) {
+                violations.append(String.format("Late In: Punched in %d minutes after shift start. ", diffMinutes));
+            } else if (diffMinutes < -earlyIn) {
+                violations.append(String.format("Early In: Punched in %d minutes before shift start. ", -diffMinutes));
+            }
+        });
+
+        // Check last OUT punch
+        punches.stream().filter(p -> p.getPunchType() == PunchType.OUT).reduce((first, second) -> second).ifPresent(outPunch -> {
+            LocalTime punchTime = outPunch.getEventTime().toLocalTime();
+            long diffMinutes = Duration.between(shiftEndTime, punchTime).toMinutes();
+
+            if (diffMinutes > lateOut) {
+                violations.append(String.format("Late Out: Punched out %d minutes after shift end. ", diffMinutes));
+            } else if (diffMinutes < -earlyOut) {
+                violations.append(String.format("Early Out: Punched out %d minutes before shift end. ", -diffMinutes));
+            }
+        });
+
+        String resultMessage = violations.length() > 0 ? violations.toString().trim() : "All punches are within grace periods.";
 
         return PayPolicyRuleResultDTO.builder()
                 .ruleName(getName())
-                .result(passed ? "PASS" : "FAIL")
-                .success(passed)
-                .message("Punch event rules evaluated.")
+                .result(violations.length() > 0 ? "VIOLATION" : "OK")
+                .success(true)
+                .message(resultMessage)
                 .build();
     }
 }

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface EmployeeShiftRepository extends JpaRepository<EmployeeShift, Long> {
@@ -22,6 +23,15 @@ public interface EmployeeShiftRepository extends JpaRepository<EmployeeShift, Lo
 //    List<EmployeeShift> findByEmployeeIdAndCalendarDateBetweenAndDeletedFalse(
 //            String employeeId, LocalDate startDate, LocalDate endDate
 //    );
+    /**
+     * Finds the active shift for a given employee on a specific calendar date.
+     * This is an alias for findByEmployeeIdAndCalendarDateAndDeletedFalse to resolve the error.
+     * @param employeeId The ID of the employee.
+     * @param calendarDate The specific date.
+     * @return An Optional containing the EmployeeShift if an active one is found.
+     */
+    @Query("SELECT s FROM EmployeeShift s WHERE s.employeeId = :employeeId AND s.calendarDate = :calendarDate AND s.deleted = false")
+    Optional<EmployeeShift> findByEmployeeIdAndCalendarDate(@Param("employeeId") String employeeId, @Param("calendarDate") LocalDate calendarDate);
 
     // Fetch shifts for multiple employees in a date range, not deleted
     List<EmployeeShift> findByEmployeeIdInAndCalendarDateBetweenAndDeletedFalse(

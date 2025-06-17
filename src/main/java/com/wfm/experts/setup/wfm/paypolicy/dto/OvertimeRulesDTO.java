@@ -1,7 +1,10 @@
 package com.wfm.experts.setup.wfm.paypolicy.dto;
 
 import com.wfm.experts.setup.wfm.paypolicy.enums.*;
+import com.wfm.experts.setup.wfm.shift.entity.Shift;
 import lombok.*;
+
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -28,4 +31,5 @@ public class OvertimeRulesDTO {
     private ExpiryUnit compOffExpiryUnit;
     private boolean encashOnExpiry;
     private PreShiftInclusionDTO preShiftInclusion;
+    private List<Shift> shifts;
 }

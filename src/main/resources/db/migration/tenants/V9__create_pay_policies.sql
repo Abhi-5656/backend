@@ -25,7 +25,9 @@ CREATE TABLE rounding_rule (
                                id BIGSERIAL PRIMARY KEY,
                                interval INTEGER,
                                type VARCHAR(10),
-                               grace_period INTEGER
+                               grace_period INTEGER,
+                               apply_before_shift_minutes INTEGER,
+                               apply_after_shift_minutes INTEGER
 );
 
 CREATE TABLE rounding_rules (

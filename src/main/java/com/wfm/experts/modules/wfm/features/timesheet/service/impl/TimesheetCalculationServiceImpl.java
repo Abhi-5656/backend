@@ -1,11 +1,15 @@
+// src/main/java/com/wfm/experts/modules/wfm/features/timesheet/service/impl/TimesheetCalculationServiceImpl.java
 package com.wfm.experts.modules.wfm.features.timesheet.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wfm.experts.modules.wfm.employee.assignment.paypolicy.entity.PayPolicyAssignment;
 import com.wfm.experts.modules.wfm.employee.assignment.paypolicy.repository.PayPolicyAssignmentRepository;
+import com.wfm.experts.modules.wfm.features.roster.entity.EmployeeShift;
+import com.wfm.experts.modules.wfm.features.roster.repository.EmployeeShiftRepository;
 import com.wfm.experts.modules.wfm.features.timesheet.entity.PunchEvent;
 import com.wfm.experts.modules.wfm.features.timesheet.entity.Timesheet;
+import com.wfm.experts.modules.wfm.features.timesheet.enums.PunchType;
 import com.wfm.experts.modules.wfm.features.timesheet.repository.PunchEventRepository;
 import com.wfm.experts.modules.wfm.features.timesheet.repository.TimesheetRepository;
 import com.wfm.experts.modules.wfm.features.timesheet.service.TimesheetCalculationService;
@@ -20,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -33,100 +38,87 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
     private final PayPolicyRepository payPolicyRepository;
     private final PunchEventRepository punchEventRepository;
     private final TimesheetRepository timesheetRepository;
+    private final EmployeeShiftRepository employeeShiftRepository; // Added for shift context
     private final PayPolicyRuleExecutor payPolicyRuleExecutor;
     private final ObjectMapper objectMapper;
 
-    /**
-     * Processes punch events for a given employee and date, computes total work duration,
-     * executes all relevant pay policy rules, and upserts the Timesheet record.
-     *
-     * @param employeeId The employee's unique ID.
-     * @param date       The work date for calculation.
-     */
     @Override
     @Transactional
     public void processPunchEvents(String employeeId, LocalDate date) {
         log.info("Processing timesheet for employee: {} on date: {}", employeeId, date);
 
-        // 1. Get active pay policy assignment for this employee on this date
-        Optional<PayPolicyAssignment> assignmentOpt =
-                payPolicyAssignmentRepository.findByEmployeeIdAndEffectiveDateLessThanEqualAndExpirationDateGreaterThanEqual(
-                        employeeId, date, date);
+        PayPolicyAssignment assignment = payPolicyAssignmentRepository
+                .findActiveAssignment(employeeId, date)
+                .orElse(null);
 
-        if (assignmentOpt.isEmpty()) {
+        if (assignment == null) {
             log.warn("No active PayPolicyAssignment found for employee: {} on {}", employeeId, date);
-            saveOrUpdateTimesheet(employeeId, date, 0, Collections.emptyList());
+            saveOrUpdateTimesheet(employeeId, date, 0, Collections.emptyList(), null, null);
             return;
         }
-        PayPolicyAssignment assignment = assignmentOpt.get();
 
-        // 2. Fetch pay policy
-        Optional<PayPolicy> policyOpt = payPolicyRepository.findById(assignment.getPayPolicyId());
-        if (policyOpt.isEmpty()) {
+        PayPolicy policy = payPolicyRepository.findById(assignment.getPayPolicyId())
+                .orElse(null);
+        if (policy == null) {
             log.error("PayPolicy {} not found for assignment {}", assignment.getPayPolicyId(), assignment.getId());
-            saveOrUpdateTimesheet(employeeId, date, 0, Collections.emptyList());
+            saveOrUpdateTimesheet(employeeId, date, 0, Collections.emptyList(), null, null);
             return;
         }
-        PayPolicy policy = policyOpt.get();
 
-        // 3. Fetch all punches for employee on this date (00:00 - 23:59:59)
         LocalDateTime startOfDay = date.atStartOfDay();
-        LocalDateTime endOfDay = date.atTime(23, 59, 59);
+        LocalDateTime endOfDay = date.atTime(23, 59, 59, 999999999);
         List<PunchEvent> punches = punchEventRepository
-                .findByEmployeeIdAndEventTimeBetween(employeeId, startOfDay, endOfDay);
+                .findAllByEmployeeIdAndEventTimeBetween(employeeId, startOfDay, endOfDay);
 
         if (punches.isEmpty()) {
-            log.warn("No punch events for employee: {} on date: {}", employeeId, date);
-            saveOrUpdateTimesheet(employeeId, date, 0, Collections.emptyList());
+            log.info("No punch events for employee: {} on date: {}. Clearing timesheet.", employeeId, date);
+            saveOrUpdateTimesheet(employeeId, date, 0, Collections.emptyList(), null, null);
             return;
         }
 
-        // 4. Build context and execute rules
+        // --- Enrich Context ---
+        int totalWorkMinutes = computeTotalWorkMinutes(punches);
+        EmployeeShift currentShift = employeeShiftRepository.findByEmployeeIdAndCalendarDate(employeeId, date).orElse(null);
+        // In a real scenario, you would also check against a holiday calendar.
+        boolean isHoliday = false; // Placeholder for holiday check logic
+
+        Map<String, Object> facts = new HashMap<>();
+        facts.put("workedMinutes", totalWorkMinutes);
+        facts.put("shift", currentShift);
+        facts.put("isHoliday", isHoliday);
+
         PayPolicyExecutionContext context = PayPolicyExecutionContext.builder()
                 .employeeId(employeeId)
                 .date(date)
                 .payPolicy(policy)
-                .punchEvents(punches)
+                .punchEvents(new ArrayList<>(punches)) // Use a mutable copy
+                .facts(facts)
                 .build();
 
-        List<PayPolicyRule> rules = extractRulesFromPolicy(policy);
+        List<PayPolicyRule> rules = policy.getRules();
         List<PayPolicyRuleResultDTO> ruleResults = payPolicyRuleExecutor.executeRules(rules, context);
 
-        // 5. Compute total work minutes (custom logic - sum of all IN/OUT pairs)
-        int totalWorkMinutes = computeTotalWorkMinutes(punches);
+        // --- Extract final results from context after rule execution ---
+        Integer finalWorkMinutes = (Integer) context.getFacts().getOrDefault("workedMinutes", totalWorkMinutes);
+        Integer overtimeMinutes = (Integer) context.getFacts().get("overtimeMinutes");
 
-        // 6. Upsert timesheet
-        saveOrUpdateTimesheet(employeeId, date, totalWorkMinutes, ruleResults);
+        saveOrUpdateTimesheet(employeeId, date, finalWorkMinutes, ruleResults, overtimeMinutes, "PENDING");
 
         log.info("Timesheet processed for employee: {} on date: {} ({} minutes, {} rules)",
-                employeeId, date, totalWorkMinutes, ruleResults.size());
+                employeeId, date, finalWorkMinutes, ruleResults.size());
     }
 
-    /**
-     * Helper: Extracts rules from a PayPolicy.
-     */
-    private List<PayPolicyRule> extractRulesFromPolicy(PayPolicy policy) {
-        List<PayPolicyRule> rules = new ArrayList<>();
-        if (policy.getAttendanceRule() != null) rules.add(policy.getAttendanceRule());
-        if (policy.getRoundingRules() != null) rules.add(policy.getRoundingRules());
-        if (policy.getPunchEventRules() != null) rules.add(policy.getPunchEventRules());
-        if (policy.getBreakRules() != null) rules.add(policy.getBreakRules());
-        if (policy.getOvertimeRules() != null) rules.add(policy.getOvertimeRules());
-        if (policy.getPayPeriodRules() != null) rules.add(policy.getPayPeriodRules());
-        if (policy.getHolidayPayRules() != null) rules.add(policy.getHolidayPayRules());
-        return rules;
-    }
-
-    /**
-     * Helper: Upserts the Timesheet entity for an employee on a given date, saving rule results as JSON.
-     */
-    private void saveOrUpdateTimesheet(String employeeId, LocalDate date, int workMinutes, List<PayPolicyRuleResultDTO> ruleResults) {
+    private void saveOrUpdateTimesheet(String employeeId, LocalDate date, int workMinutes, List<PayPolicyRuleResultDTO> ruleResults, Integer overtime, String status) {
         Timesheet timesheet = timesheetRepository.findByEmployeeIdAndWorkDate(employeeId, date)
                 .orElseGet(() -> Timesheet.builder()
                         .employeeId(employeeId)
                         .workDate(date)
                         .build());
+
         timesheet.setWorkDurationMinutes(workMinutes);
+        timesheet.setTotalWorkDuration(workMinutes / 60.0);
+        timesheet.setOvertimeDuration(overtime);
+        timesheet.setStatus(status);
         try {
             timesheet.setRuleResultsJson(objectMapper.writeValueAsString(ruleResults));
         } catch (JsonProcessingException e) {
@@ -137,30 +129,23 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
         timesheetRepository.save(timesheet);
     }
 
-    /**
-     * Helper: Sums work minutes by pairing IN/OUT punches.
-     */
     private int computeTotalWorkMinutes(List<PunchEvent> punches) {
         punches.sort(Comparator.comparing(PunchEvent::getEventTime));
-        int totalMinutes = 0;
+        long totalMinutes = 0;
         LocalDateTime inTime = null;
+
         for (PunchEvent event : punches) {
-            if (event.getPunchType() != null) {
-                switch (event.getPunchType()) {
-                    case IN:
-                        inTime = event.getEventTime();
-                        break;
-                    case OUT:
-                        if (inTime != null) {
-                            totalMinutes += (int) java.time.Duration.between(inTime, event.getEventTime()).toMinutes();
-                            inTime = null;
-                        }
-                        break;
-                    default:
-                        break;
+            if (event.getPunchType() == PunchType.IN) {
+                if (inTime == null) { // Start of a new work segment
+                    inTime = event.getEventTime();
+                }
+            } else if (event.getPunchType() == PunchType.OUT) {
+                if (inTime != null) { // End of a work segment
+                    totalMinutes += Duration.between(inTime, event.getEventTime()).toMinutes();
+                    inTime = null; // Reset for the next segment
                 }
             }
         }
-        return Math.max(0, totalMinutes);
+        return (int) Math.max(0, totalMinutes);
     }
 }

@@ -21,6 +21,6 @@ public class PayPolicyDTO {
     private OvertimeRulesDTO overtimeRules;
     private PayPeriodRulesDTO payPeriodRules;
     private HolidayPayRulesDTO holidayPayRules;
-    private List<ShiftDTO> shifts;
+//    private List<ShiftDTO> shifts;
     private AttendanceRuleDTO attendanceRule;    // <--- Add this line
 }
