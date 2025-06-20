@@ -56,5 +56,16 @@ public interface EmployeeShiftService {
      */
     void bulkAssignOrUpdateShifts(BulkEmployeeShiftUpdateRequestDTO request);
 
+    /**
+     * Get roster view for a specific employee between start and end date.
+     *
+     * @param employeeId Employee ID
+     * @param startDate  Start date (inclusive)
+     * @param endDate    End date (inclusive)
+     * @return List of EmployeeShiftRosterDTO
+     */
+    List<EmployeeShiftRosterDTO> getRosterForEmployeeByDateRange(String employeeId, LocalDate startDate, LocalDate endDate);
+
+
 }
 

@@ -90,6 +90,43 @@ ORDER BY e.employee_id, d.calendar_date
 //            @Param("assignedBy") String assignedBy
 //    );
 
+    @Query(value = """
+WITH date_range AS (
+  SELECT generate_series(:startDate, :endDate, interval '1 day')::date AS calendar_date
+)
+SELECT
+  e.employee_id AS employeeId,
+  pi.full_name AS fullName,
+  d.calendar_date AS calendarDate,
+  sh.id AS shiftId,
+  sh.shift_name AS shiftName,
+  sh.start_time AS shiftStartTime,
+  sh.end_time AS shiftEndTime,
+  sh.color AS shiftColor,
+  sh.shift_label AS shiftTag,
+  s.is_week_off AS isWeekOff,
+  s.is_holiday AS isHoliday,
+  s.weekday AS weekday,
+  s.deleted AS deleted,
+  s.assigned_by AS assignedBy
+FROM employees e
+LEFT JOIN employee_personal_info pi
+  ON e.personal_info_id = pi.id
+CROSS JOIN date_range d
+LEFT JOIN employee_shifts s
+  ON s.employee_id = e.employee_id AND s.calendar_date = d.calendar_date
+LEFT JOIN shifts sh
+  ON s.shift_id = sh.id
+WHERE e.employee_id = :employeeId
+ORDER BY d.calendar_date
+""", nativeQuery = true)
+    List<EmployeeShiftRosterProjection> findEmployeeRosterByEmployeeIdAndDateRange(
+            @Param("employeeId") String employeeId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+
 
 
 

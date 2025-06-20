@@ -50,4 +50,16 @@ public class EmployeeShiftController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * Get roster for a specific employee in the given date range.
+     */
+    @GetMapping("/employee-shift-roster/{employeeId}")
+    public List<EmployeeShiftRosterDTO> getRosterForEmployee(
+            @PathVariable String employeeId,
+            @RequestParam("startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam("endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
+    ) {
+        return employeeShiftService.getRosterForEmployeeByDateRange(employeeId, startDate, endDate);
+    }
+
 }

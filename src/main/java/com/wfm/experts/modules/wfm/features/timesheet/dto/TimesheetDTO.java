@@ -30,7 +30,7 @@ public class TimesheetDTO {
     private Integer workDurationMinutes;
 
     /** Overtime in hours (e.g., 2.0 for 2 hours overtime) */
-    private Double overtimeDuration;
+    private Integer overtimeDuration;
 
     /** Status of the timesheet (APPROVED, PENDING, etc.) */
     private String status;

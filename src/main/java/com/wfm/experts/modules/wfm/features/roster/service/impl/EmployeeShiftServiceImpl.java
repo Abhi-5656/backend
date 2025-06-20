@@ -37,7 +37,7 @@ public class EmployeeShiftServiceImpl implements EmployeeShiftService {
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
 
-//    @Override
+    //    @Override
 //    public void generateShiftsFromRotation(String employeeId, LocalDate startDate, LocalDate endDate) {
 //        // 1. Fetch assignments in the window, sorted by effectiveDate
 //        List<ShiftRotationAssignment> allAssignments = assignmentRepository
@@ -128,124 +128,120 @@ public class EmployeeShiftServiceImpl implements EmployeeShiftService {
 //        System.out.printf("Upserted %d shifts for employee %s from %s to %s%n",
 //                (toInsert.size() + toMarkDeleted.size()), employeeId, startDate, endDate);
 //    }
-@Override
-public void generateShiftsFromRotation(List<String> employeeIds, LocalDate startDate, LocalDate endDate) {
-    if (employeeIds == null || employeeIds.isEmpty()) {
-        throw new IllegalArgumentException("No employee IDs provided");
-    }
+    @Override
+    public void generateShiftsFromRotation(List<String> employeeIds, LocalDate startDate, LocalDate endDate) {
+        if (employeeIds == null || employeeIds.isEmpty()) {
+            throw new IllegalArgumentException("No employee IDs provided");
+        }
 
-    // 1. Fetch assignments for all employees
-    Map<String, List<ShiftRotationAssignment>> assignmentsByEmployee = new HashMap<>();
-    for (String employeeId : employeeIds) {
-        List<ShiftRotationAssignment> assignments = assignmentRepository
-                .findAllByEmployeeIdAndDateRange(employeeId, startDate, endDate);
-        if (assignments.isEmpty()) continue;
-        assignments.sort(Comparator.comparing(ShiftRotationAssignment::getEffectiveDate));
-        assignmentsByEmployee.put(employeeId, assignments);
-    }
+        // 1. Fetch assignments for all employees
+        Map<String, List<ShiftRotationAssignment>> assignmentsByEmployee = new HashMap<>();
+        for (String employeeId : employeeIds) {
+            List<ShiftRotationAssignment> assignments = assignmentRepository
+                    .findAllByEmployeeIdAndDateRange(employeeId, startDate, endDate);
+            if (assignments.isEmpty()) continue;
+            assignments.sort(Comparator.comparing(ShiftRotationAssignment::getEffectiveDate));
+            assignmentsByEmployee.put(employeeId, assignments);
+        }
 
-    if (assignmentsByEmployee.isEmpty()) {
-        throw new IllegalArgumentException("No shift rotation assignments found for any employee");
-    }
+        if (assignmentsByEmployee.isEmpty()) {
+            throw new IllegalArgumentException("No shift rotation assignments found for any employee");
+        }
 
-    // 2. Map employeeId -> (date -> assignment)
-    Map<String, Map<LocalDate, ShiftRotationAssignment>> assignmentByEmpDate = new HashMap<>();
-    for (String employeeId : assignmentsByEmployee.keySet()) {
-        Map<LocalDate, ShiftRotationAssignment> assignmentByDate = new HashMap<>();
-        for (ShiftRotationAssignment assignment : assignmentsByEmployee.get(employeeId)) {
-            LocalDate eff = assignment.getEffectiveDate();
-            LocalDate exp = assignment.getExpirationDate() != null ? assignment.getExpirationDate() : endDate;
-            for (LocalDate d = eff; !d.isAfter(exp) && !d.isAfter(endDate); d = d.plusDays(1)) {
-                if (!d.isBefore(startDate)) {
-                    assignmentByDate.put(d, assignment); // later assignments override earlier
+        // 2. Map employeeId -> (date -> assignment)
+        Map<String, Map<LocalDate, ShiftRotationAssignment>> assignmentByEmpDate = new HashMap<>();
+        for (String employeeId : assignmentsByEmployee.keySet()) {
+            Map<LocalDate, ShiftRotationAssignment> assignmentByDate = new HashMap<>();
+            for (ShiftRotationAssignment assignment : assignmentsByEmployee.get(employeeId)) {
+                LocalDate eff = assignment.getEffectiveDate();
+                LocalDate exp = assignment.getExpirationDate() != null ? assignment.getExpirationDate() : endDate;
+                for (LocalDate d = eff; !d.isAfter(exp) && !d.isAfter(endDate); d = d.plusDays(1)) {
+                    if (!d.isBefore(startDate)) {
+                        assignmentByDate.put(d, assignment); // later assignments override earlier
+                    }
                 }
             }
+            assignmentByEmpDate.put(employeeId, assignmentByDate);
         }
-        assignmentByEmpDate.put(employeeId, assignmentByDate);
-    }
 
-    // 3. Collect all unique shift rotation IDs
-    Set<Long> allRotationIds = assignmentsByEmployee.values().stream()
-            .flatMap(List::stream)
-            .map(a -> a.getShiftRotation().getId())
-            .collect(Collectors.toSet());
+        // 3. Collect all unique shift rotation IDs
+        Set<Long> allRotationIds = assignmentsByEmployee.values().stream()
+                .flatMap(List::stream)
+                .map(a -> a.getShiftRotation().getId())
+                .collect(Collectors.toSet());
 
-    // 4. Preload rotation days for all shift rotations
-    Map<Long, List<ShiftRotationDay>> rotationDaysByRotationId = new HashMap<>();
-    for (Long rotationId : allRotationIds) {
-        List<ShiftRotationDay> days = shiftRotationDayRepository.findByShiftRotationId(rotationId);
-        rotationDaysByRotationId.put(rotationId, days);
-    }
+        // 4. Preload rotation days for all shift rotations
+        Map<Long, List<ShiftRotationDay>> rotationDaysByRotationId = new HashMap<>();
+        for (Long rotationId : allRotationIds) {
+            List<ShiftRotationDay> days = shiftRotationDayRepository.findByShiftRotationId(rotationId);
+            rotationDaysByRotationId.put(rotationId, days);
+        }
 
-    // 5. Fetch existing (non-deleted) EmployeeShift records for all employees in range
-    List<EmployeeShift> existingShifts = employeeShiftRepository
-            .findByEmployeeIdInAndCalendarDateBetweenAndDeletedFalse(employeeIds, startDate, endDate);
-    Map<String, Map<LocalDate, EmployeeShift>> shiftByEmpDate = existingShifts.stream()
-            .collect(Collectors.groupingBy(EmployeeShift::getEmployeeId,
-                    Collectors.toMap(EmployeeShift::getCalendarDate, s -> s)));
+        // 5. Fetch existing (non-deleted) EmployeeShift records for all employees in range
+        List<EmployeeShift> existingShifts = employeeShiftRepository
+                .findByEmployeeIdInAndCalendarDateBetweenAndDeletedFalse(employeeIds, startDate, endDate);
+        Map<String, Map<LocalDate, EmployeeShift>> shiftByEmpDate = existingShifts.stream()
+                .collect(Collectors.groupingBy(EmployeeShift::getEmployeeId,
+                        Collectors.toMap(EmployeeShift::getCalendarDate, s -> s)));
 
-    List<EmployeeShift> toInsert = new ArrayList<>();
-    List<EmployeeShift> toMarkDeleted = new ArrayList<>();
+        List<EmployeeShift> toInsert = new ArrayList<>();
+        List<EmployeeShift> toMarkDeleted = new ArrayList<>();
 
-    // 6. For each employee, for each date
-    for (String employeeId : employeeIds) {
-        Map<LocalDate, ShiftRotationAssignment> assignmentByDate = assignmentByEmpDate.get(employeeId);
-        if (assignmentByDate == null) continue;
+        // 6. For each employee, for each date
+        for (String employeeId : employeeIds) {
+            Map<LocalDate, ShiftRotationAssignment> assignmentByDate = assignmentByEmpDate.get(employeeId);
+            if (assignmentByDate == null) continue;
 
-        for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
-            ShiftRotationAssignment assignment = assignmentByDate.get(date);
-            if (assignment == null) continue;
+            for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+                ShiftRotationAssignment assignment = assignmentByDate.get(date);
+                if (assignment == null) continue;
 
-            int totalWeeks = assignment.getShiftRotation().getWeeks();
-            List<ShiftRotationDay> rotationDays = rotationDaysByRotationId.get(assignment.getShiftRotation().getId());
-            Map<String, ShiftRotationDay> rotationMap = rotationDays.stream()
-                    .collect(Collectors.toMap(
-                            d -> "W" + d.getWeek() + "_" + d.getWeekday().name(),
-                            d -> d
-                    ));
+                int totalWeeks = assignment.getShiftRotation().getWeeks();
+                List<ShiftRotationDay> rotationDays = rotationDaysByRotationId.get(assignment.getShiftRotation().getId());
+                Map<String, ShiftRotationDay> rotationMap = rotationDays.stream()
+                        .collect(Collectors.toMap(
+                                d -> "W" + d.getWeek() + "_" + d.getWeekday().name(),
+                                d -> d
+                        ));
 
-            int weekNumber = (int) ChronoUnit.WEEKS.between(assignment.getEffectiveDate(), date) % totalWeeks;
-            Weekday weekdayEnum = Weekday.from(date.getDayOfWeek());
-            String weekday = weekdayEnum.name();
-            String key = "W" + (weekNumber + 1) + "_" + weekday;
+                int weekNumber = (int) ChronoUnit.WEEKS.between(assignment.getEffectiveDate(), date) % totalWeeks;
+                Weekday weekdayEnum = Weekday.from(date.getDayOfWeek());
+                String weekday = weekdayEnum.name();
+                String key = "W" + (weekNumber + 1) + "_" + weekday;
 
-            ShiftRotationDay rotationDay = rotationMap.get(key);
+                ShiftRotationDay rotationDay = rotationMap.get(key);
 
-            Shift shift = (rotationDay != null && Boolean.TRUE.equals(rotationDay.getWeekOff())) ? null
-                    : (rotationDay != null ? rotationDay.getShift() : null);
-            boolean isWeekOff = rotationDay != null && Boolean.TRUE.equals(rotationDay.getWeekOff());
-            boolean isHoliday = false; // Integrate holiday logic if needed
+                Shift shift = (rotationDay != null && Boolean.TRUE.equals(rotationDay.getWeekOff())) ? null
+                        : (rotationDay != null ? rotationDay.getShift() : null);
+                boolean isWeekOff = rotationDay != null && Boolean.TRUE.equals(rotationDay.getWeekOff());
+                boolean isHoliday = false; // Integrate holiday logic if needed
 
-            // Existing shift handling
-            EmployeeShift existing = shiftByEmpDate.getOrDefault(employeeId, Collections.emptyMap()).get(date);
-            if (existing != null) {
-                existing.setDeleted(true);
-                toMarkDeleted.add(existing);
+                // Existing shift handling
+                EmployeeShift existing = shiftByEmpDate.getOrDefault(employeeId, Collections.emptyMap()).get(date);
+                if (existing != null) {
+                    existing.setDeleted(true);
+                    toMarkDeleted.add(existing);
+                }
+                EmployeeShift empShift = EmployeeShift.builder()
+                        .employeeId(employeeId)
+                        .shift(shift)
+                        .calendarDate(date)
+                        .isWeekOff(isWeekOff)
+                        .isHoliday(isHoliday)
+                        .weekday(weekday)
+                        .deleted(false)
+                        .assignedBy("SYSTEM") // or set current user
+                        .build();
+                toInsert.add(empShift);
             }
-            EmployeeShift empShift = EmployeeShift.builder()
-                    .employeeId(employeeId)
-                    .shift(shift)
-                    .calendarDate(date)
-                    .isWeekOff(isWeekOff)
-                    .isHoliday(isHoliday)
-                    .weekday(weekday)
-                    .deleted(false)
-                    .assignedBy("SYSTEM") // or set current user
-                    .build();
-            toInsert.add(empShift);
         }
+
+        if (!toMarkDeleted.isEmpty()) employeeShiftRepository.saveAll(toMarkDeleted);
+        if (!toInsert.isEmpty()) employeeShiftRepository.saveAll(toInsert);
+
+        System.out.printf("Upserted %d shifts for employees %s from %s to %s%n",
+                (toInsert.size() + toMarkDeleted.size()), employeeIds, startDate, endDate);
     }
-
-    if (!toMarkDeleted.isEmpty()) employeeShiftRepository.saveAll(toMarkDeleted);
-    if (!toInsert.isEmpty()) employeeShiftRepository.saveAll(toInsert);
-
-    System.out.printf("Upserted %d shifts for employees %s from %s to %s%n",
-            (toInsert.size() + toMarkDeleted.size()), employeeIds, startDate, endDate);
-}
-
-
-
-
 
 
     @Override
@@ -384,5 +380,33 @@ public void generateShiftsFromRotation(List<String> employeeIds, LocalDate start
     }
 
 
+    @Override
+    public List<EmployeeShiftRosterDTO> getRosterForEmployeeByDateRange(String employeeId, LocalDate startDate, LocalDate endDate) {
+        // Define time format (24-hour format: e.g., 09:00)
+        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
 
+        List<EmployeeShiftRosterProjection> projections =
+                employeeShiftRepository.findEmployeeRosterByEmployeeIdAndDateRange(employeeId, startDate, endDate);
+
+        return projections.stream().map(projection -> EmployeeShiftRosterDTO.builder()
+                .employeeId(projection.getEmployeeId())
+                .fullName(projection.getFullName())
+                .calendarDate(projection.getCalendarDate())
+                .isWeekOff(projection.getIsWeekOff())
+                .isHoliday(projection.getIsHoliday())
+                .weekday(projection.getWeekday())
+                .deleted(projection.getDeleted())
+                .assignedBy(projection.getAssignedBy())
+                .shift(projection.getShiftId() == null ? null : ShiftDTO.builder()
+                        .id(projection.getShiftId())
+                        .shiftName(projection.getShiftName())
+                        .startTime(projection.getShiftStartTime() != null ? projection.getShiftStartTime().format(timeFormatter) : null)
+                        .endTime(projection.getShiftEndTime() != null ? projection.getShiftEndTime().format(timeFormatter) : null)
+                        .color(projection.getShiftColor())
+                        .build())
+                .build()
+        ).toList();
+
+
+    }
 }

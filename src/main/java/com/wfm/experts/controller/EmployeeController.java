@@ -98,4 +98,14 @@ public class EmployeeController {
         List<Employee> employees = employeeService.getAllEmployees();
         return ResponseEntity.ok(employees);
     }
+
+    @GetMapping("/by-employee-id/{employeeId}")
+    public ResponseEntity<Employee> getEmployeeByEmployeeId(
+            @RequestHeader("Authorization") String token,
+            @PathVariable String employeeId) {
+        setTenantSchemaFromToken(token);
+        Optional<Employee> employee = employeeService.getEmployeeByEmployeeId(employeeId);
+        return employee.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
 }

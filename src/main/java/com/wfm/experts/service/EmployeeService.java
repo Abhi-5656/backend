@@ -41,4 +41,9 @@ public interface EmployeeService extends UserDetailsService {
      * ✅ Delete an employee by email.
      */
     void deleteEmployee(String email);
+
+    /**
+     * ✅ Get an employee by employee ID (code).
+     */
+    Optional<Employee> getEmployeeByEmployeeId(String employeeId);  // ✅ New method
 }

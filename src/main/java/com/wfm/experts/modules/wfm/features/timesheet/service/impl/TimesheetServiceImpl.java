@@ -2,20 +2,26 @@ package com.wfm.experts.modules.wfm.features.timesheet.service.impl;
 
 import com.wfm.experts.modules.wfm.features.timesheet.dto.PunchEventDTO;
 import com.wfm.experts.modules.wfm.features.timesheet.dto.TimesheetDTO;
+import com.wfm.experts.modules.wfm.features.timesheet.entity.PunchEvent;
 import com.wfm.experts.modules.wfm.features.timesheet.entity.Timesheet;
 import com.wfm.experts.modules.wfm.features.timesheet.exception.TimesheetNotFoundException;
+import com.wfm.experts.modules.wfm.features.timesheet.mapper.PunchEventMapper;
 import com.wfm.experts.modules.wfm.features.timesheet.mapper.TimesheetMapper;
 import com.wfm.experts.modules.wfm.features.timesheet.repository.TimesheetRepository;
 import com.wfm.experts.modules.wfm.features.timesheet.service.PunchEventService;
+import com.wfm.experts.modules.wfm.features.timesheet.service.TimesheetCalculationService;
 import com.wfm.experts.modules.wfm.features.timesheet.service.TimesheetService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,6 +32,8 @@ public class TimesheetServiceImpl implements TimesheetService {
     private final TimesheetRepository timesheetRepository;
     private final TimesheetMapper timesheetMapper;
     private final PunchEventService punchEventService;
+    private final PunchEventMapper punchEventMapper;
+    private final TimesheetCalculationService timesheetCalculationService;
 
     @Override
     public TimesheetDTO createTimesheet(TimesheetDTO timesheetDTO) {
@@ -74,14 +82,41 @@ public class TimesheetServiceImpl implements TimesheetService {
         Timesheet existing = timesheetRepository.findById(id)
                 .orElseThrow(() -> new TimesheetNotFoundException("Timesheet not found for id: " + id));
 
-        timesheetDTO.setId(id);
-        Timesheet updated = timesheetMapper.toEntity(timesheetDTO);
-        updated.setCreatedAt(existing.getCreatedAt());
+        // --- Only update allowed fields (not employeeId, createdAt, etc.)
+        timesheetMapper.updateTimesheetFromDto(timesheetDTO, existing);
 
-        Timesheet saved = timesheetRepository.save(updated);
+        // --- Handle punch events update (merge instead of replace) ---
+        if (timesheetDTO.getPunchEvents() != null && !timesheetDTO.getPunchEvents().isEmpty()) {
+            Map<Long, PunchEvent> existingPunchMap = existing.getPunchEvents().stream()
+                    .collect(Collectors.toMap(PunchEvent::getId, Function.identity()));
+
+            for (PunchEventDTO incomingDto : timesheetDTO.getPunchEvents()) {
+                if (incomingDto.getId() != null && existingPunchMap.containsKey(incomingDto.getId())) {
+                    PunchEvent existingPunch = existingPunchMap.get(incomingDto.getId());
+                    punchEventMapper.updatePunchEventFromDto(incomingDto, existingPunch);
+                    existingPunch.setUpdatedAt(LocalDateTime.now());
+                } else {
+                    PunchEvent newPunch = punchEventMapper.toEntity(incomingDto);
+                    newPunch.setTimesheet(existing);
+                    newPunch.setCreatedAt(LocalDateTime.now());
+                    existing.getPunchEvents().add(newPunch);
+                }
+            }
+        }
+
+        existing.setUpdatedAt(LocalDateTime.now());
+        Timesheet saved = timesheetRepository.save(existing);
+
+        // 🔁 Recalculate totals & rule results based on updated punches
+        timesheetCalculationService.processPunchEvents(existing.getEmployeeId(), existing.getWorkDate());
 
         return timesheetMapper.toDto(saved);
     }
+
+
+
+
+
 
     @Override
     public Optional<TimesheetDTO> getTimesheetById(Long id) {

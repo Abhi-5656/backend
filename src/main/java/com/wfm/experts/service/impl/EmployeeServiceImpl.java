@@ -273,4 +273,11 @@ public UserDetails loadUserByUsername(String email) throws InvalidEmailException
     private void ensureSchemaSwitch() {
         tenantSchemaUtil.ensureTenantSchemaIsSet();
     }
+
+    @Override
+    public Optional<Employee> getEmployeeByEmployeeId(String employeeId) {
+        ensureSchemaSwitch();
+        return employeeRepository.findByEmployeeId(employeeId);
+    }
+
 }

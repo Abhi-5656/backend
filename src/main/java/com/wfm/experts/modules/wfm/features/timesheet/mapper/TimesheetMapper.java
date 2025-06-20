@@ -16,4 +16,13 @@ public interface TimesheetMapper {
     List<TimesheetDTO> toDtoList(List<Timesheet> entityList);
 
     List<Timesheet> toEntityList(List<TimesheetDTO> dtoList);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "employeeId", ignore = true)
+    @Mapping(target = "workDate", ignore = true)
+    @Mapping(target = "punchEvents", ignore = true) // very important
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    void updateTimesheetFromDto(TimesheetDTO dto, @MappingTarget Timesheet entity);
+
+
 }

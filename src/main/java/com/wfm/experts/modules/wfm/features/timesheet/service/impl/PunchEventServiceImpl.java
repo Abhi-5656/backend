@@ -2,14 +2,12 @@ package com.wfm.experts.modules.wfm.features.timesheet.service.impl;
 
 import com.wfm.experts.modules.wfm.features.timesheet.dto.PunchEventDTO;
 import com.wfm.experts.modules.wfm.features.timesheet.entity.PunchEvent;
-import com.wfm.experts.modules.wfm.features.timesheet.enums.PunchType;
+import com.wfm.experts.modules.wfm.features.timesheet.entity.Timesheet;
 import com.wfm.experts.modules.wfm.features.timesheet.exception.PunchEventNotFoundException;
-import com.wfm.experts.modules.wfm.features.timesheet.exception.ShiftNotFoundException;
 import com.wfm.experts.modules.wfm.features.timesheet.mapper.PunchEventMapper;
 import com.wfm.experts.modules.wfm.features.timesheet.repository.PunchEventRepository;
 import com.wfm.experts.modules.wfm.features.timesheet.service.PunchEventService;
 import com.wfm.experts.modules.wfm.features.timesheet.service.TimesheetCalculationService;
-import com.wfm.experts.setup.wfm.shift.entity.Shift;
 import com.wfm.experts.setup.wfm.shift.repository.ShiftRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,9 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -36,7 +34,14 @@ public class PunchEventServiceImpl implements PunchEventService {
     public PunchEventDTO createPunchEvent(PunchEventDTO punchEventDTO) {
         PunchEvent punchEvent = punchEventMapper.toEntity(punchEventDTO);
 
-        // Detect and set shift for IN punches
+        // 🛠 Set Timesheet relation manually if DTO has ID and it's not already mapped
+        if (punchEventDTO.getTimesheetId() != null && punchEvent.getTimesheet() == null) {
+            Timesheet timesheet = new Timesheet();
+            timesheet.setId(punchEventDTO.getTimesheetId());
+            punchEvent.setTimesheet(timesheet);
+        }
+
+        // 🔒 Optional: Enable shift detection if required
 //        if (punchEvent.getPunchType() == PunchType.IN) {
 //            Shift matchedShift = detectShiftForPunch(punchEvent.getEmployeeId(), punchEvent.getEventTime());
 //            if (matchedShift == null) {
@@ -48,11 +53,12 @@ public class PunchEventServiceImpl implements PunchEventService {
 
         PunchEvent saved = punchEventRepository.save(punchEvent);
 
-        // Trigger timesheet recalculation after every punch event
-        timesheetCalculationService.processPunchEvents(
-                punchEvent.getEmployeeId(),
-                punchEvent.getEventTime().toLocalDate()
-        );
+        if (punchEvent.getEventTime() != null) {
+            timesheetCalculationService.processPunchEvents(
+                    punchEvent.getEmployeeId(),
+                    punchEvent.getEventTime().toLocalDate()
+            );
+        }
 
         return punchEventMapper.toDto(saved);
     }
@@ -62,31 +68,33 @@ public class PunchEventServiceImpl implements PunchEventService {
         PunchEvent existing = punchEventRepository.findById(id)
                 .orElseThrow(() -> new PunchEventNotFoundException("PunchEvent not found: " + id));
 
-        PunchEvent updated = punchEventMapper.toEntity(punchEventDTO);
-        updated.setId(id);
+        // Only update fields that are allowed (employeeId is NOT updated)
+        punchEventMapper.updatePunchEventFromDto(punchEventDTO, existing);
 
-//        // Shift detection logic on update for IN punches
-//        if (updated.getPunchType() == PunchType.IN) {
-//            Shift matchedShift = detectShiftForPunch(updated.getEmployeeId(), updated.getEventTime());
-//            if (matchedShift == null) {
-//                throw new ShiftNotFoundException("No shift found for date: " + updated.getEventTime().toLocalDate()
-//                        + " and punch time: " + updated.getEventTime().toLocalTime());
-//            }
-//            updated.setShift(matchedShift);
-//        } else {
-//            updated.setShift(null);
-//        }
+        if (punchEventDTO.getEventTime() != null) {
+            existing.setEventTime(punchEventDTO.getEventTime()); // ensure time is updated
+        }
 
-        PunchEvent saved = punchEventRepository.save(updated);
+        if (punchEventDTO.getTimesheetId() != null) {
+            Timesheet timesheet = new Timesheet();
+            timesheet.setId(punchEventDTO.getTimesheetId());
+            existing.setTimesheet(timesheet);
+        }
 
-        // Trigger timesheet recalculation after every punch event update
-        timesheetCalculationService.processPunchEvents(
-                updated.getEmployeeId(),
-                updated.getEventTime().toLocalDate()
-        );
+        PunchEvent saved = punchEventRepository.save(existing);
+
+        if (existing.getEventTime() != null) {
+            timesheetCalculationService.processPunchEvents(
+                    existing.getEmployeeId(),
+                    existing.getEventTime().toLocalDate()
+            );
+        }
 
         return punchEventMapper.toDto(saved);
     }
+
+
+
 
     @Override
     public Optional<PunchEventDTO> getPunchEventById(Long id) {
@@ -99,7 +107,7 @@ public class PunchEventServiceImpl implements PunchEventService {
         return punchEventRepository.findByEmployeeIdAndEventTimeBetween(employeeId, start, end)
                 .stream()
                 .map(punchEventMapper::toDto)
-                .toList();
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -107,7 +115,7 @@ public class PunchEventServiceImpl implements PunchEventService {
         return punchEventRepository.findByTimesheetId(timesheetId)
                 .stream()
                 .map(punchEventMapper::toDto)
-                .toList();
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -117,19 +125,22 @@ public class PunchEventServiceImpl implements PunchEventService {
 
         punchEventRepository.deleteById(id);
 
-        // Trigger timesheet recalculation after deletion
-        timesheetCalculationService.processPunchEvents(
-                punchEvent.getEmployeeId(),
-                punchEvent.getEventTime().toLocalDate()
-        );
+        if (punchEvent.getEventTime() != null) {
+            timesheetCalculationService.processPunchEvents(
+                    punchEvent.getEmployeeId(),
+                    punchEvent.getEventTime().toLocalDate()
+            );
+        }
     }
 
+    @Override
     public List<PunchEventDTO> getPunchEventsByEmployeeAndDate(String employeeId, LocalDate date) {
         LocalDateTime start = date.atStartOfDay();
         LocalDateTime end = date.atTime(LocalTime.MAX);
         return getPunchEventsByEmployeeAndPeriod(employeeId, start, end);
     }
 
+    // 🔁 Optional: Shift detection logic (use if required)
 //    private Shift detectShiftForPunch(String employeeId, LocalDateTime punchEventTime) {
 //        LocalDate punchDate = punchEventTime.toLocalDate();
 //        LocalTime punchLocalTime = punchEventTime.toLocalTime();
