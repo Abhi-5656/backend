@@ -38,7 +38,7 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
     private final PayPolicyRepository payPolicyRepository;
     private final PunchEventRepository punchEventRepository;
     private final TimesheetRepository timesheetRepository;
-    private final EmployeeShiftRepository employeeShiftRepository; // Added for shift context
+    private final EmployeeShiftRepository employeeShiftRepository;
     private final PayPolicyRuleExecutor payPolicyRuleExecutor;
     private final ObjectMapper objectMapper;
 
@@ -77,9 +77,8 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
         }
 
         // --- Enrich Context ---
-        int totalWorkMinutes = computeTotalWorkMinutes(punches);
+        int totalWorkMinutes = computeTotalWorkMinutes(punches, policy); // Pass policy to calculation
         EmployeeShift currentShift = employeeShiftRepository.findByEmployeeIdAndCalendarDate(employeeId, date).orElse(null);
-        // In a real scenario, you would also check against a holiday calendar.
         boolean isHoliday = false; // Placeholder for holiday check logic
 
         Map<String, Object> facts = new HashMap<>();
@@ -98,7 +97,6 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
         List<PayPolicyRule> rules = policy.getRules();
         List<PayPolicyRuleResultDTO> ruleResults = payPolicyRuleExecutor.executeRules(rules, context);
 
-        // --- Extract final results from context after rule execution ---
         Integer finalWorkMinutes = (Integer) context.getFacts().getOrDefault("workedMinutes", totalWorkMinutes);
         Integer overtimeMinutes = (Integer) context.getFacts().get("overtimeMinutes");
 
@@ -129,23 +127,49 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
         timesheetRepository.save(timesheet);
     }
 
-    private int computeTotalWorkMinutes(List<PunchEvent> punches) {
-        punches.sort(Comparator.comparing(PunchEvent::getEventTime));
-        long totalMinutes = 0;
-        LocalDateTime inTime = null;
+    private int computeTotalWorkMinutes(List<PunchEvent> punches, PayPolicy policy) {
+        if (punches == null || punches.isEmpty()) {
+            return 0;
+        }
 
-        for (PunchEvent event : punches) {
-            if (event.getPunchType() == PunchType.IN) {
-                if (inTime == null) { // Start of a new work segment
-                    inTime = event.getEventTime();
-                }
-            } else if (event.getPunchType() == PunchType.OUT) {
-                if (inTime != null) { // End of a work segment
-                    totalMinutes += Duration.between(inTime, event.getEventTime()).toMinutes();
-                    inTime = null; // Reset for the next segment
+        // Check if FILO calculation should be used
+        if (policy != null && Boolean.TRUE.equals(policy.getUseFiloCalculation())) {
+            log.debug("Using FILO calculation logic.");
+            Optional<LocalDateTime> firstIn = punches.stream()
+                    .filter(p -> p.getPunchType() == PunchType.IN)
+                    .map(PunchEvent::getEventTime)
+                    .min(LocalDateTime::compareTo);
+
+            Optional<LocalDateTime> lastOut = punches.stream()
+                    .filter(p -> p.getPunchType() == PunchType.OUT)
+                    .map(PunchEvent::getEventTime)
+                    .max(LocalDateTime::compareTo);
+
+            if (firstIn.isPresent() && lastOut.isPresent() && lastOut.get().isAfter(firstIn.get())) {
+                return (int) Duration.between(firstIn.get(), lastOut.get()).toMinutes();
+            } else {
+                return 0; // Not enough data for FILO
+            }
+        } else {
+            // Default logic: sum of durations between IN/OUT pairs
+            log.debug("Using standard paired punch calculation logic.");
+            punches.sort(Comparator.comparing(PunchEvent::getEventTime));
+            long totalMinutes = 0;
+            LocalDateTime inTime = null;
+
+            for (PunchEvent event : punches) {
+                if (event.getPunchType() == PunchType.IN) {
+                    if (inTime == null) {
+                        inTime = event.getEventTime();
+                    }
+                } else if (event.getPunchType() == PunchType.OUT) {
+                    if (inTime != null) {
+                        totalMinutes += Duration.between(inTime, event.getEventTime()).toMinutes();
+                        inTime = null;
+                    }
                 }
             }
+            return (int) Math.max(0, totalMinutes);
         }
-        return (int) Math.max(0, totalMinutes);
     }
 }

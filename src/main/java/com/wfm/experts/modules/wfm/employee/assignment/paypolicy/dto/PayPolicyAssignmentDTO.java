@@ -4,6 +4,7 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -13,7 +14,8 @@ public class PayPolicyAssignmentDTO {
 
     private Long id;
 
-    private String employeeId;
+    // Changed from String to List<String> to support multiple employee IDs
+    private List<String> employeeIds;
 
     private Long payPolicyId;
 
@@ -24,5 +26,4 @@ public class PayPolicyAssignmentDTO {
     private LocalDateTime assignedAt;
 
     private boolean active;
-
 }

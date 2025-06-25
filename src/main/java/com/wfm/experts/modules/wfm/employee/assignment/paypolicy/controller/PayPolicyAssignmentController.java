@@ -17,13 +17,13 @@ public class PayPolicyAssignmentController {
     private final PayPolicyAssignmentService payPolicyAssignmentService;
 
     /**
-     * Assign a pay policy to an employee.
+     * Assign a pay policy to multiple employees.
      */
     @PostMapping
-    public ResponseEntity<PayPolicyAssignmentDTO> assignPayPolicy(
+    public ResponseEntity<List<PayPolicyAssignmentDTO>> assignPayPolicy(
             @RequestBody PayPolicyAssignmentDTO dto) {
-        PayPolicyAssignmentDTO assigned = payPolicyAssignmentService.assignPayPolicy(dto);
-        return ResponseEntity.ok(assigned);
+        List<PayPolicyAssignmentDTO> assignedList = payPolicyAssignmentService.assignPayPolicy(dto);
+        return ResponseEntity.ok(assignedList);
     }
 
     /**
@@ -50,15 +50,14 @@ public class PayPolicyAssignmentController {
      */
     @GetMapping("/employee/{employeeId}/current")
     public ResponseEntity<PayPolicyAssignmentDTO> getCurrentAssignment(
-            @PathVariable String employeeId,
-            @RequestParam("date") String dateStr // YYYY-MM-DD
+            @PathVariable String employeeId
     ) {
-        LocalDate date = LocalDate.parse(dateStr);
-        // Assuming "current" means effectiveDate <= date and expirationDate >= date
-        PayPolicyAssignmentDTO current = payPolicyAssignmentService.getCurrentAssignment(employeeId, date, date);
+        PayPolicyAssignmentDTO current = payPolicyAssignmentService.getCurrentAssignment(employeeId);
         if (current == null) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(current);
     }
+
+
 }

@@ -27,26 +27,33 @@ public class PayPolicyAssignmentServiceImpl implements PayPolicyAssignmentServic
     private final PayPolicyAssignmentMapper payPolicyAssignmentMapper;
 
     @Override
-    public PayPolicyAssignmentDTO assignPayPolicy(PayPolicyAssignmentDTO dto) {
-        // Check if employee exists, throw if not
-        Optional<Employee> employeeOpt = employeeRepository.findByEmployeeId(dto.getEmployeeId());
-        if (employeeOpt.isEmpty()) {
-            throw new IllegalArgumentException("Employee not found for id: " + dto.getEmployeeId());
+    public List<PayPolicyAssignmentDTO> assignPayPolicy(PayPolicyAssignmentDTO dto) {
+        List<String> employeeIds = dto.getEmployeeIds();
+
+        if (employeeIds == null || employeeIds.isEmpty()) {
+            throw new IllegalArgumentException("employeeIds list cannot be null or empty.");
         }
 
-        // Prepare entity
-        PayPolicyAssignment assignment = payPolicyAssignmentMapper.toEntity(dto);
+        List<PayPolicyAssignmentDTO> result = employeeIds.stream().map(employeeId -> {
+            Optional<Employee> employeeOpt = employeeRepository.findByEmployeeId(employeeId);
+            if (employeeOpt.isEmpty()) {
+                throw new IllegalArgumentException("Employee not found for id: " + employeeId);
+            }
 
-        // Set assignment time if not provided
-        if (assignment.getAssignedAt() == null) {
-            assignment.setAssignedAt(LocalDateTime.now());
-        }
-        // Mark as active
-        assignment.setActive(true);
+            PayPolicyAssignment entity = PayPolicyAssignment.builder()
+                    .employeeId(employeeId)
+                    .payPolicyId(dto.getPayPolicyId())
+                    .effectiveDate(dto.getEffectiveDate())
+                    .expirationDate(dto.getExpirationDate())
+                    .assignedAt(LocalDateTime.now())
+                    .active(true)
+                    .build();
 
-        // Save
-        PayPolicyAssignment saved = payPolicyAssignmentRepository.save(assignment);
-        return payPolicyAssignmentMapper.toDTO(saved);
+            PayPolicyAssignment saved = payPolicyAssignmentRepository.save(entity);
+            return payPolicyAssignmentMapper.toDTO(saved);
+        }).collect(Collectors.toList());
+
+        return result;
     }
 
     @Override
@@ -58,13 +65,15 @@ public class PayPolicyAssignmentServiceImpl implements PayPolicyAssignmentServic
     }
 
     @Override
-    public PayPolicyAssignmentDTO getCurrentAssignment(String employeeId, LocalDate effectiveDate, LocalDate expirationDate) {
+    public PayPolicyAssignmentDTO getCurrentAssignment(String employeeId) {
+        LocalDate today = LocalDate.now();
         Optional<PayPolicyAssignment> assignmentOpt =
                 payPolicyAssignmentRepository.findByEmployeeIdAndEffectiveDateLessThanEqualAndExpirationDateGreaterThanEqual(
-                        employeeId, effectiveDate, expirationDate);
+                        employeeId, today, today);
         return assignmentOpt.map(payPolicyAssignmentMapper::toDTO)
                 .orElse(null);
     }
+
 
     @Override
     public List<PayPolicyAssignmentDTO> getAllAssignments() {

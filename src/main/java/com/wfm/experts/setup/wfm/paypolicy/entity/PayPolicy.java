@@ -29,6 +29,10 @@ public class PayPolicy {
     @Column(name = "expiration_date")
     private LocalDate expirationDate;
 
+    // NEWLY ADDED FIELD
+    @Column(name = "use_filo_calculation")
+    private Boolean useFiloCalculation;
+
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "rounding_rules_id")
     private RoundingRules roundingRules;

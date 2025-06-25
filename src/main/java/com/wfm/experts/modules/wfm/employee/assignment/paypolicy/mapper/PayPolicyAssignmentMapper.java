@@ -11,16 +11,11 @@ import java.util.List;
 @Mapper(componentModel = "spring")
 public interface PayPolicyAssignmentMapper {
 
-    @Mapping(source = "effectiveDate", target = "effectiveDate")
-    @Mapping(source = "expirationDate", target = "expirationDate")
-    @Mapping(source = "assignedAt", target = "assignedAt")
     PayPolicyAssignment toEntity(PayPolicyAssignmentDTO dto);
 
-    @Mapping(source = "effectiveDate", target = "effectiveDate")
-    @Mapping(source = "expirationDate", target = "expirationDate")
-    @Mapping(source = "assignedAt", target = "assignedAt")
+    @Mapping(target = "employeeIds", expression = "java(java.util.Collections.singletonList(entity.getEmployeeId()))")
     PayPolicyAssignmentDTO toDTO(PayPolicyAssignment entity);
 
     List<PayPolicyAssignmentDTO> toDTOList(List<PayPolicyAssignment> entities);
-
 }
+

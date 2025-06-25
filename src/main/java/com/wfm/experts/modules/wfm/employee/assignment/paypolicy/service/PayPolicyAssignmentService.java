@@ -8,10 +8,10 @@ import java.util.List;
 public interface PayPolicyAssignmentService {
 
     /**
-     * Assigns a pay policy to an employee.
-     * Checks if the employee exists before assignment.
+     * Assigns a pay policy to multiple employees.
+     * Each employeeId in the list will be assigned the same pay policy.
      */
-    PayPolicyAssignmentDTO assignPayPolicy(PayPolicyAssignmentDTO dto);
+    List<PayPolicyAssignmentDTO> assignPayPolicy(PayPolicyAssignmentDTO dto);
 
     /**
      * Gets all assignments for a particular employee.
@@ -21,7 +21,7 @@ public interface PayPolicyAssignmentService {
     /**
      * Gets the current (active) pay policy assignment for an employee, based on date.
      */
-    PayPolicyAssignmentDTO getCurrentAssignment(String employeeId, LocalDate effectiveDate, LocalDate expirationDate);
+    PayPolicyAssignmentDTO getCurrentAssignment(String employeeId);
 
     /**
      * Gets all pay policy assignments in the system.

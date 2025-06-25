@@ -15,12 +15,14 @@ public class PayPolicyDTO {
     private LocalDate effectiveDate;
     private LocalDate expirationDate;
 
+    // NEWLY ADDED FIELD
+    private Boolean useFiloCalculation;
+
     private RoundingRulesDTO roundingRules;
     private PunchEventRulesDTO punchEventRules;
     private BreakRulesDTO breakRules;
     private OvertimeRulesDTO overtimeRules;
     private PayPeriodRulesDTO payPeriodRules;
     private HolidayPayRulesDTO holidayPayRules;
-//    private List<ShiftDTO> shifts;
-    private AttendanceRuleDTO attendanceRule;    // <--- Add this line
+    private AttendanceRuleDTO attendanceRule;
 }
