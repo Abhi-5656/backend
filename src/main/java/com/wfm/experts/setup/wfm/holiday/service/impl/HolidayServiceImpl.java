@@ -34,7 +34,6 @@ public class HolidayServiceImpl implements HolidayService {
                 .orElseThrow(() -> new NoSuchElementException("Holiday not found with id " + id));
         Holiday updatedEntity = holidayMapper.toEntity(holidayDTO);
         updatedEntity.setId(existing.getId());
-        // Optionally retain createdAt if not in DTO
         if (existing.getCreatedAt() != null) {
             updatedEntity.setCreatedAt(existing.getCreatedAt());
         }
@@ -63,5 +62,22 @@ public class HolidayServiceImpl implements HolidayService {
             throw new NoSuchElementException("Holiday not found with id " + id);
         }
         holidayRepository.deleteById(id);
+    }
+
+    /**
+     * Create multiple holidays in a single transaction.
+     *
+     * @param holidayDTOs list of holidays to create
+     * @return list of created HolidayDTOs with IDs
+     */
+    @Override
+    public List<HolidayDTO> createHolidays(List<HolidayDTO> holidayDTOs) {
+        List<Holiday> entities = holidayDTOs.stream()
+                .map(holidayMapper::toEntity)
+                .collect(Collectors.toList());
+        List<Holiday> saved = holidayRepository.saveAll(entities);
+        return saved.stream()
+                .map(holidayMapper::toDto)
+                .collect(Collectors.toList());
     }
 }

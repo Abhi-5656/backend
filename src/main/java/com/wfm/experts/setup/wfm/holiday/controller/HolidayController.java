@@ -46,4 +46,10 @@ public class HolidayController {
         holidayService.deleteHoliday(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/multi_create")
+    public ResponseEntity<List<HolidayDTO>> createHolidays(@RequestBody List<HolidayDTO> holidayDTOs) {
+        List<HolidayDTO> createdList = holidayService.createHolidays(holidayDTOs);
+        return ResponseEntity.ok(createdList);
+    }
 }

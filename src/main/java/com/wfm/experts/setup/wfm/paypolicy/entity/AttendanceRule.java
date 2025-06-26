@@ -5,6 +5,7 @@ import com.wfm.experts.modules.wfm.features.timesheet.enums.PunchType;
 import com.wfm.experts.setup.wfm.paypolicy.rule.PayPolicyRule;
 import com.wfm.experts.setup.wfm.paypolicy.engine.context.PayPolicyExecutionContext;
 import com.wfm.experts.setup.wfm.paypolicy.dto.PayPolicyRuleResultDTO;
+import com.wfm.experts.setup.wfm.paypolicy.enums.AttendanceStatus; // Import the new enum
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -55,59 +56,64 @@ public class AttendanceRule implements PayPolicyRule {
 
     @Override
     public PayPolicyRuleResultDTO execute(PayPolicyExecutionContext context) {
-        // Get all punches for the work date
+        // Get all punches for the work date and sort them by time
         List<PunchEvent> punches = context.getPunchEvents();
-
         punches.sort(Comparator.comparing(PunchEvent::getEventTime));
 
+        // Find the first IN punch
         PunchEvent inPunch = punches.stream()
                 .filter(p -> p.getPunchType() == PunchType.IN)
                 .findFirst()
                 .orElse(null);
 
+        // Find the last OUT punch
         PunchEvent outPunch = punches.stream()
                 .filter(p -> p.getPunchType() == PunchType.OUT)
                 .reduce((first, second) -> second)
                 .orElse(null);
 
-        String attendanceStatus = "ABSENT";
-        String message;
+        // Use the enum for type safety and standard constants. Default to ABSENT.
+        AttendanceStatus attendanceStatus = AttendanceStatus.ABSENT;
+        String messageDetails;
 
-        // Calculate thresholds correctly
-        int fullDayThreshold =
-                Optional.ofNullable(context.getPayPolicy().getAttendanceRule())
-                        .map(r -> (r.getFullDayHours() != null ? r.getFullDayHours() : 0) * 60 +
-                                (r.getFullDayMinutes() != null ? r.getFullDayMinutes() : 0))
-                        .orElse(480); // fallback 8 hours
+        // Calculate thresholds in total minutes
+        int fullDayThreshold = Optional.ofNullable(context.getPayPolicy().getAttendanceRule())
+                .map(r -> (r.getFullDayHours() != null ? r.getFullDayHours() : 0) * 60 +
+                        (r.getFullDayMinutes() != null ? r.getFullDayMinutes() : 0))
+                .orElse(480); // Fallback: 8 hours
 
-        int halfDayThreshold =
-                Optional.ofNullable(context.getPayPolicy().getAttendanceRule())
-                        .map(r -> (r.getHalfDayHours() != null ? r.getHalfDayHours() : 0) * 60 +
-                                (r.getHalfDayMinutes() != null ? r.getHalfDayMinutes() : 0))
-                        .orElse(240); // fallback 4 hours
+        int halfDayThreshold = Optional.ofNullable(context.getPayPolicy().getAttendanceRule())
+                .map(r -> (r.getHalfDayHours() != null ? r.getHalfDayHours() : 0) * 60 +
+                        (r.getHalfDayMinutes() != null ? r.getHalfDayMinutes() : 0))
+                .orElse(240); // Fallback: 4 hours
 
         if (inPunch != null && outPunch != null) {
             long workMinutes = Duration.between(inPunch.getEventTime(), outPunch.getEventTime()).toMinutes();
 
             if (workMinutes >= fullDayThreshold) {
-                attendanceStatus = "FULL_DAY";
-                message = "Present: FULL_DAY. Worked " + workMinutes + " minutes.";
+                attendanceStatus = AttendanceStatus.PRESENT;
+                messageDetails = "Worked " + workMinutes + " minutes.";
             } else if (workMinutes >= halfDayThreshold) {
-                attendanceStatus = "HALF_DAY";
-                message = "Present: HALF_DAY. Worked " + workMinutes + " minutes.";
+                attendanceStatus = AttendanceStatus.HALF_DAY;
+                messageDetails = "Worked " + workMinutes + " minutes.";
             } else {
-                message = "Present but duration (" + workMinutes + " min) less than half-day threshold.";
+                attendanceStatus = AttendanceStatus.ABSENT;
+                messageDetails = "Work duration (" + workMinutes + " min) is less than the threshold for a half day.";
             }
         } else {
-            message = "Missing IN/OUT punch. Marked ABSENT.";
+            // The status is already ABSENT by default
+            messageDetails = "Missing IN or OUT punch.";
         }
 
+        // Construct the final message
+        String finalMessage = "Status: " + attendanceStatus.name() + ". " + messageDetails;
+
+        // Build the result DTO using the enum's string representation
         return PayPolicyRuleResultDTO.builder()
                 .ruleName(getName())
-                .result(attendanceStatus)
+                .result(attendanceStatus.name()) // .name() returns the constant as a String (e.g., "PRESENT")
                 .success(true)
-                .message(message)
+                .message(finalMessage)
                 .build();
     }
-
 }

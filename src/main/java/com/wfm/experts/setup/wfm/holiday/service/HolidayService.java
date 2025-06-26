@@ -16,4 +16,12 @@ public interface HolidayService {
 
     void deleteHoliday(Long id);
 
+    /**
+     * Create multiple holidays in a single call.
+     *
+     * @param holidayDTOs list of holidays to create
+     * @return the list of created HolidayDTOs (with IDs populated)
+     */
+    List<HolidayDTO> createHolidays(List<HolidayDTO> holidayDTOs);
+
 }

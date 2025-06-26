@@ -19,7 +19,7 @@ public class HolidayProfileDTO implements Serializable {
 
     private List<Holiday> holidays; // You can use List<HolidayDTO> if you prefer DTOs throughout
 
-    private Boolean isActive;
+    private Boolean isActive = true;
 
     private LocalDateTime createdAt;
 
