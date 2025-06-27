@@ -23,7 +23,7 @@ CREATE TABLE breaks (
 -- ======================================
 CREATE TABLE rounding_rule (
                                id BIGSERIAL PRIMARY KEY,
-                               interval INTEGER,
+                               "interval" INTEGER,
                                type VARCHAR(10),
                                grace_period INTEGER,
                                apply_before_shift_minutes INTEGER,
@@ -144,18 +144,31 @@ CREATE TABLE attendance_rules (
 );
 
 -- ======================================
--- 10. Pay Policy (core)
+-- 10. Night Allowance Rules (NEW)
+-- ======================================
+CREATE TABLE night_allowance_rules (
+                                       id BIGSERIAL PRIMARY KEY,
+                                       enabled BOOLEAN NOT NULL,
+                                       start_time VARCHAR(10),
+                                       end_time VARCHAR(10),
+                                       pay_multiplier DOUBLE PRECISION
+);
+
+
+-- ======================================
+-- 11. Pay Policy (core)
 -- ======================================
 CREATE TABLE pay_policies (
                               id BIGSERIAL PRIMARY KEY,
                               policy_name VARCHAR(100) NOT NULL UNIQUE,
                               effective_date DATE NOT NULL,
                               expiration_date DATE,
-                              use_filo_calculation BOOLEAN DEFAULT FALSE, -- NEWLY ADDED FIELD
+                              use_filo_calculation BOOLEAN DEFAULT FALSE,
                               rounding_rules_id BIGINT REFERENCES rounding_rules(id) ON DELETE CASCADE,
                               punch_event_rules_id BIGINT REFERENCES punch_event_rules(id) ON DELETE CASCADE,
                               break_rules_id BIGINT REFERENCES break_rules(id) ON DELETE CASCADE,
                               overtime_rules_id BIGINT REFERENCES overtime_rules(id) ON DELETE CASCADE,
+                              night_allowance_rules_id BIGINT REFERENCES night_allowance_rules(id) ON DELETE CASCADE,
                               pay_period_rules_id BIGINT REFERENCES pay_period_rules(id) ON DELETE CASCADE,
                               holiday_pay_rules_id BIGINT REFERENCES holiday_pay_rules(id) ON DELETE CASCADE,
                               attendance_rule_id BIGINT REFERENCES attendance_rules(id) ON DELETE CASCADE

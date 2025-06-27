@@ -1,9 +1,7 @@
 package com.wfm.experts.setup.wfm.paypolicy.dto;
 
-import com.wfm.experts.setup.wfm.shift.dto.ShiftDTO;
 import lombok.*;
 import java.time.LocalDate;
-import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -14,14 +12,13 @@ public class PayPolicyDTO {
     private String policyName;
     private LocalDate effectiveDate;
     private LocalDate expirationDate;
-
-    // NEWLY ADDED FIELD
     private Boolean useFiloCalculation;
 
     private RoundingRulesDTO roundingRules;
     private PunchEventRulesDTO punchEventRules;
     private BreakRulesDTO breakRules;
     private OvertimeRulesDTO overtimeRules;
+    private NightAllowanceRulesDTO nightAllowanceRules;
     private PayPeriodRulesDTO payPeriodRules;
     private HolidayPayRulesDTO holidayPayRules;
     private AttendanceRuleDTO attendanceRule;

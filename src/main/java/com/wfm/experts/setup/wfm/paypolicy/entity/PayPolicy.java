@@ -29,7 +29,6 @@ public class PayPolicy {
     @Column(name = "expiration_date")
     private LocalDate expirationDate;
 
-    // NEWLY ADDED FIELD
     @Column(name = "use_filo_calculation")
     private Boolean useFiloCalculation;
 
@@ -48,6 +47,10 @@ public class PayPolicy {
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "overtime_rules_id")
     private OvertimeRules overtimeRules;
+
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "night_allowance_rules_id")
+    private NightAllowanceRules nightAllowanceRules;
 
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "pay_period_rules_id")

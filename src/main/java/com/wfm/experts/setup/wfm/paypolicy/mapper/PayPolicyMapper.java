@@ -10,6 +10,7 @@ import org.mapstruct.Mapper;
         PunchEventRulesMapper.class,
         BreakRulesMapper.class,
         OvertimeRulesMapper.class,
+        NightAllowanceRulesMapper.class,
         PayPeriodRulesMapper.class,
         HolidayPayRulesMapper.class,
         ShiftMapper.class
