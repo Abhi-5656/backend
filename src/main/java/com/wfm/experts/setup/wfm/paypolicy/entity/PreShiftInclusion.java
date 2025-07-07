@@ -20,8 +20,5 @@ public class PreShiftInclusion {
     @Column(length = 10)
     private String fromUnit;  // "minutes" or "hours"
 
-    private Integer upToValue;
 
-    @Column(length = 10)
-    private String upToUnit;  // "minutes" or "hours"
 }
