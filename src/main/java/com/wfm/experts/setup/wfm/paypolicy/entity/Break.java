@@ -1,5 +1,6 @@
 package com.wfm.experts.setup.wfm.paypolicy.entity;
 
+import com.wfm.experts.setup.wfm.paypolicy.enums.BreakType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -24,4 +25,8 @@ public class Break {
 
     @Column(length = 10)
     private String endTime;       // e.g. "12:30"
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 10)
+    private BreakType type;
 }

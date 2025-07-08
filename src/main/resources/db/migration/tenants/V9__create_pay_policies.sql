@@ -15,6 +15,7 @@ CREATE TABLE breaks (
                         duration INTEGER,
                         start_time VARCHAR(10),
                         end_time VARCHAR(10),
+                        type VARCHAR(10), -- ADDED: To store PAID or UNPAID
                         break_rules_id BIGINT REFERENCES break_rules(id) ON DELETE CASCADE
 );
 
@@ -64,18 +65,25 @@ CREATE TABLE pre_shift_inclusion (
 );
 
 -- ======================================
--- 5. Overtime Rules
+-- 5. Overtime Rules (UPDATED)
 -- ======================================
 CREATE TABLE overtime_rules (
                                 id BIGSERIAL PRIMARY KEY,
                                 enabled BOOLEAN NOT NULL,
+                                daily_ot_trigger VARCHAR(50), -- ADDED
                                 threshold_hours INTEGER,
                                 threshold_minutes INTEGER,
+                                grace_period_after_shift_end INTEGER, -- ADDED
                                 max_ot_per_day DOUBLE PRECISION,
+                                enable_weekly_ot BOOLEAN, -- ADDED
+                                weekly_threshold_hours INTEGER, -- ADDED
                                 max_ot_per_week DOUBLE PRECISION,
+                                weekly_ot_basis VARCHAR(50), -- ADDED
+                                daily_weekly_ot_conflict VARCHAR(50), -- ADDED
                                 conflict_resolution VARCHAR(20),
                                 reset_ot_bucket_daily BOOLEAN NOT NULL,
                                 reset_ot_bucket_weekly BOOLEAN NOT NULL,
+                                weekly_reset_day VARCHAR(20), -- ADDED
                                 reset_ot_bucket_on_pay_period BOOLEAN NOT NULL,
                                 compensation_method VARCHAR(20),
                                 paid_ot_multiplier DOUBLE PRECISION,
@@ -144,7 +152,7 @@ CREATE TABLE attendance_rules (
 );
 
 -- ======================================
--- 10. Night Allowance Rules (NEW)
+-- 10. Night Allowance Rules
 -- ======================================
 CREATE TABLE night_allowance_rules (
                                        id BIGSERIAL PRIMARY KEY,

@@ -1,5 +1,6 @@
 package com.wfm.experts.setup.wfm.paypolicy.dto;
 
+import com.wfm.experts.setup.wfm.paypolicy.enums.BreakType;
 import lombok.*;
 
 @Data
@@ -12,4 +13,5 @@ public class BreakDTO {
     private Integer duration;
     private String startTime;
     private String endTime;
+    private BreakType type;
 }

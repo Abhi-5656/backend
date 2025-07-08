@@ -32,4 +32,11 @@ public class OvertimeRulesDTO {
     private boolean encashOnExpiry;
     private PreShiftInclusionDTO preShiftInclusion;
     private List<Shift> shifts;
+    private DailyOtTrigger dailyOtTrigger;
+    private Integer gracePeriodAfterShiftEnd;
+    private boolean enableWeeklyOt;
+    private Integer weeklyThresholdHours;
+    private WeeklyOtBasis weeklyOtBasis;
+    private DailyWeeklyOtConflict dailyWeeklyOtConflict;
+    private WeekDay weeklyResetDay;
 }
