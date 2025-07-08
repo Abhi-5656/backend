@@ -259,14 +259,12 @@ public class OvertimeRules implements PayPolicyRule {
         LocalDate workDate = context.getDate();
         String employeeId = context.getEmployeeId();
 
-        // Calculate daily and weekly OT separately
         int dailyOtMinutes = calculateDailyOvertime(workedMinutes, employeeShift, context);
         int weeklyOtMinutes = 0;
         if (enableWeeklyOt) {
-            weeklyOtMinutes = calculateWeeklyOvertime(employeeId, workDate, dailyOtMinutes, context.getTimesheetRepository(), context);
+            weeklyOtMinutes = calculateWeeklyOvertime(employeeId, workDate, context);
         }
 
-        // The total overtime for THIS DAY is the sum of daily and the triggered weekly portion
         int totalOvertime = dailyOtMinutes + weeklyOtMinutes;
 
         context.getFacts().put("overtimeMinutes", totalOvertime);
@@ -291,7 +289,6 @@ public class OvertimeRules implements PayPolicyRule {
 
         int calculatedDailyOt = overtimeEligibleMinutes - thresholdInMinutes;
 
-        // Apply daily cap
         if (this.maxOtPerDay != null && this.maxOtPerDay > 0) {
             calculatedDailyOt = Math.min(calculatedDailyOt, (int) (this.maxOtPerDay * 60));
         }
@@ -299,10 +296,14 @@ public class OvertimeRules implements PayPolicyRule {
         return calculatedDailyOt;
     }
 
-    private int calculateWeeklyOvertime(String employeeId, LocalDate workDate, int dailyOtMinutes, TimesheetRepository timesheetRepository, PayPolicyExecutionContext context) {
+    private int calculateWeeklyOvertime(String employeeId, LocalDate workDate, PayPolicyExecutionContext context) {
         if (weeklyThresholdHours == null || weeklyThresholdHours <= 0) {
             return 0;
         }
+
+        TimesheetRepository timesheetRepository = context.getTimesheetRepository();
+        Integer dailyOtMinutes = (Integer) context.getFacts().getOrDefault("dailyOtMinutes", 0);
+
 
         WeekDay startDay = this.weeklyResetDay != null ? this.weeklyResetDay : WeekDay.SUNDAY;
         LocalDate weekStartDate = workDate.with(DayOfWeek.valueOf(startDay.name()));
@@ -319,10 +320,10 @@ public class OvertimeRules implements PayPolicyRule {
 
         Integer currentDayWorkedMinutes = context.getWorkedMinutes();
         if (currentDayWorkedMinutes != null) {
-            if (this.weeklyOtBasis == WeeklyOtBasis.REGULAR_AND_DAILY_OT) {
-                weeklyTotalMinutes += currentDayWorkedMinutes;
-            } else if (this.weeklyOtBasis == WeeklyOtBasis.REGULAR_HOURS_ONLY) {
+            if (this.weeklyOtBasis == WeeklyOtBasis.REGULAR_HOURS_ONLY) {
                 weeklyTotalMinutes += (currentDayWorkedMinutes - dailyOtMinutes);
+            } else {
+                weeklyTotalMinutes += currentDayWorkedMinutes;
             }
         }
 
@@ -337,10 +338,6 @@ public class OvertimeRules implements PayPolicyRule {
                 .mapToInt(sheet -> sheet.getOvertimeDuration() != null ? sheet.getOvertimeDuration() : 0)
                 .sum();
 
-        if (dailyWeeklyOtConflict == DailyWeeklyOtConflict.EXCLUDE_DAILY_OT) {
-            totalDailyOtInWeek += dailyOtMinutes;
-            potentialWeeklyOt = Math.max(0, potentialWeeklyOt - totalDailyOtInWeek);
-        }
 
         int alreadyAccruedWeeklyOt = totalDailyOtInWeek;
 
@@ -357,14 +354,10 @@ public class OvertimeRules implements PayPolicyRule {
         int workDuration = sheet.getWorkDurationMinutes() != null ? sheet.getWorkDurationMinutes() : 0;
         int overtimeDuration = sheet.getOvertimeDuration() != null ? sheet.getOvertimeDuration() : 0;
 
-        switch (this.weeklyOtBasis) {
-            case REGULAR_HOURS_ONLY:
-                return workDuration - overtimeDuration;
-            case REGULAR_AND_DAILY_OT:
-                return workDuration;
-            default:
-                return 0;
+        if (this.weeklyOtBasis == WeeklyOtBasis.REGULAR_HOURS_ONLY) {
+            return workDuration - overtimeDuration;
         }
+        return workDuration;
     }
 
 
