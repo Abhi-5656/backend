@@ -1,6 +1,8 @@
+// src/main/java/com/wfm/experts/setup/wfm/paypolicy/engine/context/PayPolicyExecutionContext.java
 package com.wfm.experts.setup.wfm.paypolicy.engine.context;
 
 import com.wfm.experts.modules.wfm.features.timesheet.entity.PunchEvent;
+import com.wfm.experts.modules.wfm.features.timesheet.repository.TimesheetRepository;
 import com.wfm.experts.setup.wfm.paypolicy.entity.PayPolicy;
 import lombok.*;
 
@@ -13,11 +15,12 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PayPolicyExecutionContext {
-    private String employeeId; // <-- CHANGE THIS TO STRING
+    private String employeeId; // <<<< CHANGED THIS TO STRING
     private LocalDate date;
     private PayPolicy payPolicy;
     private List<PunchEvent> punchEvents;
     private Map<String, Object> facts; // e.g. "workedMinutes", "shiftId", etc.
+    private TimesheetRepository timesheetRepository;
 
     public Object getFact(String key) {
         return facts != null ? facts.get(key) : null;

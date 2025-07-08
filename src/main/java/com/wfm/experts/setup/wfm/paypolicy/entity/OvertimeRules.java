@@ -143,6 +143,7 @@
 //                .build();
 //    }
 //}
+// src/main/java/com/wfm/experts/setup/wfm/paypolicy/entity/OvertimeRules.java
 package com.wfm.experts.setup.wfm.paypolicy.entity;
 
 import com.wfm.experts.modules.wfm.features.roster.entity.EmployeeShift;
@@ -174,7 +175,6 @@ import java.util.Optional;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Component
 public class OvertimeRules implements PayPolicyRule {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -245,15 +245,6 @@ public class OvertimeRules implements PayPolicyRule {
     @Enumerated(EnumType.STRING)
     private WeekDay weeklyResetDay;
 
-    @Transient
-    private TimesheetRepository timesheetRepository;
-
-    @Autowired
-    public void setTimesheetRepository(TimesheetRepository timesheetRepository) {
-        this.timesheetRepository = timesheetRepository;
-    }
-
-
     @Override
     public String getName() {
         return "OvertimeRules";
@@ -275,7 +266,7 @@ public class OvertimeRules implements PayPolicyRule {
         int weeklyOtMinutes = 0;
 
         if (enableWeeklyOt) {
-            weeklyOtMinutes = calculateWeeklyOvertime(employeeId, workDate, dailyOtMinutes);
+            weeklyOtMinutes = calculateWeeklyOvertime(employeeId, workDate, dailyOtMinutes, context.getTimesheetRepository());
         }
 
         int totalOvertime = dailyOtMinutes + weeklyOtMinutes;
@@ -306,7 +297,7 @@ public class OvertimeRules implements PayPolicyRule {
         return overtimeEligibleMinutes - thresholdInMinutes;
     }
 
-    private int calculateWeeklyOvertime(String employeeId, LocalDate workDate, int dailyOtMinutes) {
+    private int calculateWeeklyOvertime(String employeeId, LocalDate workDate, int dailyOtMinutes, TimesheetRepository timesheetRepository) {
         if (weeklyThresholdHours == null || weeklyThresholdHours <= 0) {
             return 0;
         }
