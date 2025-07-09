@@ -47,9 +47,11 @@ public class TimesheetServiceImpl implements TimesheetService {
         if (existingOpt.isPresent()) {
             // -- Update existing --
             timesheet = existingOpt.get();
-            timesheet.setWorkDurationMinutes(timesheetDTO.getWorkDurationMinutes());
-            timesheet.setTotalWorkDuration(timesheetDTO.getTotalWorkDuration());
-
+            timesheet.setRegularHoursMinutes(timesheetDTO.getRegularHoursMinutes());
+            timesheet.setDailyOtHoursMinutes(timesheetDTO.getDailyOtHoursMinutes());
+            timesheet.setExcessHoursMinutes(timesheetDTO.getExcessHoursMinutes());
+            timesheet.setWeeklyOtHoursMinutes(timesheetDTO.getWeeklyOtHoursMinutes());
+            timesheet.setTotalWorkDurationMinutes(timesheetDTO.getTotalWorkDurationMinutes());
             timesheet.setStatus(timesheetDTO.getStatus());
             timesheet.setRuleResultsJson(timesheetDTO.getRuleResultsJson());
             timesheet.setCalculatedAt(timesheetDTO.getCalculatedAt());

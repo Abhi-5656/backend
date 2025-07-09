@@ -28,14 +28,20 @@ public class Timesheet {
     @Column(name = "work_date", nullable = false)
     private LocalDate workDate;
 
-    @Column(name = "work_duration_minutes")
-    private Integer workDurationMinutes;
+    @Column(name = "regular_hours_minutes")
+    private Integer regularHoursMinutes;
 
-    @Column(name = "total_work_duration")
-    private Double totalWorkDuration;
+    @Column(name = "daily_ot_hours_minutes")
+    private Integer dailyOtHoursMinutes;
 
-    @Column(name = "overtime_duration")
-    private Integer overtimeDuration;
+    @Column(name = "excess_hours_minutes")
+    private Integer excessHoursMinutes;
+
+    @Column(name = "weekly_ot_hours_minutes")
+    private Integer weeklyOtHoursMinutes;
+
+    @Column(name = "total_work_duration_minutes")
+    private Integer totalWorkDurationMinutes;
 
     @Column(name = "status", length = 32)
     private String status;

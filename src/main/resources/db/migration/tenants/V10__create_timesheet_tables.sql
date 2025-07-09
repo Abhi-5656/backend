@@ -6,9 +6,11 @@ CREATE TABLE timesheets (
                             id BIGSERIAL PRIMARY KEY,
                             employee_id VARCHAR(64) NOT NULL,
                             work_date DATE NOT NULL,
-                            work_duration_minutes INTEGER,             -- total minutes worked in day
-                            total_work_duration DOUBLE PRECISION,      -- hours, e.g., 7.5
-                            overtime_duration INTEGER,                 -- overtime in minutes
+                            regular_hours_minutes INTEGER,
+                            daily_ot_hours_minutes INTEGER,
+                            excess_hours_minutes INTEGER,
+                            weekly_ot_hours_minutes INTEGER,
+                            total_work_duration_minutes INTEGER,
                             status VARCHAR(32),
                             rule_results_json TEXT,                    -- for PayPolicyRuleResultDTO JSON
                             calculated_at DATE,                        -- when recalculated (date only)
@@ -33,6 +35,7 @@ CREATE TABLE punch_events (
                               geo_lat DOUBLE PRECISION,
                               geo_long DOUBLE PRECISION,
                               notes VARCHAR(255),
+                              employee_image_base64 TEXT, -- <<<< ADDED THIS LINE
                               timesheet_id BIGINT,
                               shift_id BIGINT,
                               exception_flag BOOLEAN DEFAULT FALSE,
@@ -49,7 +52,6 @@ CREATE TABLE punch_events (
                                       REFERENCES shifts (id)
                                       ON DELETE SET NULL,
 
-    -- ✅ Corrected constraint
                               CONSTRAINT uc_employee_event_time UNIQUE (employee_id, event_time)
 );
 

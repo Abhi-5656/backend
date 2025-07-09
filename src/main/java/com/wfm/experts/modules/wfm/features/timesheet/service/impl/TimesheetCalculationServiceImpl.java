@@ -187,6 +187,7 @@
 //    }
 //}
 // src/main/java/com/wfm/experts/modules/wfm/features/timesheet/service/impl/TimesheetCalculationServiceImpl.java
+// src/main/java/com/wfm/experts/modules/wfm/features/timesheet/service/impl/TimesheetCalculationServiceImpl.java
 package com.wfm.experts.modules.wfm.features.timesheet.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -244,7 +245,7 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
         // If there are no punches, there's nothing to calculate.
         if (punches.isEmpty()) {
             log.info("No punch events for employee: {} on date: {}. Clearing timesheet.", employeeId, date);
-            saveOrUpdateTimesheet(employeeId, date, 0, Collections.emptyList(), null, "Absent");
+            saveOrUpdateTimesheet(employeeId, date, 0, 0, 0, 0, 0, Collections.emptyList(), "Absent");
             return;
         }
 
@@ -256,7 +257,7 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
         if (assignment == null) {
             log.warn("No active PayPolicyAssignment found for employee: {} on {}. Calculating work duration from punches without rules.", employeeId, date);
             int totalWorkMinutes = computeTotalWorkMinutes(punches, null); // Pass null for policy
-            saveOrUpdateTimesheet(employeeId, date, totalWorkMinutes, Collections.emptyList(), null, "Present");
+            saveOrUpdateTimesheet(employeeId, date, totalWorkMinutes, 0, 0, 0, 0, Collections.emptyList(), "Present");
             return;
         }
 
@@ -266,7 +267,7 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
         if (policy == null) {
             log.error("PayPolicy {} not found for assignment {}. Calculating from punches, but rules will not be applied.", assignment.getPayPolicyId(), assignment.getId());
             int totalWorkMinutes = computeTotalWorkMinutes(punches, null);
-            saveOrUpdateTimesheet(employeeId, date, totalWorkMinutes, Collections.emptyList(), null, "Present");
+            saveOrUpdateTimesheet(employeeId, date, totalWorkMinutes, 0, 0, 0, 0, Collections.emptyList(), "Present");
             return;
         }
 
@@ -293,8 +294,11 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
         List<PayPolicyRule> rules = policy.getRules();
         List<PayPolicyRuleResultDTO> ruleResults = payPolicyRuleExecutor.executeRules(rules, context);
 
-        Integer finalWorkMinutes = (Integer) context.getFacts().getOrDefault("workedMinutes", totalWorkMinutes);
-        Integer overtimeMinutes = (Integer) context.getFacts().get("overtimeMinutes");
+        Integer regularHoursMinutes = (Integer) context.getFacts().getOrDefault("regularHoursMinutes", 0);
+        Integer dailyOtHoursMinutes = (Integer) context.getFacts().getOrDefault("dailyOtHoursMinutes", 0);
+        Integer excessHoursMinutes = (Integer) context.getFacts().getOrDefault("excessHoursMinutes", 0);
+        Integer weeklyOtHoursMinutes = (Integer) context.getFacts().getOrDefault("weeklyOtHoursMinutes", 0);
+
 
         // Determine the final status from the AttendanceRule result
         String finalStatus = ruleResults.stream()
@@ -303,22 +307,24 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
                 .findFirst()
                 .orElse("Present"); // Default to "Present" if rule doesn't run or has no result
 
-        saveOrUpdateTimesheet(employeeId, date, finalWorkMinutes, ruleResults, overtimeMinutes, finalStatus);
+        saveOrUpdateTimesheet(employeeId, date, totalWorkMinutes, regularHoursMinutes, dailyOtHoursMinutes, excessHoursMinutes, weeklyOtHoursMinutes, ruleResults, finalStatus);
 
         log.info("Timesheet processed for employee: {} on date: {} ({} minutes, {} rules)",
-                employeeId, date, finalWorkMinutes, ruleResults.size());
+                employeeId, date, totalWorkMinutes, ruleResults.size());
     }
 
-    private void saveOrUpdateTimesheet(String employeeId, LocalDate date, int workMinutes, List<PayPolicyRuleResultDTO> ruleResults, Integer overtime, String status) {
+    private void saveOrUpdateTimesheet(String employeeId, LocalDate date, int totalWorkMinutes, int regularHoursMinutes, int dailyOtHoursMinutes, int excessHoursMinutes, int weeklyOtHoursMinutes, List<PayPolicyRuleResultDTO> ruleResults, String status) {
         Timesheet timesheet = timesheetRepository.findByEmployeeIdAndWorkDate(employeeId, date)
                 .orElseGet(() -> Timesheet.builder()
                         .employeeId(employeeId)
                         .workDate(date)
                         .build());
 
-        timesheet.setWorkDurationMinutes(workMinutes);
-        timesheet.setTotalWorkDuration(workMinutes / 60.0);
-        timesheet.setOvertimeDuration(overtime);
+        timesheet.setTotalWorkDurationMinutes(totalWorkMinutes);
+        timesheet.setRegularHoursMinutes(regularHoursMinutes);
+        timesheet.setDailyOtHoursMinutes(dailyOtHoursMinutes);
+        timesheet.setExcessHoursMinutes(excessHoursMinutes);
+        timesheet.setWeeklyOtHoursMinutes(weeklyOtHoursMinutes);
         timesheet.setStatus(status);
         try {
             timesheet.setRuleResultsJson(objectMapper.writeValueAsString(ruleResults));

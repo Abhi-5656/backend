@@ -14,19 +14,26 @@ import java.time.LocalDateTime;
 public class PunchEventDTO {
 
     private Long id;
-    private String employeeId; // <<<< CHANGED HERE
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss") // GOOD
+    private String employeeId;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime eventTime;
+
     private PunchType punchType;
     private PunchEventStatus status;
     private String deviceId;
     private Double geoLat;
     private Double geoLong;
     private String notes;
+
+    /**
+     * Holds the Base64 encoded string of the employee's image.
+     */
+    private String employeeImageBase64;
+
     private Long timesheetId;
 
-    // --- Include shiftId only in RESPONSE ---
-    // MapStruct will populate this from PunchEvent.getShift().getId() for GET/response payloads
+    // This field is typically populated in responses from the PunchEvent entity
     private Long shiftId;
 
     private LocalDateTime createdAt;
