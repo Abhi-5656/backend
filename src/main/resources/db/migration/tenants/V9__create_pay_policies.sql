@@ -162,9 +162,31 @@ CREATE TABLE night_allowance_rules (
                                        pay_multiplier DOUBLE PRECISION
 );
 
+-- ======================================
+-- 11. Weekend Pay Rules (NEW)
+-- ======================================
+CREATE TABLE weekend_pay_rules (
+                                   id BIGSERIAL PRIMARY KEY,
+                                   enabled BOOLEAN NOT NULL,
+                                   weekend_pay_type VARCHAR(20),
+                                   pay_multiplier DOUBLE PRECISION,
+                                   min_hours_for_comp_off INTEGER,
+                                   max_comp_off_balance_basis VARCHAR(20),
+                                   max_comp_off_balance INTEGER,
+                                   comp_off_expiry_value INTEGER,
+                                   comp_off_expiry_unit VARCHAR(10),
+                                   encash_on_expiry BOOLEAN NOT NULL
+);
+
+CREATE TABLE weekend_pay_rule_days (
+                                       rule_id BIGINT NOT NULL REFERENCES weekend_pay_rules(id) ON DELETE CASCADE,
+                                       weekend_day VARCHAR(20) NOT NULL,
+                                       PRIMARY KEY (rule_id, weekend_day)
+);
+
 
 -- ======================================
--- 11. Pay Policy (core)
+-- 12. Pay Policy (core) (UPDATED)
 -- ======================================
 CREATE TABLE pay_policies (
                               id BIGSERIAL PRIMARY KEY,
@@ -179,5 +201,6 @@ CREATE TABLE pay_policies (
                               night_allowance_rules_id BIGINT REFERENCES night_allowance_rules(id) ON DELETE CASCADE,
                               pay_period_rules_id BIGINT REFERENCES pay_period_rules(id) ON DELETE CASCADE,
                               holiday_pay_rules_id BIGINT REFERENCES holiday_pay_rules(id) ON DELETE CASCADE,
+                              weekend_pay_rules_id BIGINT REFERENCES weekend_pay_rules(id) ON DELETE CASCADE, -- ADDED
                               attendance_rule_id BIGINT REFERENCES attendance_rules(id) ON DELETE CASCADE
 );

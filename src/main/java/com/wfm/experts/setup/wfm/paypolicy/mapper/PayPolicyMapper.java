@@ -13,6 +13,7 @@ import org.mapstruct.Mapper;
         NightAllowanceRulesMapper.class,
         PayPeriodRulesMapper.class,
         HolidayPayRulesMapper.class,
+        WeekendPayRulesMapper.class, // <-- ADDED
         ShiftMapper.class
 })
 public interface PayPolicyMapper {

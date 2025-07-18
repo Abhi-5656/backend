@@ -60,6 +60,13 @@ public class PayPolicy {
     @JoinColumn(name = "holiday_pay_rules_id")
     private HolidayPayRules holidayPayRules;
 
+    /**
+     * NEW: Relationship to WeekendPayRules entity.
+     */
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "weekend_pay_rules_id")
+    private WeekendPayRules weekendPayRules;
+
     @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "attendance_rule_id")
     private AttendanceRule attendanceRule;
@@ -77,6 +84,8 @@ public class PayPolicy {
         if (overtimeRules != null) rules.add(overtimeRules);
         if (payPeriodRules != null) rules.add(payPeriodRules);
         if (holidayPayRules != null) rules.add(holidayPayRules);
+        if (weekendPayRules != null) rules.add(weekendPayRules);
+
         return rules;
     }
 }
