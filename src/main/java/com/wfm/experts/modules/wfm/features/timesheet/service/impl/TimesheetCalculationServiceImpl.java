@@ -107,35 +107,22 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
         List<PayPolicyRule> rules = policy.getRules();
         List<PayPolicyRuleResultDTO> ruleResults = payPolicyRuleExecutor.executeRules(rules, context);
 
-        Integer netWorkedMinutes = (Integer) context.getFacts().getOrDefault("workedMinutes", totalWorkMinutes);
-        Integer dailyOtHoursMinutes = (Integer) context.getFacts().getOrDefault("dailyOtHoursMinutes", 0);
-        Integer weeklyOtHoursMinutes = (Integer) context.getFacts().getOrDefault("weeklyOtHoursMinutes", 0);
-        Integer excessHoursMinutes = (Integer) context.getFacts().getOrDefault("excessHoursMinutes", 0);
-        Integer regularHoursMinutes = (Integer) context.getFacts().get("regularHoursMinutes");
+        Integer netPayableMinutes = (Integer) context.getFacts().getOrDefault("workedMinutes", totalWorkMinutes);
+        Integer dailyOtMinutes = (Integer) context.getFacts().getOrDefault("dailyOtHoursMinutes", 0);
+        Integer weeklyOtMinutes = (Integer) context.getFacts().getOrDefault("weeklyOtHoursMinutes", 0);
+        Integer excessMinutes = (Integer) context.getFacts().getOrDefault("excessHoursMinutes", 0);
 
-        if (regularHoursMinutes == null) {
-            int alreadyCategorizedOvertime = dailyOtHoursMinutes + weeklyOtHoursMinutes + excessHoursMinutes;
-            if (currentShift != null && currentShift.getShift() != null) {
-                long shiftDuration = Duration.between(currentShift.getShift().getStartTime(), currentShift.getShift().getEndTime()).toMinutes();
-                if (shiftDuration < 0) shiftDuration += 1440;
+        int totalOvertimeMinutes = dailyOtMinutes + weeklyOtMinutes + excessMinutes;
+        int regularMinutes = netPayableMinutes - totalOvertimeMinutes;
 
-                regularHoursMinutes = (int) Math.min(netWorkedMinutes, shiftDuration);
-                int postShiftMinutes = netWorkedMinutes - regularHoursMinutes;
-                int unclassifiedPostShiftMinutes = postShiftMinutes - alreadyCategorizedOvertime;
-                if (unclassifiedPostShiftMinutes > 0) {
-                    excessHoursMinutes += unclassifiedPostShiftMinutes;
-                }
-            } else {
-                regularHoursMinutes = netWorkedMinutes - alreadyCategorizedOvertime;
-            }
-        }
+        regularMinutes = Math.max(0, regularMinutes);
 
         String finalStatus = ruleResults.stream()
                 .filter(r -> "AttendanceRule".equals(r.getRuleName()))
                 .map(PayPolicyRuleResultDTO::getResult)
                 .findFirst().orElse("Present");
 
-        saveOrUpdateTimesheet(employeeId, date, totalWorkMinutes, regularHoursMinutes, dailyOtHoursMinutes, excessHoursMinutes, weeklyOtHoursMinutes, ruleResults, finalStatus);
+        saveOrUpdateTimesheet(employeeId, date, totalWorkMinutes, regularMinutes, dailyOtMinutes, excessMinutes, weeklyOtMinutes, ruleResults, finalStatus);
     }
 
     private void saveOrUpdateTimesheet(String employeeId, LocalDate date, int totalWorkMinutes, int regularHoursMinutes, int dailyOtHoursMinutes, int excessHoursMinutes, int weeklyOtHoursMinutes, List<PayPolicyRuleResultDTO> ruleResults, String status) {
