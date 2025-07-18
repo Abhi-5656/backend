@@ -1,10 +1,12 @@
 package com.wfm.experts.setup.wfm.paypolicy.entity;
 
-import com.wfm.experts.setup.wfm.paypolicy.rule.PayPolicyRule;
-import com.wfm.experts.setup.wfm.paypolicy.engine.context.PayPolicyExecutionContext;
 import com.wfm.experts.setup.wfm.paypolicy.dto.PayPolicyRuleResultDTO;
+import com.wfm.experts.setup.wfm.paypolicy.engine.context.PayPolicyExecutionContext;
+import com.wfm.experts.setup.wfm.paypolicy.enums.BreakType;
+import com.wfm.experts.setup.wfm.paypolicy.rule.PayPolicyRule;
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.util.List;
 
 @Entity
@@ -55,16 +57,16 @@ public class BreakRules implements PayPolicyRule {
 
         // Calculate the total duration of all defined unpaid breaks.
         int totalUnpaidBreakMinutes = breaks.stream()
-                .filter(b -> b.getDuration() != null && b.getDuration() > 0)
+                .filter(b -> b.getType() == BreakType.UNPAID && b.getDuration() != null && b.getDuration() > 0)
                 .mapToInt(Break::getDuration)
                 .sum();
 
         if (totalUnpaidBreakMinutes <= 0) {
             return PayPolicyRuleResultDTO.builder()
                     .ruleName(getName())
-                    .result("NO_BREAKS_DEFINED")
+                    .result("NO_UNPAID_BREAKS_DEFINED")
                     .success(true)
-                    .message("No break durations are defined in the policy.")
+                    .message("No unpaid break durations are defined in the policy to deduct.")
                     .build();
         }
 

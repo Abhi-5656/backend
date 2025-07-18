@@ -259,60 +259,61 @@ public class OvertimeRules implements PayPolicyRule {
         LocalDate workDate = context.getDate();
         String employeeId = context.getEmployeeId();
 
-        // 1. Calculate this day's Daily OT based on the total worked minutes.
         int dailyOtMinutes = calculateDailyOvertime(workedMinutes, employeeShift);
-
-        // 2. The remaining hours are considered "regular" for the purpose of the weekly calculation.
-        int regularHoursForWeeklyCalc = workedMinutes - dailyOtMinutes;
-
-        // 3. Calculate Weekly OT based on the sum of regular hours for the entire week.
         int weeklyOtMinutes = 0;
+
         if (enableWeeklyOt) {
-            weeklyOtMinutes = calculateWeeklyOvertime(employeeId, workDate, context, regularHoursForWeeklyCalc);
+            int regularForWeekly = workedMinutes - dailyOtMinutes;
+            weeklyOtMinutes = calculateWeeklyOvertime(employeeId, workDate, context, regularForWeekly);
         }
 
-        // 4. Final Regular Hours for the day is the portion that is NOT daily OT or weekly OT.
         int finalRegularHours = workedMinutes - dailyOtMinutes - weeklyOtMinutes;
-
-        // 5. Handle excess hours based on the daily OT calculation.
         int excessHoursMinutes = 0;
+
         if (this.maxOtPerDay != null && this.maxOtPerDay > 0) {
-            int maxDailyOtMinutes = (int) (this.maxOtPerDay * 60);
-            if (dailyOtMinutes > maxDailyOtMinutes) {
-                excessHoursMinutes = dailyOtMinutes - maxDailyOtMinutes;
-                dailyOtMinutes = maxDailyOtMinutes;
+            int maxDailyOt = (int) (this.maxOtPerDay * 60);
+            if (dailyOtMinutes > maxDailyOt) {
+                excessHoursMinutes = dailyOtMinutes - maxDailyOt;
+                dailyOtMinutes = maxDailyOt;
             }
         }
 
+        // This is the key change: We now also set the regular hours from the perspective of this rule.
+        // The TimesheetCalculationService will then use these values.
         context.getFacts().put("regularHoursMinutes", finalRegularHours);
         context.getFacts().put("dailyOtHoursMinutes", dailyOtMinutes);
-        context.getFacts().put("excessHoursMinutes", excessHoursMinutes);
         context.getFacts().put("weeklyOtHoursMinutes", weeklyOtMinutes);
+        context.getFacts().put("excessHoursMinutes", excessHoursMinutes);
 
-
-        return buildResult("OVERTIME_CALCULATED", true, "Overtime calculated (Daily: " + dailyOtMinutes + ", Weekly: " + weeklyOtMinutes + ", Excess: " + excessHoursMinutes + ").");
+        return buildResult("OVERTIME_CALCULATED", true, "Overtime rule executed. Daily OT: " + dailyOtMinutes + ", Weekly OT: " + weeklyOtMinutes);
     }
 
     private int calculateDailyOvertime(Integer workedMinutes, EmployeeShift employeeShift) {
-        // If there's no shift, we check if OT is triggered by fixed hours.
-        if (employeeShift == null || employeeShift.getShift() == null) {
-            if(dailyOtTrigger == DailyOtTrigger.AFTER_FIXED_HOURS) {
-                int threshold = (this.thresholdHours != null ? this.thresholdHours * 60 : 0) + (this.thresholdMinutes != null ? this.thresholdMinutes : 0);
-                if(workedMinutes > threshold) {
-                    return workedMinutes - threshold;
-                }
-            }
-            return 0; // No shift and no fixed hour trigger means no daily OT.
-        }
-
-        // Check if the assigned shift is eligible for OT.
-        List<Shift> eligibleShifts = getShifts();
-        if (eligibleShifts != null && !eligibleShifts.isEmpty() && !isShiftEligible(employeeShift.getShift(), eligibleShifts)) {
+        if (workedMinutes == null || workedMinutes <= 0) {
             return 0;
         }
 
-        // Calculate the threshold for daily OT.
-        int thresholdInMinutes = getDailyThresholdInMinutes(employeeShift);
+        int thresholdInMinutes;
+
+        if (dailyOtTrigger == DailyOtTrigger.AFTER_SHIFT_END) {
+            if (employeeShift == null || employeeShift.getShift() == null) {
+                return 0;
+            }
+            List<Shift> eligibleShifts = getShifts();
+            if (eligibleShifts != null && !eligibleShifts.isEmpty() && !isShiftEligible(employeeShift.getShift(), eligibleShifts)) {
+                return 0;
+            }
+            thresholdInMinutes = getDailyThresholdInMinutes(employeeShift);
+
+        } else if (dailyOtTrigger == DailyOtTrigger.AFTER_FIXED_HOURS) {
+            if ((this.thresholdHours == null || this.thresholdHours <= 0) && (this.thresholdMinutes == null || this.thresholdMinutes <= 0)) {
+                return 0;
+            }
+            thresholdInMinutes = getDailyThresholdInMinutes(null);
+        } else {
+            return 0;
+        }
+
         if (workedMinutes <= thresholdInMinutes) {
             return 0;
         }
@@ -327,22 +328,18 @@ public class OvertimeRules implements PayPolicyRule {
 
         TimesheetRepository timesheetRepository = context.getTimesheetRepository();
 
-        // Determine the start of the current work week.
         WeekDay startDay = this.weeklyResetDay != null ? this.weeklyResetDay : WeekDay.SUNDAY;
         LocalDate weekStartDate = workDate.with(DayOfWeek.valueOf(startDay.name()));
         if (workDate.isBefore(weekStartDate)) {
             weekStartDate = weekStartDate.minusWeeks(1);
         }
 
-        // Get all timesheets from the start of the week up to yesterday.
         List<Timesheet> pastWeekTimesheets = timesheetRepository.findByEmployeeIdAndWorkDateBetween(employeeId, weekStartDate, workDate.minusDays(1));
 
-        // Sum up the REGULAR hours from the past days of the week.
         int pastRegularMinutes = pastWeekTimesheets.stream()
                 .mapToInt(sheet -> {
                     int total = sheet.getTotalWorkDurationMinutes() != null ? sheet.getTotalWorkDurationMinutes() : 0;
-                    int dailyOt = sheet.getDailyOtHoursMinutes() != null ? sheet.getDailyOtHoursMinutes() : 0;
-                    return total - dailyOt; // Calculate past regular hours
+                    return total;
                 })
                 .sum();
 
@@ -353,72 +350,28 @@ public class OvertimeRules implements PayPolicyRule {
             return 0;
         }
 
-        // The total amount of weekly OT earned for the whole week so far.
         int totalWeeklyOtSoFar = totalRegularMinutesThisWeek - weeklyThresholdMinutes;
-
-        // Weekly OT already accounted for in previous days.
         int pastWeeklyOt = pastWeekTimesheets.stream()
-                .mapToInt(sheet -> sheet.getWeeklyOtHoursMinutes() != null ? sheet.getWeeklyOtHoursMinutes() : 0)
+                .mapToInt(sheet -> 0)
                 .sum();
-
-        // The new weekly OT for today is the total so far, minus what was already logged.
         int weeklyOtForToday = totalWeeklyOtSoFar - pastWeeklyOt;
 
         return Math.max(0, weeklyOtForToday);
     }
-
-    private int getMinutesForWeeklyBasis(Timesheet sheet) {
-        int workDuration = sheet.getTotalWorkDurationMinutes() != null ? sheet.getTotalWorkDurationMinutes() : 0;
-        int overtimeDuration = sheet.getDailyOtHoursMinutes() != null ? sheet.getDailyOtHoursMinutes() : 0;
-
-        if (this.weeklyOtBasis == WeeklyOtBasis.REGULAR_HOURS_ONLY) {
-            return workDuration - overtimeDuration;
-        }
-        return workDuration;
-    }
-
 
     private boolean isShiftEligible(Shift currentShift, List<Shift> eligibleShifts) {
         return eligibleShifts.stream().anyMatch(s -> s.getId().equals(currentShift.getId()));
     }
 
     private int getDailyThresholdInMinutes(EmployeeShift employeeShift) {
-        if (dailyOtTrigger == DailyOtTrigger.AFTER_SHIFT_END) {
-            int shiftDuration = (int) Duration.between(employeeShift.getShift().getStartTime(), employeeShift.getShift().getEndTime()).toMinutes();
+        if (dailyOtTrigger == DailyOtTrigger.AFTER_SHIFT_END && employeeShift != null && employeeShift.getShift() != null) {
+            long shiftDuration = Duration.between(employeeShift.getShift().getStartTime(), employeeShift.getShift().getEndTime()).toMinutes();
             if (shiftDuration < 0) {
                 shiftDuration += 1440; // overnight shift
             }
-            return shiftDuration + (this.gracePeriodAfterShiftEnd != null ? this.gracePeriodAfterShiftEnd : 0);
+            return (int) shiftDuration + (this.gracePeriodAfterShiftEnd != null ? this.gracePeriodAfterShiftEnd : 0);
         }
         return (this.thresholdHours != null ? this.thresholdHours * 60 : 0) + (this.thresholdMinutes != null ? this.thresholdMinutes : 0);
-    }
-
-    private int getOvertimeEligibleMinutes(Integer workedMinutes, EmployeeShift employeeShift, PayPolicyExecutionContext context) {
-        int overtimeEligibleMinutes = workedMinutes;
-        if (preShiftInclusion != null && preShiftInclusion.isEnabled() && employeeShift != null && employeeShift.getShift() != null) {
-            final int[] minutesToDeduct = {0};
-            context.getPunchEvents().stream()
-                    .filter(p -> p.getPunchType() == PunchType.IN)
-                    .min(Comparator.comparing(PunchEvent::getEventTime))
-                    .ifPresent(firstIn -> {
-                        LocalDateTime shiftStartTime = employeeShift.getShift().getStartTime().atDate(employeeShift.getCalendarDate());
-                        LocalDateTime punchInTime = firstIn.getEventTime();
-
-                        if (punchInTime.isBefore(shiftStartTime)) {
-                            long actualMinutesBeforeShift = Duration.between(punchInTime, shiftStartTime).toMinutes();
-                            int allowedInclusionMinutes = 0;
-                            if (preShiftInclusion.getFromValue() != null) {
-                                allowedInclusionMinutes = "hours".equalsIgnoreCase(preShiftInclusion.getFromUnit()) ?
-                                        preShiftInclusion.getFromValue() * 60 : preShiftInclusion.getFromValue();
-                            }
-                            if (actualMinutesBeforeShift > allowedInclusionMinutes) {
-                                minutesToDeduct[0] = (int) (actualMinutesBeforeShift - allowedInclusionMinutes);
-                            }
-                        }
-                    });
-            overtimeEligibleMinutes -= minutesToDeduct[0];
-        }
-        return overtimeEligibleMinutes;
     }
 
     private PayPolicyRuleResultDTO buildResult(String result, boolean success, String message) {

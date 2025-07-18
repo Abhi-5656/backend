@@ -26,14 +26,14 @@ public class TimesheetDTO {
     /** Regular work duration in minutes */
     private Integer regularHoursMinutes;
 
-    /** Daily overtime in minutes */
-    private Integer dailyOtHoursMinutes;
+//    /** Daily overtime in minutes */
+//    private Integer dailyOtHoursMinutes;
 
     /** Excess hours beyond daily OT limit in minutes */
     private Integer excessHoursMinutes;
 
-    /** Weekly overtime in minutes */
-    private Integer weeklyOtHoursMinutes;
+//    /** Weekly overtime in minutes */
+//    private Integer weeklyOtHoursMinutes;
 
     /** Total work duration in minutes (sum of all categories) */
     private Integer totalWorkDurationMinutes;

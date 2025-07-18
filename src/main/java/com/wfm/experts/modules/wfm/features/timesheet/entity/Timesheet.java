@@ -31,14 +31,14 @@ public class Timesheet {
     @Column(name = "regular_hours_minutes")
     private Integer regularHoursMinutes;
 
-    @Column(name = "daily_ot_hours_minutes")
-    private Integer dailyOtHoursMinutes;
+//    @Column(name = "daily_ot_hours_minutes")
+//    private Integer dailyOtHoursMinutes;
 
     @Column(name = "excess_hours_minutes")
     private Integer excessHoursMinutes;
 
-    @Column(name = "weekly_ot_hours_minutes")
-    private Integer weeklyOtHoursMinutes;
+//    @Column(name = "weekly_ot_hours_minutes")
+//    private Integer weeklyOtHoursMinutes;
 
     @Column(name = "total_work_duration_minutes")
     private Integer totalWorkDurationMinutes;

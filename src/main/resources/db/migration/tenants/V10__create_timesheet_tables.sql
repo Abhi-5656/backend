@@ -7,9 +7,7 @@ CREATE TABLE timesheets (
                             employee_id VARCHAR(64) NOT NULL,
                             work_date DATE NOT NULL,
                             regular_hours_minutes INTEGER,
-                            daily_ot_hours_minutes INTEGER,
                             excess_hours_minutes INTEGER,
-                            weekly_ot_hours_minutes INTEGER,
                             total_work_duration_minutes INTEGER,
                             status VARCHAR(32),
                             rule_results_json TEXT,                    -- for PayPolicyRuleResultDTO JSON
