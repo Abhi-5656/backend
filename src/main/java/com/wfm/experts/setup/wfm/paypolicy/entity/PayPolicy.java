@@ -75,13 +75,14 @@ public class PayPolicy {
      * Return all rules in a list for rule engine execution
      * Only non-null rules are included
      */
+    // from harshwfm/wfm-backend/src/main/java/com/wfm/experts/setup/wfm/paypolicy/entity/PayPolicy.java
     public List<PayPolicyRule> getRules() {
         List<PayPolicyRule> rules = new ArrayList<>();
-        if (attendanceRule != null) rules.add(attendanceRule);
         if (roundingRules != null) rules.add(roundingRules);
         if (punchEventRules != null) rules.add(punchEventRules);
-        if (breakRules != null) rules.add(breakRules);
-        if (overtimeRules != null) rules.add(overtimeRules);
+        if (overtimeRules != null) rules.add(overtimeRules); // <-- MOVED UP
+        if (breakRules != null) rules.add(breakRules);       // <-- MOVED DOWN
+        if (attendanceRule != null) rules.add(attendanceRule);
         if (payPeriodRules != null) rules.add(payPeriodRules);
         if (holidayPayRules != null) rules.add(holidayPayRules);
         if (weekendPayRules != null) rules.add(weekendPayRules);

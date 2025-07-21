@@ -390,6 +390,7 @@ import com.wfm.experts.setup.wfm.paypolicy.dto.PayPolicyRuleResultDTO;
 import com.wfm.experts.setup.wfm.paypolicy.engine.context.PayPolicyExecutionContext;
 import com.wfm.experts.setup.wfm.paypolicy.engine.executor.PayPolicyRuleExecutor;
 import com.wfm.experts.setup.wfm.paypolicy.entity.PayPolicy;
+import com.wfm.experts.setup.wfm.paypolicy.entity.OvertimeRules;
 import com.wfm.experts.setup.wfm.paypolicy.repository.PayPolicyRepository;
 import com.wfm.experts.setup.wfm.paypolicy.rule.PayPolicyRule;
 import lombok.RequiredArgsConstructor;
@@ -483,41 +484,43 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
 
         // --- FINAL CONSOLIDATED CALCULATION LOGIC ---
 
-        // 1. Get final payable time after all rules (like breaks) have run.
-        Integer netPayableMinutes = (Integer) context.getFacts().getOrDefault("workedMinutes", totalWorkMinutes);
-
-        // 2. Get OT amounts calculated by the OvertimeRules.
         Integer dailyOtMinutes = (Integer) context.getFacts().getOrDefault("dailyOtHoursMinutes", 0);
         Integer weeklyOtMinutes = (Integer) context.getFacts().getOrDefault("weeklyOtHoursMinutes", 0);
-
-        // 3. The remaining time is now split between Regular and Excess.
-        int remainingPayableMinutes = netPayableMinutes - dailyOtMinutes - weeklyOtMinutes;
+        Integer unpaidBreakMinutes = (Integer) context.getFacts().getOrDefault("unpaidBreakMinutes", 0);
 
         int regularMinutes;
         int excessHoursMinutes;
 
-        if (currentShift != null && currentShift.getShift() != null) {
-            // Calculate the payable duration of the scheduled shift
-            long shiftDuration = Duration.between(currentShift.getShift().getStartTime(), currentShift.getShift().getEndTime()).toMinutes();
-            if (shiftDuration < 0) {
-                shiftDuration += 1440; // Handle overnight shifts
-            }
-            Integer unpaidBreakMinutes = (Integer) context.getFacts().getOrDefault("unpaidBreakMinutes", 0);
-            long payableShiftDuration = shiftDuration - unpaidBreakMinutes;
+        OvertimeRules otRules = policy.getOvertimeRules();
+        if (otRules != null && otRules.getDailyOtTrigger() == com.wfm.experts.setup.wfm.paypolicy.enums.DailyOtTrigger.AFTER_FIXED_HOURS) {
+            // --- Logic for FIXED DURATION OT ---
+            int fixedThresholdMinutes = (otRules.getThresholdHours() != null ? otRules.getThresholdHours() * 60 : 0) + (otRules.getThresholdMinutes() != null ? otRules.getThresholdMinutes() : 0);
 
-            // Regular hours are CAPPED at the payable duration of the shift.
-            regularMinutes = (int) Math.min(remainingPayableMinutes, payableShiftDuration);
+            int grossRegularPortion = Math.min(totalWorkMinutes, fixedThresholdMinutes);
+            regularMinutes = grossRegularPortion - unpaidBreakMinutes;
 
-            // Excess hours are any payable minutes that are not regular and not OT.
-            excessHoursMinutes = remainingPayableMinutes - regularMinutes;
+            int grossOtPortion = totalWorkMinutes - grossRegularPortion;
+            excessHoursMinutes = grossOtPortion - dailyOtMinutes - weeklyOtMinutes;
 
         } else {
-            // If no shift is assigned, all remaining payable time is considered regular.
-            regularMinutes = remainingPayableMinutes;
-            excessHoursMinutes = 0;
+            // --- Logic for SHIFT-BASED OT ---
+            int netPayableMinutes = totalWorkMinutes - unpaidBreakMinutes;
+            int remainingPayableMinutes = netPayableMinutes - dailyOtMinutes - weeklyOtMinutes;
+
+            if (currentShift != null && currentShift.getShift() != null) {
+                long shiftDuration = Duration.between(currentShift.getShift().getStartTime(), currentShift.getShift().getEndTime()).toMinutes();
+                if (shiftDuration < 0) shiftDuration += 1440; // Handle overnight shifts
+                long payableShiftDuration = shiftDuration - unpaidBreakMinutes;
+
+                regularMinutes = (int) Math.min(remainingPayableMinutes, payableShiftDuration);
+                excessHoursMinutes = remainingPayableMinutes - regularMinutes;
+            } else {
+                regularMinutes = remainingPayableMinutes;
+                excessHoursMinutes = 0;
+            }
         }
 
-        // 4. Ensure no negative values.
+        // Ensure no negative values.
         regularMinutes = Math.max(0, regularMinutes);
         excessHoursMinutes = Math.max(0, excessHoursMinutes);
         dailyOtMinutes = Math.max(0, dailyOtMinutes);
