@@ -70,6 +70,8 @@ CREATE TABLE pre_shift_inclusion (
 CREATE TABLE overtime_rules (
                                 id BIGSERIAL PRIMARY KEY,
                                 enabled BOOLEAN NOT NULL,
+                                -- Daily Overtime Settings
+                                enable_daily_ot BOOLEAN NOT NULL DEFAULT FALSE, -- ADDED: Based on the 'enableDailyOt' entity field
                                 daily_ot_trigger VARCHAR(50), -- ADDED
                                 threshold_hours INTEGER,
                                 threshold_minutes INTEGER,
