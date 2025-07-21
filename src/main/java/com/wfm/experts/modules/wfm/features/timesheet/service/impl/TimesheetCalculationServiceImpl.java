@@ -372,6 +372,7 @@
 //        }
 //    }
 //}
+
 package com.wfm.experts.modules.wfm.features.timesheet.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -389,6 +390,7 @@ import com.wfm.experts.modules.wfm.features.timesheet.service.TimesheetCalculati
 import com.wfm.experts.setup.wfm.paypolicy.dto.PayPolicyRuleResultDTO;
 import com.wfm.experts.setup.wfm.paypolicy.engine.context.PayPolicyExecutionContext;
 import com.wfm.experts.setup.wfm.paypolicy.engine.executor.PayPolicyRuleExecutor;
+import com.wfm.experts.setup.wfm.paypolicy.entity.AttendanceRule;
 import com.wfm.experts.setup.wfm.paypolicy.entity.PayPolicy;
 import com.wfm.experts.setup.wfm.paypolicy.entity.OvertimeRules;
 import com.wfm.experts.setup.wfm.paypolicy.repository.PayPolicyRepository;
@@ -492,33 +494,46 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
         int excessHoursMinutes;
 
         OvertimeRules otRules = policy.getOvertimeRules();
-        if (otRules != null && otRules.getDailyOtTrigger() == com.wfm.experts.setup.wfm.paypolicy.enums.DailyOtTrigger.AFTER_FIXED_HOURS) {
-            // --- Logic for FIXED DURATION OT ---
-            int fixedThresholdMinutes = (otRules.getThresholdHours() != null ? otRules.getThresholdHours() * 60 : 0) + (otRules.getThresholdMinutes() != null ? otRules.getThresholdMinutes() : 0);
+        boolean dailyOtConfigured = otRules != null && otRules.isEnabled() &&
+                ((otRules.getThresholdHours() != null && otRules.getThresholdHours() > 0) ||
+                        (otRules.getThresholdMinutes() != null && otRules.getThresholdMinutes() > 0));
 
-            int grossRegularPortion = Math.min(totalWorkMinutes, fixedThresholdMinutes);
-            regularMinutes = grossRegularPortion - unpaidBreakMinutes;
-
-            int grossOtPortion = totalWorkMinutes - grossRegularPortion;
-            excessHoursMinutes = grossOtPortion - dailyOtMinutes - weeklyOtMinutes;
-
-        } else {
-            // --- Logic for SHIFT-BASED OT ---
+        if (dailyOtConfigured) {
+            // --- Logic for when Daily OT is configured ---
             int netPayableMinutes = totalWorkMinutes - unpaidBreakMinutes;
             int remainingPayableMinutes = netPayableMinutes - dailyOtMinutes - weeklyOtMinutes;
 
             if (currentShift != null && currentShift.getShift() != null) {
                 long shiftDuration = Duration.between(currentShift.getShift().getStartTime(), currentShift.getShift().getEndTime()).toMinutes();
-                if (shiftDuration < 0) shiftDuration += 1440; // Handle overnight shifts
+                if (shiftDuration < 0) shiftDuration += 1440;
                 long payableShiftDuration = shiftDuration - unpaidBreakMinutes;
-
                 regularMinutes = (int) Math.min(remainingPayableMinutes, payableShiftDuration);
                 excessHoursMinutes = remainingPayableMinutes - regularMinutes;
             } else {
                 regularMinutes = remainingPayableMinutes;
                 excessHoursMinutes = 0;
             }
+        } else {
+            // **FIX: Logic for when Daily OT is NOT configured**
+            int netPayableMinutes = totalWorkMinutes - unpaidBreakMinutes;
+            AttendanceRule attendanceRule = policy.getAttendanceRule();
+            int fullDayThreshold = 0;
+
+            if (attendanceRule != null && attendanceRule.isEnabled()) {
+                fullDayThreshold = (attendanceRule.getFullDayHours() != null ? attendanceRule.getFullDayHours() * 60 : 0) +
+                        (attendanceRule.getFullDayMinutes() != null ? attendanceRule.getFullDayMinutes() : 0);
+            }
+
+            if (fullDayThreshold > 0) {
+                regularMinutes = Math.min(netPayableMinutes, fullDayThreshold);
+                excessHoursMinutes = netPayableMinutes - regularMinutes;
+            } else {
+                // Fallback if no attendance rule is configured
+                regularMinutes = netPayableMinutes;
+                excessHoursMinutes = 0;
+            }
         }
+
 
         // Ensure no negative values.
         regularMinutes = Math.max(0, regularMinutes);
@@ -540,9 +555,6 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
 
         timesheet.setTotalWorkDurationMinutes(totalWorkMinutes);
         timesheet.setRegularHoursMinutes(regularHoursMinutes);
-        // Assuming you add dailyOtHoursMinutes and weeklyOtHoursMinutes to your Timesheet entity
-        // timesheet.setDailyOtHoursMinutes(dailyOtHoursMinutes);
-        // timesheet.setWeeklyOtHoursMinutes(weeklyOtHoursMinutes);
         timesheet.setExcessHoursMinutes(excessHoursMinutes);
         timesheet.setStatus(status);
         try {

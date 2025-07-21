@@ -13,6 +13,7 @@ import java.util.List;
 public class OvertimeRulesDTO {
     private Long id;
     private boolean enabled;
+    private boolean enableDailyOt;
     private Integer thresholdHours;
     private Integer thresholdMinutes;
     private Double maxOtPerDay;
