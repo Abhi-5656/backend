@@ -345,4 +345,3 @@ public class RoundingRules implements PayPolicyRule {
                 .build();
     }
 }
-
