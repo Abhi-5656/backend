@@ -56,15 +56,5 @@ public class LeaveProfile {
         this.updatedAt = Instant.now();
     }
 
-    /** convenience methods **/
-    public void addLeavePolicy(LeavePolicy policy) {
-        this.leavePolicies.add(policy);
-        // if you add the inverse side later:
-        // policy.getLeaveProfiles().add(this);
-    }
 
-    public void removeLeavePolicy(LeavePolicy policy) {
-        this.leavePolicies.remove(policy);
-        // policy.getLeaveProfiles().remove(this);
-    }
 }

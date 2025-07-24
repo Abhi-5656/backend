@@ -1,6 +1,8 @@
--- V15__create_leave_policy_and_conditional_rule_tables.sql
+-- V15__create_leave_policy_and_leave_profile_tables.sql
 
+-- ======================================
 -- 1) leave_policy table
+-- ======================================
 CREATE TABLE IF NOT EXISTS leave_policy (
                                             id                          BIGSERIAL PRIMARY KEY,
                                             leave_name                  VARCHAR(100)   NOT NULL,
@@ -61,8 +63,9 @@ CREATE TABLE IF NOT EXISTS leave_policy (
     CONSTRAINT chk_rounding           CHECK (rounding        IN ('NEAREST','UP','DOWN'))
     );
 
-
+-- ======================================
 -- 2) conditional_rule table
+-- ======================================
 CREATE TABLE IF NOT EXISTS conditional_rule (
                                                 id                          BIGSERIAL PRIMARY KEY,
                                                 tenure                      INTEGER,
@@ -72,7 +75,7 @@ CREATE TABLE IF NOT EXISTS conditional_rule (
                                                 override_occurrence_limit   INTEGER,
                                                 override_occurrence_period  VARCHAR(12),
 
-    leave_policy_id             BIGINT         NOT NULL
+    leave_policy_id             BIGINT  NOT NULL
     REFERENCES leave_policy(id)
     ON DELETE CASCADE,
 
@@ -84,8 +87,34 @@ CREATE TABLE IF NOT EXISTS conditional_rule (
     CHECK (override_occurrence_period IN ('YEARLY','PAY_PERIOD'))
     );
 
+-- ======================================
+-- 3) leave_profile table
+-- ======================================
+CREATE TABLE IF NOT EXISTS leave_profile (
+                                             id              BIGSERIAL      PRIMARY KEY,
+                                             profile_name    VARCHAR(100)   NOT NULL UNIQUE,
+    created_at      TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ    NOT NULL DEFAULT NOW()
+    );
 
--- trigger function to auto-update updated_at on UPDATE
+-- ======================================
+-- 4) join table: leave_profile ↔ leave_policy
+-- ======================================
+CREATE TABLE IF NOT EXISTS leave_profile_leave_policy (
+                                                          leave_profile_id BIGINT NOT NULL,
+                                                          leave_policy_id  BIGINT NOT NULL,
+                                                          PRIMARY KEY (leave_profile_id, leave_policy_id),
+    FOREIGN KEY (leave_profile_id)
+    REFERENCES leave_profile(id)
+    ON DELETE CASCADE,
+    FOREIGN KEY (leave_policy_id)
+    REFERENCES leave_policy(id)
+    ON DELETE CASCADE
+    );
+
+-- ======================================
+-- 5) trigger function to auto‐update updated_at
+-- ======================================
 CREATE OR REPLACE FUNCTION trg_set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -94,16 +123,27 @@ RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
+-- Drop existing triggers if any, then attach to each table:
 
--- attach trigger to both tables
+-- leave_policy
 DROP TRIGGER IF EXISTS set_updated_at ON leave_policy;
 CREATE TRIGGER set_updated_at
     BEFORE UPDATE ON leave_policy
     FOR EACH ROW
     EXECUTE FUNCTION trg_set_updated_at();
 
+-- conditional_rule
 DROP TRIGGER IF EXISTS set_updated_at ON conditional_rule;
 CREATE TRIGGER set_updated_at
     BEFORE UPDATE ON conditional_rule
     FOR EACH ROW
     EXECUTE FUNCTION trg_set_updated_at();
+
+-- leave_profile
+DROP TRIGGER IF EXISTS set_updated_at ON leave_profile;
+CREATE TRIGGER set_updated_at
+    BEFORE UPDATE ON leave_profile
+    FOR EACH ROW
+    EXECUTE FUNCTION trg_set_updated_at();
+
+-- leave_profile_leave_policy does not need updated_at
