@@ -14,6 +14,7 @@ import org.mapstruct.Mapper;
         PayPeriodRulesMapper.class,
         HolidayPayRulesMapper.class,
         WeekendPayRulesMapper.class, // <-- ADDED
+        AttendanceRuleMapper.class, // <-- Ensures the consolidated rule is mapped
         ShiftMapper.class
 })
 public interface PayPolicyMapper {

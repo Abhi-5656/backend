@@ -15,7 +15,7 @@ CREATE TABLE breaks (
                         duration INTEGER,
                         start_time VARCHAR(10),
                         end_time VARCHAR(10),
-                        type VARCHAR(10), -- ADDED: To store PAID or UNPAID
+                        type VARCHAR(10), -- To store PAID or UNPAID
                         break_rules_id BIGINT REFERENCES break_rules(id) ON DELETE CASCADE
 );
 
@@ -65,27 +65,27 @@ CREATE TABLE pre_shift_inclusion (
 );
 
 -- ======================================
--- 5. Overtime Rules (UPDATED)
+-- 5. Overtime Rules
 -- ======================================
 CREATE TABLE overtime_rules (
                                 id BIGSERIAL PRIMARY KEY,
                                 enabled BOOLEAN NOT NULL,
-                                -- Daily Overtime Settings
-                                enable_daily_ot BOOLEAN NOT NULL DEFAULT FALSE, -- ADDED: Based on the 'enableDailyOt' entity field
-                                daily_ot_trigger VARCHAR(50), -- ADDED
+    -- Daily Overtime Settings
+                                enable_daily_ot BOOLEAN NOT NULL DEFAULT FALSE,
+                                daily_ot_trigger VARCHAR(50),
                                 threshold_hours INTEGER,
                                 threshold_minutes INTEGER,
-                                grace_period_after_shift_end INTEGER, -- ADDED
+                                grace_period_after_shift_end INTEGER,
                                 max_ot_per_day DOUBLE PRECISION,
-                                enable_weekly_ot BOOLEAN, -- ADDED
-                                weekly_threshold_hours INTEGER, -- ADDED
+                                enable_weekly_ot BOOLEAN,
+                                weekly_threshold_hours INTEGER,
                                 max_ot_per_week DOUBLE PRECISION,
-                                weekly_ot_basis VARCHAR(50), -- ADDED
-                                daily_weekly_ot_conflict VARCHAR(50), -- ADDED
+                                weekly_ot_basis VARCHAR(50),
+                                daily_weekly_ot_conflict VARCHAR(50),
                                 conflict_resolution VARCHAR(20),
                                 reset_ot_bucket_daily BOOLEAN NOT NULL,
                                 reset_ot_bucket_weekly BOOLEAN NOT NULL,
-                                weekly_reset_day VARCHAR(20), -- ADDED
+                                weekly_reset_day VARCHAR(20),
                                 reset_ot_bucket_on_pay_period BOOLEAN NOT NULL,
                                 compensation_method VARCHAR(20),
                                 paid_ot_multiplier DOUBLE PRECISION,
@@ -142,15 +142,25 @@ CREATE TABLE holiday_pay_rules (
 );
 
 -- ======================================
--- 9. Attendance Rule
+-- 9. Attendance Rule (FINAL - Using Enum Set)
 -- ======================================
 CREATE TABLE attendance_rules (
                                   id BIGSERIAL PRIMARY KEY,
-                                  enabled BOOLEAN NOT NULL,
-                                  full_day_hours INTEGER,
-                                  full_day_minutes INTEGER,
-                                  half_day_hours INTEGER,
-                                  half_day_minutes INTEGER
+    -- Unscheduled Settings
+                                  unscheduled_full_day_hours INTEGER,
+                                  unscheduled_full_day_minutes INTEGER,
+                                  unscheduled_half_day_hours INTEGER,
+                                  unscheduled_half_day_minutes INTEGER,
+    -- Scheduled Settings
+                                  scheduled_full_day_percentage INTEGER,
+                                  scheduled_half_day_percentage INTEGER
+);
+
+-- Join table to store the enabled modes for each attendance rule
+CREATE TABLE attendance_rule_modes (
+                                       rule_id BIGINT NOT NULL REFERENCES attendance_rules(id) ON DELETE CASCADE,
+                                       mode VARCHAR(50) NOT NULL,
+                                       PRIMARY KEY (rule_id, mode)
 );
 
 -- ======================================
@@ -165,7 +175,7 @@ CREATE TABLE night_allowance_rules (
 );
 
 -- ======================================
--- 11. Weekend Pay Rules (NEW)
+-- 11. Weekend Pay Rules
 -- ======================================
 CREATE TABLE weekend_pay_rules (
                                    id BIGSERIAL PRIMARY KEY,
@@ -188,7 +198,7 @@ CREATE TABLE weekend_pay_rule_days (
 
 
 -- ======================================
--- 12. Pay Policy (core) (UPDATED)
+-- 12. Pay Policy (core)
 -- ======================================
 CREATE TABLE pay_policies (
                               id BIGSERIAL PRIMARY KEY,
@@ -203,6 +213,6 @@ CREATE TABLE pay_policies (
                               night_allowance_rules_id BIGINT REFERENCES night_allowance_rules(id) ON DELETE CASCADE,
                               pay_period_rules_id BIGINT REFERENCES pay_period_rules(id) ON DELETE CASCADE,
                               holiday_pay_rules_id BIGINT REFERENCES holiday_pay_rules(id) ON DELETE CASCADE,
-                              weekend_pay_rules_id BIGINT REFERENCES weekend_pay_rules(id) ON DELETE CASCADE, -- ADDED
+                              weekend_pay_rules_id BIGINT REFERENCES weekend_pay_rules(id) ON DELETE CASCADE,
                               attendance_rule_id BIGINT REFERENCES attendance_rules(id) ON DELETE CASCADE
 );

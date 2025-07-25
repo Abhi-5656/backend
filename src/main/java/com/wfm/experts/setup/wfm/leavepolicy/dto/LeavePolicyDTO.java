@@ -18,6 +18,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class LeavePolicyDTO {
+    private Long id;
     private String leaveName;
     private String code;
     private LocalDate effectiveDate;
