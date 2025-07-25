@@ -22,4 +22,5 @@ public class PayPolicyDTO {
     private PayPeriodRulesDTO payPeriodRules;
     private HolidayPayRulesDTO holidayPayRules;
     private AttendanceRuleDTO attendanceRule;
+    private WeekendPayRulesDTO weekendPayRules; // Field added
 }
