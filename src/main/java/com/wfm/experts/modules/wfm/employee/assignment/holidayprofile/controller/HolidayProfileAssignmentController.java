@@ -2,11 +2,14 @@ package com.wfm.experts.modules.wfm.employee.assignment.holidayprofile.controlle
 
 import com.wfm.experts.modules.wfm.employee.assignment.holidayprofile.dto.HolidayProfileAssignmentDTO;
 import com.wfm.experts.modules.wfm.employee.assignment.holidayprofile.service.HolidayProfileAssignmentService;
+import com.wfm.experts.setup.wfm.holiday.dto.HolidayDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/employee/holiday-profile-assignments")
@@ -62,5 +65,17 @@ public class HolidayProfileAssignmentController {
     public ResponseEntity<Void> deleteAssignment(@PathVariable Long id) {
         service.deleteAssignment(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Get all assigned holidays for a given employee ID.
+     */
+    @GetMapping("/employee/{employeeId}/holidays")
+    public ResponseEntity<Map<String, Object>> getAssignedHolidays(@PathVariable String employeeId) {
+        List<HolidayDTO> holidays = service.getAssignedHolidaysByEmployeeId(employeeId);
+        Map<String, Object> response = new HashMap<>();
+        response.put("employeeId", employeeId);
+        response.put("holidays", holidays);
+        return ResponseEntity.ok(response);
     }
 }
