@@ -53,9 +53,9 @@ public class PunchEvent {
      * Stores the employee's image as a Base64 encoded string.
      * The @Lob annotation ensures that a large text type column is used in the database.
      */
-    @Lob
-    @Column(name = "employee_image_base64")
-    private String employeeImageBase64;
+//    @Lob
+//    @Column(name = "employee_image_base64")
+//    private String employeeImageBase64;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "timesheet_id", foreignKey = @ForeignKey(name = "fk_punch_events_timesheet"))
