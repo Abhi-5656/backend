@@ -1,31 +1,3 @@
-//package com.wfm.experts.setup.wfm.paypolicy.entity;
-//
-//import jakarta.persistence.*;
-//import lombok.*;
-//
-//@Entity
-//@Table(name = "night_allowance_rules")
-//@Data
-//@NoArgsConstructor
-//@AllArgsConstructor
-//@Builder
-//public class NightAllowanceRules {
-//
-//    @Id
-//    @GeneratedValue(strategy = GenerationType.IDENTITY)
-//    private Long id;
-//
-//    private boolean enabled;
-//
-//    @Column(name = "start_time", length = 10)
-//    private String startTime; // e.g., "22:00"
-//
-//    @Column(name = "end_time", length = 10)
-//    private String endTime;   // e.g., "06:00"
-//
-//    @Column(name = "pay_multiplier")
-//    private Double payMultiplier;
-//}
 package com.wfm.experts.setup.wfm.paypolicy.entity;
 
 import com.wfm.experts.modules.wfm.features.timesheet.entity.PunchEvent;
@@ -121,27 +93,23 @@ public class NightAllowanceRules implements PayPolicyRule {
         LocalDateTime nightWindowStartOnWorkDate = workStart.toLocalDate().atTime(nightStart);
         LocalDateTime nightWindowEndOnWorkDate = workStart.toLocalDate().atTime(nightEnd);
 
-        long totalNightMinutes = 0;
-
-        // Create the first potential night window
-        LocalDateTime window1Start = nightWindowStartOnWorkDate;
-        LocalDateTime window1End = nightWindowEndOnWorkDate;
-        if (window1End.isBefore(window1Start)) {
-            window1End = window1End.plusDays(1);
+        if (nightEnd.isBefore(nightStart)) {
+            nightWindowEndOnWorkDate = nightWindowEndOnWorkDate.plusDays(1);
         }
 
-        // Create a second potential window for the previous day to catch shifts starting before midnight
-        LocalDateTime window2Start = window1Start.minusDays(1);
-        LocalDateTime window2End = window1End.minusDays(1);
+        long totalNightMinutes = 0;
 
-        // Calculate overlap with the first window
-        totalNightMinutes += calculateOverlap(workStart, workEnd, window1Start, window1End);
+        // Calculate overlap with the night window on the start date
+        totalNightMinutes += calculateOverlap(workStart, workEnd, nightWindowStartOnWorkDate, nightWindowEndOnWorkDate);
 
-        // Calculate overlap with the second window (for shifts that start before midnight on the previous day)
-        totalNightMinutes += calculateOverlap(workStart, workEnd, window2Start, window2End);
+        // Calculate overlap with the night window on the next day (for shifts that cross midnight)
+        if (workEnd.toLocalDate().isAfter(workStart.toLocalDate())) {
+            totalNightMinutes += calculateOverlap(workStart, workEnd, nightWindowStartOnWorkDate.plusDays(1), nightWindowEndOnWorkDate.plusDays(1));
+        }
 
         return totalNightMinutes;
     }
+
 
     /**
      * Calculates the duration of overlap between two time intervals.
