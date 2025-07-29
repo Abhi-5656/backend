@@ -18,5 +18,10 @@ public enum AttendanceStatus {
     /**
      * Indicates the employee was present for a half day.
      */
-    HALF_DAY
+    HALF_DAY,
+
+    /**
+     * Indicates that at least one punch exists, but a corresponding IN or OUT punch is missing.
+     */
+    PENDING
 }

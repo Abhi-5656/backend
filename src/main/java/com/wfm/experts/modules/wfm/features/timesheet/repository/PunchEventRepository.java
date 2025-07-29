@@ -1,6 +1,7 @@
 package com.wfm.experts.modules.wfm.features.timesheet.repository;
 
 import com.wfm.experts.modules.wfm.features.timesheet.entity.PunchEvent;
+import com.wfm.experts.modules.wfm.features.timesheet.enums.PunchType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -31,6 +32,10 @@ public interface PunchEventRepository extends JpaRepository<PunchEvent, Long> {
     // Find missed/exception punches (assuming you have a PunchEventStatus or exception flag)
     List<PunchEvent> findByEmployeeIdAndExceptionFlagTrueAndEventTimeBetween(
             String employeeId, LocalDateTime start, LocalDateTime end);
+
+    Optional<PunchEvent> findFirstByEmployeeIdAndPunchTypeAndEventTimeBeforeOrderByEventTimeDesc(
+            String employeeId, PunchType punchType, LocalDateTime eventTime);
+
 
     // Get IN/OUT punches specifically (assuming you have a punchType field)
     @Query("SELECT p FROM PunchEvent p WHERE p.employeeId = :employeeId AND p.punchType = :punchType AND p.eventTime BETWEEN :start AND :end")
