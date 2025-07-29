@@ -7,6 +7,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 
 @Entity
 @Table(name = "punch_events",
@@ -74,14 +76,34 @@ public class PunchEvent {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+//    @PrePersist
+//    protected void onCreate() {
+//        this.createdAt = LocalDateTime.now();
+//        this.updatedAt = this.createdAt;
+//    }
+//
+//    @PreUpdate
+//    protected void onUpdate() {
+//        this.updatedAt = LocalDateTime.now();
+//    }
+public void setEventTime(LocalDateTime eventTime) {
+    if (eventTime != null) {
+        this.eventTime = ZonedDateTime.of(eventTime, ZoneId.systemDefault())
+                .withZoneSameInstant(ZoneId.of("Asia/Kolkata"))
+                .toLocalDateTime();
+    } else {
+        this.eventTime = null;
+    }
+}
+
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = ZonedDateTime.now(ZoneId.of("Asia/Kolkata")).toLocalDateTime();
         this.updatedAt = this.createdAt;
     }
 
     @PreUpdate
     protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = ZonedDateTime.now(ZoneId.of("Asia/Kolkata")).toLocalDateTime();
     }
 }
