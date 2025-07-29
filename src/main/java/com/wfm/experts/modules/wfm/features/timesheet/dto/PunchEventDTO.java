@@ -26,10 +26,7 @@ public class PunchEventDTO {
     private Double geoLong;
     private String notes;
 
-    /**
-     * Holds the Base64 encoded string of the employee's image.
-     */
-    private String employeeImageBase64;
+
 
     private Long timesheetId;
 
