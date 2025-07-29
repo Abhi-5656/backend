@@ -113,11 +113,6 @@ public class TimesheetServiceImpl implements TimesheetService {
         return timesheetMapper.toDto(saved);
     }
 
-
-
-
-
-
     @Override
     public Optional<TimesheetDTO> getTimesheetById(Long id) {
         return timesheetRepository.findById(id).map(timesheetMapper::toDto);
