@@ -26,8 +26,6 @@ public class PunchEventDTO {
     private Double geoLong;
     private String notes;
 
-
-
     private Long timesheetId;
 
     // This field is typically populated in responses from the PunchEvent entity

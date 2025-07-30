@@ -33,7 +33,7 @@ CREATE TABLE punch_events (
                               geo_lat DOUBLE PRECISION,
                               geo_long DOUBLE PRECISION,
                               notes VARCHAR(255),
-                              employee_image_base64 TEXT, -- <<<< ADDED THIS LINE
+--                               employee_image_base64 TEXT, -- <<<< ADDED THIS LINE
                               timesheet_id BIGINT,
                               shift_id BIGINT,
                               exception_flag BOOLEAN DEFAULT FALSE,

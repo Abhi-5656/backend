@@ -86,6 +86,7 @@ public class PayPolicy {
         if (payPeriodRules != null) rules.add(payPeriodRules);
         if (holidayPayRules != null) rules.add(holidayPayRules);
         if (weekendPayRules != null) rules.add(weekendPayRules);
+        if (nightAllowanceRules != null) rules.add(nightAllowanceRules);
 
         return rules;
     }

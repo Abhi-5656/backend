@@ -51,12 +51,12 @@ public class NightAllowanceRules implements PayPolicyRule {
     public PayPolicyRuleResultDTO execute(PayPolicyExecutionContext context) {
         Integer workedMinutes = (Integer) context.getFact("workedMinutes");
         if (workedMinutes == null || workedMinutes <= 0) {
-            return buildResult("NO_WORK_TIME", true, "No work time for night allowance calculation.", 0.0);
+            return buildResult("NO_WORK_TIME", true, "No work time for night allowance calculation.");
         }
 
         List<PunchEvent> punches = context.getPunchEvents();
         if (punches == null || punches.size() < 2) {
-            return buildResult("INSUFFICIENT_PUNCHES", true, "Not enough punch events to determine work duration.", 0.0);
+            return buildResult("INSUFFICIENT_PUNCHES", true, "Not enough punch events to determine work duration.");
         }
 
         // Sort punches to reliably find the start and end of the work period
@@ -70,7 +70,7 @@ public class NightAllowanceRules implements PayPolicyRule {
         long nightMinutes = calculateNightMinutes(workStart, workEnd, nightStart, nightEnd);
 
         if (nightMinutes <= 0) {
-            return buildResult("NO_NIGHT_WORK", true, "Work did not occur during the night allowance period.", 0.0);
+            return buildResult("NO_NIGHT_WORK", true, "Work did not occur during the night allowance period.");
         }
 
         // Example calculation: fixed amount per hour of night work multiplied by the multiplier
@@ -80,9 +80,14 @@ public class NightAllowanceRules implements PayPolicyRule {
         context.getFacts().put("nightAllowanceAmount", allowance);
         context.getFacts().put("nightWorkedMinutes", (int) nightMinutes);
 
+        String message = String.format(
+                "Applied night allowance for %d minutes. Worked Minutes: %d, Pay Multiplier: %s",
+                nightMinutes,
+                nightMinutes,
+                payMultiplier
+        );
 
-        String message = String.format("Applied night allowance for %d minutes.", nightMinutes);
-        return buildResult("NIGHT_WORKED", true, message, allowance);
+        return buildResult("NIGHT_WORKED", true, message);
     }
 
     /**
@@ -90,24 +95,25 @@ public class NightAllowanceRules implements PayPolicyRule {
      * Handles overnight windows correctly.
      */
     private long calculateNightMinutes(LocalDateTime workStart, LocalDateTime workEnd, LocalTime nightStart, LocalTime nightEnd) {
-        LocalDateTime nightWindowStartOnWorkDate = workStart.toLocalDate().atTime(nightStart);
-        LocalDateTime nightWindowEndOnWorkDate = workStart.toLocalDate().atTime(nightEnd);
-
-        if (nightEnd.isBefore(nightStart)) {
-            nightWindowEndOnWorkDate = nightWindowEndOnWorkDate.plusDays(1);
-        }
-
         long totalNightMinutes = 0;
+        LocalDateTime current = workStart;
 
-        // Calculate overlap with the night window on the start date
-        totalNightMinutes += calculateOverlap(workStart, workEnd, nightWindowStartOnWorkDate, nightWindowEndOnWorkDate);
-
-        // Calculate overlap with the night window on the next day (for shifts that cross midnight)
-        if (workEnd.toLocalDate().isAfter(workStart.toLocalDate())) {
-            totalNightMinutes += calculateOverlap(workStart, workEnd, nightWindowStartOnWorkDate.plusDays(1), nightWindowEndOnWorkDate.plusDays(1));
+        while (current.isBefore(workEnd)) {
+            LocalDateTime next = current.plusMinutes(1);
+            if (isWithinNightWindow(current.toLocalTime(), nightStart, nightEnd)) {
+                totalNightMinutes++;
+            }
+            current = next;
         }
-
         return totalNightMinutes;
+    }
+
+    private boolean isWithinNightWindow(LocalTime time, LocalTime nightStart, LocalTime nightEnd) {
+        if (nightStart.isBefore(nightEnd)) { // Same-day window (e.g., 01:00 to 05:00)
+            return !time.isBefore(nightStart) && time.isBefore(nightEnd);
+        } else { // Overnight window (e.g., 22:00 to 06:00)
+            return !time.isBefore(nightStart) || time.isBefore(nightEnd);
+        }
     }
 
 
@@ -125,13 +131,14 @@ public class NightAllowanceRules implements PayPolicyRule {
     }
 
     /**
-     * Helper to build the result DTO, including the calculated amount in the message.
+     * Helper to build the result DTO.
      */
-    private PayPolicyRuleResultDTO buildResult(String result, boolean success, String message, Double amount) {
-        String finalMessage = message;
-        if (amount > 0) {
-            finalMessage = message + " Amount: " + String.format("%.2f", amount);
-        }
-        return new PayPolicyRuleResultDTO(getName(), result, success, finalMessage);
+    private PayPolicyRuleResultDTO buildResult(String result, boolean success, String message) {
+        return PayPolicyRuleResultDTO.builder()
+                .ruleName(getName())
+                .result(result)
+                .success(success)
+                .message(message)
+                .build();
     }
 }
