@@ -669,43 +669,34 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
                     }
                 });
 
-
-        Integer dailyOtMinutes = (Integer) context.getFacts().getOrDefault("dailyOtHoursMinutes", 0);
-        Integer weeklyOtMinutes = (Integer) context.getFacts().getOrDefault("weeklyOtHoursMinutes", 0);
+        // --- FINAL CALCULATION LOGIC ---
         Integer unpaidBreakMinutes = (Integer) context.getFacts().getOrDefault("unpaidBreakMinutes", 0);
+        Integer nightWorkedMinutes = (Integer) context.getFacts().getOrDefault("nightWorkedMinutes", 0);
 
-        int totalOvertimeMinutes = dailyOtMinutes + weeklyOtMinutes;
         int netPayableMinutes = totalWorkMinutes - unpaidBreakMinutes;
-        int regularMinutes;
-        int excessHoursMinutes;
+        int regularMinutes = 0;
+        int excessHoursMinutes = 0;
+
+        boolean isWeekend = (boolean) context.getFacts().getOrDefault("isWeekend", false);
+        if (isWeekend || isHoliday) {
+            excessHoursMinutes = netPayableMinutes;
+            regularMinutes = 0;
+        } else if (currentShift != null && currentShift.getShift() != null) {
+            // --- CASE: SHIFT ASSIGNED ---
+            long shiftDuration = Duration.between(currentShift.getShift().getStartTime(), currentShift.getShift().getEndTime()).toMinutes();
+            if (shiftDuration < 0) shiftDuration += 1440;
+
+            int paidShiftDuration = (int) shiftDuration - unpaidBreakMinutes;
+            excessHoursMinutes = Math.max(0, netPayableMinutes - paidShiftDuration);
+            int minutesWithinShift = netPayableMinutes - excessHoursMinutes;
+            regularMinutes = minutesWithinShift - nightWorkedMinutes;
+        } else {
+            // --- CASE: NO SHIFT ASSIGNED ---
+            excessHoursMinutes = 0;
+            regularMinutes = netPayableMinutes - nightWorkedMinutes;
+        }
 
         OvertimeRules otRules = policy.getOvertimeRules();
-        int dailyThresholdMinutes = netPayableMinutes;
-
-        if (otRules != null && otRules.isEnableDailyOt()) {
-            if (otRules.getDailyOtTrigger() == DailyOtTrigger.AFTER_SHIFT_END && currentShift != null && currentShift.getShift() != null) {
-                long shiftDuration = Duration.between(currentShift.getShift().getStartTime(), currentShift.getShift().getEndTime()).toMinutes();
-                if (shiftDuration < 0) {
-                    shiftDuration += 1440;
-                }
-                dailyThresholdMinutes = (int) shiftDuration;
-            } else if (otRules.getDailyOtTrigger() == DailyOtTrigger.AFTER_FIXED_HOURS) {
-                dailyThresholdMinutes = (otRules.getThresholdHours() != null ? otRules.getThresholdHours() * 60 : 0) +
-                        (otRules.getThresholdMinutes() != null ? otRules.getThresholdMinutes() : 0);
-            }
-        }
-
-        int remainingNetMinutes = netPayableMinutes - totalOvertimeMinutes;
-        boolean isWeekend = (boolean) context.getFacts().getOrDefault("isWeekend", false);
-
-        if (isWeekend || isHoliday) {
-            regularMinutes = 0;
-            excessHoursMinutes = remainingNetMinutes;
-        } else {
-            regularMinutes = Math.min(remainingNetMinutes, dailyThresholdMinutes);
-            excessHoursMinutes = remainingNetMinutes - regularMinutes;
-        }
-
         if (!isHoliday && !isWeekend && otRules != null && otRules.isEnableWeeklyOt() && otRules.getWeeklyThresholdHours() != null && otRules.getWeeklyThresholdHours() > 0) {
             WeekDay startDay = otRules.getWeeklyResetDay() != null ? otRules.getWeeklyResetDay() : WeekDay.MONDAY;
             LocalDate weekStartDate = date.with(DayOfWeek.valueOf(startDay.name()));
