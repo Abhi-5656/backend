@@ -613,10 +613,10 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
         List<PunchEvent> punchesInWindow = punchEventRepository
                 .findAllByEmployeeIdAndEventTimeBetween(employeeId, startWindow, endWindow);
 
-        List<PunchEvent> relevantPunches = findPunchesForWorkDate(punchesInWindow, date);
+        WorkSession workSession = findWorkSessionForDate(punchesInWindow, date);
 
-        if (relevantPunches.isEmpty()) {
-            log.info("No relevant punches found for employee: {} on date: {}. Setting status to Absent.", employeeId, date);
+        if (workSession == null) {
+            log.info("No work session found for employee: {} on date: {}. Setting to Absent.", employeeId, date);
             saveOrUpdateTimesheet(employeeId, date, 0, 0, 0, Collections.emptyList(), "Absent");
             return;
         }
@@ -624,12 +624,21 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
         PayPolicyAssignment assignment = payPolicyAssignmentRepository.findActiveAssignment(employeeId, date).orElse(null);
         PayPolicy policy = (assignment != null) ? payPolicyRepository.findById(assignment.getPayPolicyId()).orElse(null) : null;
 
-        int totalWorkMinutes = computeTotalWorkMinutes(relevantPunches, policy);
+        int totalWorkMinutes = workSession.getTotalMinutes();
+        List<PunchEvent> relevantPunches = workSession.getPunches();
         EmployeeShift currentShift = employeeShiftRepository.findByEmployeeIdAndCalendarDate(employeeId, date).orElse(null);
 
         if (policy == null) {
             log.warn("No active PayPolicy for employee: {} on {}. Calculating without rules.", employeeId, date);
-            saveOrUpdateTimesheet(employeeId, date, totalWorkMinutes, totalWorkMinutes, 0, Collections.emptyList(), "Present");
+            int regularMinutes = totalWorkMinutes;
+            int excessMinutes = 0;
+            if (currentShift != null && currentShift.getShift() != null) {
+                long shiftDuration = Duration.between(currentShift.getShift().getStartTime(), currentShift.getShift().getEndTime()).toMinutes();
+                if (shiftDuration < 0) shiftDuration += 1440;
+                regularMinutes = (int) Math.min(totalWorkMinutes, shiftDuration);
+                excessMinutes = totalWorkMinutes - regularMinutes;
+            }
+            saveOrUpdateTimesheet(employeeId, date, totalWorkMinutes, regularMinutes, excessMinutes, Collections.emptyList(), "Present");
             return;
         }
 
@@ -692,8 +701,9 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
             regularMinutes = minutesWithinShift - nightWorkedMinutes;
         } else {
             // --- CASE: NO SHIFT ASSIGNED ---
-            excessHoursMinutes = 0;
-            regularMinutes = netPayableMinutes - nightWorkedMinutes;
+            // For unscheduled employees, time is split between Night Worked and Excess. Regular is always 0.
+            excessHoursMinutes = netPayableMinutes - nightWorkedMinutes;
+            regularMinutes = 0;
         }
 
         OvertimeRules otRules = policy.getOvertimeRules();
@@ -725,59 +735,69 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
         saveOrUpdateTimesheet(employeeId, date, totalWorkMinutes, regularMinutes, excessHoursMinutes, ruleResults, finalStatus);
     }
 
-    private List<PunchEvent> findPunchesForWorkDate(List<PunchEvent> punchesInWindow, LocalDate workDate) {
-        punchesInWindow.sort(Comparator.comparing(PunchEvent::getEventTime));
-        List<PunchEvent> sessionPunches = new ArrayList<>();
-
-        Optional<PunchEvent> firstInPunchOpt = punchesInWindow.stream()
-                .filter(p -> p.getPunchType() == PunchType.IN && p.getEventTime().toLocalDate().isEqual(workDate))
-                .findFirst();
-
-        if (firstInPunchOpt.isEmpty()) {
-            return Collections.emptyList();
+    private WorkSession findWorkSessionForDate(List<PunchEvent> punchesInWindow, LocalDate workDate) {
+        if (punchesInWindow == null || punchesInWindow.isEmpty()) {
+            return null;
         }
+        punchesInWindow.sort(Comparator.comparing(PunchEvent::getEventTime));
 
-        int startIndex = punchesInWindow.indexOf(firstInPunchOpt.get());
-
-        for (int i = startIndex + 1; i < punchesInWindow.size(); i++) {
-            if (punchesInWindow.get(i).getPunchType() == PunchType.OUT) {
-                sessionPunches.addAll(punchesInWindow.subList(startIndex, i + 1));
-                return sessionPunches;
+        for (int i = 0; i < punchesInWindow.size(); i++) {
+            PunchEvent currentPunch = punchesInWindow.get(i);
+            if (currentPunch.getPunchType() == PunchType.IN && currentPunch.getEventTime().toLocalDate().isEqual(workDate)) {
+                for (int j = i + 1; j < punchesInWindow.size(); j++) {
+                    if (punchesInWindow.get(j).getPunchType() == PunchType.OUT) {
+                        List<PunchEvent> sessionPunches = punchesInWindow.subList(i, j + 1);
+                        return new WorkSession(sessionPunches, computeTotalWorkMinutes(sessionPunches, null));
+                    }
+                }
+                break;
             }
         }
-
-        sessionPunches.add(firstInPunchOpt.get());
-        return sessionPunches;
+        return null;
     }
 
     private int computeTotalWorkMinutes(List<PunchEvent> punches, PayPolicy policy) {
-        if (punches == null || punches.size() < 2) return 0;
+        if (punches == null || punches.isEmpty()) return 0;
 
-        punches.sort(Comparator.comparing(PunchEvent::getEventTime));
-        long totalMinutes = 0;
-        LocalDateTime inTime = null;
-
-        for (PunchEvent event : punches) {
-            if (event.getPunchType() == PunchType.IN) {
-                if (inTime == null) {
-                    inTime = event.getEventTime();
-                }
-            } else if (event.getPunchType() == PunchType.OUT) {
-                if (inTime != null) {
-                    totalMinutes += Duration.between(inTime, event.getEventTime()).toMinutes();
-                    inTime = null;
+        if (policy != null && Boolean.TRUE.equals(policy.getUseFiloCalculation())) {
+            log.debug("Using FILO calculation logic.");
+            Optional<LocalDateTime> firstIn = punches.stream()
+                    .filter(p -> p.getPunchType() == PunchType.IN)
+                    .map(PunchEvent::getEventTime)
+                    .min(LocalDateTime::compareTo);
+            Optional<LocalDateTime> lastOut = punches.stream()
+                    .filter(p -> p.getPunchType() == PunchType.OUT)
+                    .map(PunchEvent::getEventTime)
+                    .max(LocalDateTime::compareTo);
+            if (firstIn.isPresent() && lastOut.isPresent() && lastOut.get().isAfter(firstIn.get())) {
+                return (int) Duration.between(firstIn.get(), lastOut.get()).toMinutes();
+            }
+            return 0;
+        } else {
+            log.debug("Using standard paired punch calculation logic.");
+            punches.sort(Comparator.comparing(PunchEvent::getEventTime));
+            long totalMinutes = 0;
+            LocalDateTime inTime = null;
+            for (PunchEvent event : punches) {
+                if (event.getPunchType() == PunchType.IN) {
+                    if (inTime == null) {
+                        inTime = event.getEventTime();
+                    }
+                } else if (event.getPunchType() == PunchType.OUT) {
+                    if (inTime != null) {
+                        totalMinutes += Duration.between(inTime, event.getEventTime()).toMinutes();
+                        inTime = null;
+                    }
                 }
             }
+            return (int) Math.max(0, totalMinutes);
         }
-        return (int) Math.max(0, totalMinutes);
     }
 
     private void saveOrUpdateTimesheet(String employeeId, LocalDate date, int totalWorkMinutes, int regularHoursMinutes, int excessHoursMinutes, List<PayPolicyRuleResultDTO> ruleResults, String status) {
         Timesheet timesheet = timesheetRepository.findByEmployeeIdAndWorkDate(employeeId, date)
-                .orElseGet(() -> new Timesheet());
+                .orElseGet(() -> Timesheet.builder().employeeId(employeeId).workDate(date).build());
 
-        timesheet.setEmployeeId(employeeId);
-        timesheet.setWorkDate(date);
         timesheet.setTotalWorkDurationMinutes(totalWorkMinutes);
         timesheet.setRegularHoursMinutes(regularHoursMinutes);
         timesheet.setExcessHoursMinutes(excessHoursMinutes);
@@ -790,5 +810,23 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
         }
         timesheet.setCalculatedAt(LocalDate.now());
         timesheetRepository.save(timesheet);
+    }
+
+    private static class WorkSession {
+        private final List<PunchEvent> punches;
+        private final int totalMinutes;
+
+        public WorkSession(List<PunchEvent> punches, int totalMinutes) {
+            this.punches = punches;
+            this.totalMinutes = totalMinutes;
+        }
+
+        public List<PunchEvent> getPunches() {
+            return punches;
+        }
+
+        public int getTotalMinutes() {
+            return totalMinutes;
+        }
     }
 }
