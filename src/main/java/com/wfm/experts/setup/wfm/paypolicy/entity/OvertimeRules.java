@@ -1244,7 +1244,7 @@ public class OvertimeRules implements PayPolicyRule {
     private PayPolicyRuleResultDTO buildResult(String result, boolean success, String message, String resultJson) {
         return PayPolicyRuleResultDTO.builder()
                 .ruleName(getName())
-                .result(result)
+                .result(resultJson)
                 .success(success)
                 .message(message)
                 .build();
