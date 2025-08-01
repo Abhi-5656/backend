@@ -80,12 +80,12 @@ public class PayPolicy {
         List<PayPolicyRule> rules = new ArrayList<>();
         if (roundingRules != null) rules.add(roundingRules);
         if (punchEventRules != null) rules.add(punchEventRules);
-        if (breakRules != null) rules.add(breakRules);       // <-- MOVED DOWN
-        if (overtimeRules != null) rules.add(overtimeRules); // <-- MOVED UP
-        if (attendanceRule != null) rules.add(attendanceRule);
-        if (payPeriodRules != null) rules.add(payPeriodRules);
+        if (breakRules != null) rules.add(breakRules);
         if (holidayPayRules != null) rules.add(holidayPayRules);
         if (weekendPayRules != null) rules.add(weekendPayRules);
+        if (overtimeRules != null) rules.add(overtimeRules);
+        if (attendanceRule != null) rules.add(attendanceRule);
+        if (payPeriodRules != null) rules.add(payPeriodRules);
         if (nightAllowanceRules != null) rules.add(nightAllowanceRules);
 
         return rules;
