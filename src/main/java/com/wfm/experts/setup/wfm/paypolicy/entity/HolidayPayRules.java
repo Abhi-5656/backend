@@ -112,6 +112,7 @@
 //                .build();
 //    }
 //}
+// harshwfm/wfm-backend/HarshWfm-wfm-backend-0668c2132deb2960bc35069c452ecfc4ad1fd48b/src/main/java/com/wfm/experts/setup/wfm/paypolicy/entity/HolidayPayRules.java
 package com.wfm.experts.setup.wfm.paypolicy.entity;
 
 import com.wfm.experts.setup.wfm.paypolicy.dto.PayPolicyRuleResultDTO;
@@ -189,13 +190,12 @@ public class HolidayPayRules implements PayPolicyRule {
         }
 
         int holidayWorkedMinutes = Math.min(workedMinutes, dailyThreshold);
-        int remainingMinutes = workedMinutes - holidayWorkedMinutes;
 
         // Set the holiday work bucket for the final timesheet.
         context.getFacts().put("holidayWorkedMinutes", holidayWorkedMinutes);
 
-        // **CRITICAL**: Reduce the workedMinutes for the next rules in the chain.
-        context.getFacts().put("workedMinutes", remainingMinutes);
+        // **FIX**: Do NOT reduce the workedMinutes for the next rules in the chain.
+        // This allows the OvertimeRule to see the full duration of work.
 
         StringBuilder message = new StringBuilder("Holiday Worked. ");
         message.append("Worked amount: ").append(holidayWorkedMinutes).append(" minutes. ");
