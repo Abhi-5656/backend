@@ -69,17 +69,23 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
 
         // --- Final Consolidation ---
         int finalRegularMinutes = (int) context.getFacts().getOrDefault("finalRegularMinutes", 0);
+        int dailyOtMinutes = (int) context.getFacts().getOrDefault("dailyOtHoursMinutes", 0);
+        int weeklyOtMinutes = (int) context.getFacts().getOrDefault("weeklyOtHoursMinutes", 0);
         int finalExcessHours = (int) context.getFacts().getOrDefault("excessHoursMinutes", 0);
 
+        // Combine all non-regular paid time into "excess" for the final DTO
+        int totalExcessForDto = finalExcessHours + dailyOtMinutes + weeklyOtMinutes;
+
+        // On holidays or weekends, all time becomes excess time.
         if ((boolean) context.getFacts().get("isHoliday") || (boolean) context.getFacts().get("isWeekend")) {
-            finalExcessHours += finalRegularMinutes;
+            totalExcessForDto += finalRegularMinutes;
             finalRegularMinutes = 0;
         }
 
         List<PayPolicyRuleResultDTO> ruleResults = (List<PayPolicyRuleResultDTO>) context.getFacts().get("ruleResults");
         String finalStatus = ruleResults.stream().filter(r -> "AttendanceRule".equals(r.getRuleName())).map(PayPolicyRuleResultDTO::getResult).findFirst().orElse("Present");
 
-        saveOrUpdateTimesheet(employeeId, date, grossTotalWorkMinutes, finalRegularMinutes, finalExcessHours, ruleResults, finalStatus);
+        saveOrUpdateTimesheet(employeeId, date, grossTotalWorkMinutes, finalRegularMinutes, totalExcessForDto, ruleResults, finalStatus);
     }
 
     private PayPolicyExecutionContext buildAndExecuteRules(String employeeId, LocalDate date, WorkSession workSession, PayPolicy policy, EmployeeShift currentShift) {
@@ -105,7 +111,23 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
 
         if (policy == null) {
             facts.put("workedMinutes", initialWorkMinutes);
-            facts.put("finalRegularMinutes", initialWorkMinutes);
+
+            if (currentShift != null && currentShift.getShift() != null) {
+                long shiftDuration = Duration.between(currentShift.getShift().getStartTime(), currentShift.getShift().getEndTime()).toMinutes();
+                if (shiftDuration < 0) {
+                    shiftDuration += 1440;
+                }
+
+                int regularMinutes = Math.min(initialWorkMinutes, (int) shiftDuration);
+                int excessMinutes = Math.max(0, initialWorkMinutes - (int) shiftDuration);
+
+                facts.put("finalRegularMinutes", regularMinutes);
+                facts.put("excessHoursMinutes", excessMinutes);
+            } else {
+                facts.put("finalRegularMinutes", initialWorkMinutes);
+                facts.put("excessHoursMinutes", 0);
+            }
+
             return context;
         }
 

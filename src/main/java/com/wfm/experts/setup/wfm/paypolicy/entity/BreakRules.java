@@ -43,50 +43,28 @@ public class BreakRules implements PayPolicyRule {
 
     @Override
     public PayPolicyRuleResultDTO execute(PayPolicyExecutionContext context) {
-        Integer workedMinutes = (Integer) context.getFact("workedMinutes");
-
-        // If there's no work time calculated yet, there's nothing to deduct from.
-        if (workedMinutes == null || workedMinutes <= 0) {
-            return PayPolicyRuleResultDTO.builder()
-                    .ruleName(getName())
-                    .result("NOT_APPLICABLE")
-                    .success(true)
-                    .message("No worked minutes to apply break deduction to.")
-                    .build();
-        }
-
         // Calculate the total duration of all defined unpaid breaks.
         int totalUnpaidBreakMinutes = breaks.stream()
                 .filter(b -> b.getType() == BreakType.UNPAID && b.getDuration() != null && b.getDuration() > 0)
                 .mapToInt(Break::getDuration)
                 .sum();
 
-        if (totalUnpaidBreakMinutes <= 0) {
+        if (totalUnpaidBreakMinutes > 0) {
+            context.getFacts().put("unpaidBreakMinutes", totalUnpaidBreakMinutes);
+            String message = String.format("Calculated %d minutes of unpaid breaks.", totalUnpaidBreakMinutes);
             return PayPolicyRuleResultDTO.builder()
                     .ruleName(getName())
-                    .result("NO_UNPAID_BREAKS_DEFINED")
+                    .result("UNPAID_BREAKS_CALCULATED")
                     .success(true)
-                    .message("No unpaid break durations are defined in the policy.")
+                    .message(message)
                     .build();
         }
 
-        // Deduct the total break time from the worked minutes for subsequent calculations.
-        int netWorkMinutes = Math.max(0, workedMinutes - totalUnpaidBreakMinutes);
-
-        // Update the 'workedMinutes' fact in the context so subsequent rules (like overtime)
-        // use the adjusted (net) value. The original gross time is not lost.
-        context.getFacts().put("workedMinutes", netWorkMinutes);
-        context.getFacts().put("unpaidBreakMinutes", totalUnpaidBreakMinutes);
-
-
-        String message = String.format("Deducted %d minutes for unpaid breaks. Gross duration: %d mins, Net payable duration: %d mins.",
-                totalUnpaidBreakMinutes, workedMinutes, netWorkMinutes);
-
         return PayPolicyRuleResultDTO.builder()
                 .ruleName(getName())
-                .result("BREAKS_DEDUCTED")
+                .result("NO_UNPAID_BREAKS")
                 .success(true)
-                .message(message)
+                .message("No unpaid breaks to deduct.")
                 .build();
     }
 }

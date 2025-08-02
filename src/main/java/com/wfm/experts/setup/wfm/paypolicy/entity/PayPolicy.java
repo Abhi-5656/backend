@@ -1,6 +1,8 @@
 package com.wfm.experts.setup.wfm.paypolicy.entity;
 
 import com.wfm.experts.setup.wfm.paypolicy.rule.PayPolicyRule;
+import com.wfm.experts.setup.wfm.paypolicy.rule.impl.ExcessHoursRule;
+import com.wfm.experts.setup.wfm.paypolicy.rule.impl.StandardHoursRule;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -75,7 +77,6 @@ public class PayPolicy {
      * Return all rules in a list for rule engine execution
      * Only non-null rules are included
      */
-    // from harshwfm/wfm-backend/src/main/java/com/wfm/experts/setup/wfm/paypolicy/entity/PayPolicy.java
     public List<PayPolicyRule> getRules() {
         List<PayPolicyRule> rules = new ArrayList<>();
         if (roundingRules != null) rules.add(roundingRules);
@@ -83,7 +84,12 @@ public class PayPolicy {
         if (breakRules != null) rules.add(breakRules);
         if (holidayPayRules != null) rules.add(holidayPayRules);
         if (weekendPayRules != null) rules.add(weekendPayRules);
+
+        // New Decoupled Flow
+        rules.add(new StandardHoursRule());
         if (overtimeRules != null) rules.add(overtimeRules);
+        rules.add(new ExcessHoursRule());
+
         if (attendanceRule != null) rules.add(attendanceRule);
         if (payPeriodRules != null) rules.add(payPeriodRules);
         if (nightAllowanceRules != null) rules.add(nightAllowanceRules);
