@@ -108,31 +108,67 @@ public class OvertimeRules implements PayPolicyRule {
 
     @Override
     public boolean evaluate(PayPolicyExecutionContext context) {
+        // Evaluate if the rule is enabled and if there's any time left to process.
         Integer workedMinutes = (Integer) context.getFact("workedMinutes");
-        return enabled && workedMinutes != null && workedMinutes > 0;
+        return enabled && enableDailyOt && (workedMinutes != null && workedMinutes > 0 || (Integer) context.getFact("grossWorkMinutes") > 0);
     }
 
     @Override
     public PayPolicyRuleResultDTO execute(PayPolicyExecutionContext context) {
-        int minutesForOt = (Integer) context.getFact("workedMinutes");
+        EmployeeShift employeeShift = (EmployeeShift) context.getFact("shift");
 
-        if (!enableDailyOt) {
-            // If OT is not enabled, pass the remaining minutes through for excess calculation
-            return buildResult("OT_DISABLED", true, "Overtime is not enabled.");
+        // Logic for unscheduled employees based on a fixed work duration
+        if (employeeShift == null && dailyOtTrigger == DailyOtTrigger.AFTER_FIXED_HOURS) {
+            return executeFixedDurationOt(context);
         }
 
-        int dailyOt = minutesForOt;
-        int weeklyOt = 0;
+        // Fallback for scheduled employees or other cases
+        int minutesForOt = (int) context.getFacts().getOrDefault("workedMinutes", 0);
+        context.getFacts().put("dailyOtHoursMinutes", minutesForOt);
+        context.getFacts().put("workedMinutes", 0); // Consume remaining minutes
 
-        // Weekly OT logic would go here if enabled...
-
-        context.getFacts().put("dailyOtHoursMinutes", dailyOt);
-        context.getFacts().put("weeklyOtHoursMinutes", weeklyOt);
-        context.getFacts().put("workedMinutes", 0); // All time has been categorized as OT
-
-        String message = String.format("OT Calculated. Daily: %d, Weekly: %d.", dailyOt, weeklyOt);
+        String message = String.format("OT Calculated. Daily: %d, Weekly: 0.", minutesForOt);
         return buildResult("OT_CALCULATED", true, message);
     }
+
+    private PayPolicyRuleResultDTO executeFixedDurationOt(PayPolicyExecutionContext context) {
+        // Use the gross work minutes before any break deductions for this calculation
+        int grossWorkMinutes = (int) context.getFacts().getOrDefault("grossWorkMinutes", 0);
+        int dailyOtThresholdInMinutes = (thresholdHours != null ? thresholdHours * 60 : 0) + (thresholdMinutes != null ? thresholdMinutes : 0);
+
+        int regularMinutes;
+        int dailyOt;
+        int excessOt = 0;
+
+        int payableTime = grossWorkMinutes - (int) context.getFacts().getOrDefault("unpaidBreakMinutes", 0);
+
+        if (payableTime > dailyOtThresholdInMinutes) {
+            regularMinutes = dailyOtThresholdInMinutes;
+            dailyOt = payableTime - dailyOtThresholdInMinutes;
+        } else {
+            regularMinutes = payableTime;
+            dailyOt = 0;
+        }
+
+        // Apply the cap for Max OT Per Day
+        if (maxOtPerDay != null && maxOtPerDay > 0) {
+            int maxOtInMinutes = (int) (maxOtPerDay * 60);
+            if (dailyOt > maxOtInMinutes) {
+                excessOt = dailyOt - maxOtInMinutes;
+                dailyOt = maxOtInMinutes;
+            }
+        }
+
+        // Update context with the final calculated values
+        context.getFacts().put("finalRegularMinutes", Math.max(0, regularMinutes));
+        context.getFacts().put("dailyOtHoursMinutes", dailyOt);
+        context.getFacts().put("excessHoursMinutes", excessOt);
+        context.getFacts().put("workedMinutes", 0); // All time has been categorized
+
+        String message = String.format("OT Calculated. Daily: %d, Weekly: 0.", dailyOt);
+        return buildResult("OT_CALCULATED", true, message);
+    }
+
 
     private PayPolicyRuleResultDTO buildResult(String result, boolean success, String message) {
         return PayPolicyRuleResultDTO.builder()
