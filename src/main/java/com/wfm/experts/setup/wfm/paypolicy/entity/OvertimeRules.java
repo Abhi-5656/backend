@@ -24,6 +24,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Entity
@@ -110,6 +112,13 @@ public class OvertimeRules implements PayPolicyRule {
 
     @Override
     public boolean evaluate(PayPolicyExecutionContext context) {
+        Boolean isHoliday = (Boolean) context.getFact("isHoliday");
+        Boolean isWeekend = (Boolean) context.getFact("isWeekend");
+
+        if ((isHoliday != null && isHoliday) || (isWeekend != null && isWeekend)) {
+            return false; // Do not run OT rules on a holiday or weekend
+        }
+
         Integer workedMinutes = (Integer) context.getFact("workedMinutes");
         return enabled && (enableDailyOt || enableWeeklyOt) && (workedMinutes != null && workedMinutes > 0 || (Integer) context.getFact("grossWorkMinutes") > 0);
     }
@@ -196,6 +205,31 @@ public class OvertimeRules implements PayPolicyRule {
                 .mapToInt(ts -> ts.getRegularHoursMinutes() != null ? ts.getRegularHoursMinutes() : 0)
                 .sum();
 
+        final Pattern weeklyOtPattern = Pattern.compile("Weekly: (\\d+)");
+        int alreadyAccumulatedWeeklyOt = timesheetsThisWeek.stream()
+                .mapToInt(ts -> {
+                    int weeklyOt = 0;
+                    try {
+                        if (ts.getRuleResultsJson() != null && !ts.getRuleResultsJson().isEmpty()) {
+                            ObjectMapper mapper = new ObjectMapper();
+                            List<Map<String, Object>> results = mapper.readValue(ts.getRuleResultsJson(), new TypeReference<>() {});
+                            for (Map<String, Object> result : results) {
+                                if ("OvertimeRules".equals(result.get("ruleName")) && result.get("message") instanceof String) {
+                                    Matcher matcher = weeklyOtPattern.matcher((String) result.get("message"));
+                                    if (matcher.find()) {
+                                        weeklyOt = Integer.parseInt(matcher.group(1));
+                                    }
+                                }
+                            }
+                        }
+                    } catch (JsonProcessingException | NumberFormatException e) {
+                        log.error("Error parsing weekly OT from rule results for timesheet ID {}", ts.getId(), e);
+                    }
+                    return weeklyOt;
+                })
+                .sum();
+
+
         int currentDayRegularMinutes = (int) context.getFacts().getOrDefault("finalRegularMinutes", 0);
         int accumulatedRegularMinutes = historicalRegularMinutes + currentDayRegularMinutes;
 
@@ -203,22 +237,28 @@ public class OvertimeRules implements PayPolicyRule {
 
         if (accumulatedRegularMinutes > weeklyThresholdInMinutes) {
             int minutesOverThreshold = accumulatedRegularMinutes - weeklyThresholdInMinutes;
-            int weeklyOt = Math.min(minutesOverThreshold, currentDayRegularMinutes);
-            int excessOt = 0;
+            int potentialWeeklyOt = Math.min(minutesOverThreshold, currentDayRegularMinutes);
 
-            int newRegularMinutes = currentDayRegularMinutes - weeklyOt;
-            context.getFacts().put("finalRegularMinutes", newRegularMinutes);
+            int weeklyOt = 0;
+            int excessOt = 0;
 
             if (maxOtPerWeek != null && maxOtPerWeek > 0) {
                 int maxWeeklyOtInMinutes = (int) (maxOtPerWeek * 60);
-                if (weeklyOt > maxWeeklyOtInMinutes) {
-                    excessOt = weeklyOt - maxWeeklyOtInMinutes;
-                    weeklyOt = maxWeeklyOtInMinutes;
-                }
+                int remainingOtCapacity = Math.max(0, maxWeeklyOtInMinutes - alreadyAccumulatedWeeklyOt);
+
+                weeklyOt = Math.min(potentialWeeklyOt, remainingOtCapacity);
+                excessOt = Math.max(0, potentialWeeklyOt - remainingOtCapacity);
+
+            } else {
+                weeklyOt = potentialWeeklyOt;
             }
 
+
+            int newRegularMinutes = currentDayRegularMinutes - weeklyOt - excessOt;
+            context.getFacts().put("finalRegularMinutes", newRegularMinutes);
             context.getFacts().put("weeklyOtHoursMinutes", weeklyOt);
             context.getFacts().put("excessHoursMinutes", (int) context.getFacts().getOrDefault("excessHoursMinutes", 0) + excessOt);
+
 
             if (dailyWeeklyOtConflict != null) {
                 switch (dailyWeeklyOtConflict) {
