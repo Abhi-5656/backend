@@ -18,6 +18,8 @@ import lombok.extern.slf4j.Slf4j;
 import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -108,49 +110,61 @@ public class OvertimeRules implements PayPolicyRule {
 
     @Override
     public boolean evaluate(PayPolicyExecutionContext context) {
-        // Evaluate if the rule is enabled and if there's any time left to process.
         Integer workedMinutes = (Integer) context.getFact("workedMinutes");
-        return enabled && enableDailyOt && (workedMinutes != null && workedMinutes > 0 || (Integer) context.getFact("grossWorkMinutes") > 0);
+        return enabled && (enableDailyOt || enableWeeklyOt) && (workedMinutes != null && workedMinutes > 0 || (Integer) context.getFact("grossWorkMinutes") > 0);
     }
 
     @Override
     public PayPolicyRuleResultDTO execute(PayPolicyExecutionContext context) {
         EmployeeShift employeeShift = (EmployeeShift) context.getFact("shift");
 
-        // Logic for unscheduled employees based on a fixed work duration
-        if (employeeShift == null && dailyOtTrigger == DailyOtTrigger.AFTER_FIXED_HOURS) {
-            return executeFixedDurationOt(context);
+        if (enableDailyOt) {
+            if (employeeShift != null && dailyOtTrigger == DailyOtTrigger.AFTER_SHIFT_END) {
+                executeScheduledOt(context);
+            } else if (employeeShift == null && dailyOtTrigger == DailyOtTrigger.AFTER_FIXED_HOURS) {
+                executeFixedDurationOt(context);
+            }
         }
 
-        // Fallback for scheduled employees or other cases
-        int minutesForOt = (int) context.getFacts().getOrDefault("workedMinutes", 0);
-        context.getFacts().put("dailyOtHoursMinutes", minutesForOt);
-        context.getFacts().put("workedMinutes", 0); // Consume remaining minutes
+        if (enableWeeklyOt) {
+            executeWeeklyOt(context);
+        }
 
-        String message = String.format("OT Calculated. Daily: %d, Weekly: 0.", minutesForOt);
+        int dailyOt = (int) context.getFacts().getOrDefault("dailyOtHoursMinutes", 0);
+        int weeklyOt = (int) context.getFacts().getOrDefault("weeklyOtHoursMinutes", 0);
+        int excessOt = (int) context.getFacts().getOrDefault("excessHoursMinutes", 0);
+
+        String message = String.format("OT Calculated. Daily: %d, Weekly: %d, Excess: %d.", dailyOt, weeklyOt, excessOt);
         return buildResult("OT_CALCULATED", true, message);
     }
 
-    private PayPolicyRuleResultDTO executeFixedDurationOt(PayPolicyExecutionContext context) {
-        // Use the gross work minutes before any break deductions for this calculation
-        int grossWorkMinutes = (int) context.getFacts().getOrDefault("grossWorkMinutes", 0);
-        int dailyOtThresholdInMinutes = (thresholdHours != null ? thresholdHours * 60 : 0) + (thresholdMinutes != null ? thresholdMinutes : 0);
-
-        int regularMinutes;
-        int dailyOt;
+    private void executeScheduledOt(PayPolicyExecutionContext context) {
+        int minutesForOtCalculation = (int) context.getFacts().getOrDefault("workedMinutes", 0);
+        int dailyOt = 0;
         int excessOt = 0;
 
-        int payableTime = grossWorkMinutes - (int) context.getFacts().getOrDefault("unpaidBreakMinutes", 0);
+        if (minutesForOtCalculation > 0) {
+            dailyOt = minutesForOtCalculation;
 
-        if (payableTime > dailyOtThresholdInMinutes) {
-            regularMinutes = dailyOtThresholdInMinutes;
-            dailyOt = payableTime - dailyOtThresholdInMinutes;
-        } else {
-            regularMinutes = payableTime;
-            dailyOt = 0;
+            if (maxOtPerDay != null && maxOtPerDay > 0) {
+                int maxOtInMinutes = (int) (maxOtPerDay * 60);
+                if (dailyOt > maxOtInMinutes) {
+                    excessOt = dailyOt - maxOtInMinutes;
+                    dailyOt = maxOtInMinutes;
+                }
+            }
         }
 
-        // Apply the cap for Max OT Per Day
+        context.getFacts().put("dailyOtHoursMinutes", dailyOt);
+        context.getFacts().put("excessHoursMinutes", excessOt);
+        context.getFacts().put("workedMinutes", 0);
+    }
+
+    private void executeFixedDurationOt(PayPolicyExecutionContext context) {
+        int minutesForOtCalculation = (int) context.getFacts().getOrDefault("workedMinutes", 0);
+        int dailyOt = minutesForOtCalculation;
+        int excessOt = 0;
+
         if (maxOtPerDay != null && maxOtPerDay > 0) {
             int maxOtInMinutes = (int) (maxOtPerDay * 60);
             if (dailyOt > maxOtInMinutes) {
@@ -159,16 +173,70 @@ public class OvertimeRules implements PayPolicyRule {
             }
         }
 
-        // Update context with the final calculated values
-        context.getFacts().put("finalRegularMinutes", Math.max(0, regularMinutes));
         context.getFacts().put("dailyOtHoursMinutes", dailyOt);
         context.getFacts().put("excessHoursMinutes", excessOt);
-        context.getFacts().put("workedMinutes", 0); // All time has been categorized
-
-        String message = String.format("OT Calculated. Daily: %d, Weekly: 0.", dailyOt);
-        return buildResult("OT_CALCULATED", true, message);
+        context.getFacts().put("workedMinutes", 0);
     }
 
+    private void executeWeeklyOt(PayPolicyExecutionContext context) {
+        DayOfWeek resetDay = (this.weeklyResetDay != null) ? DayOfWeek.valueOf(this.weeklyResetDay.name()) : DayOfWeek.MONDAY;
+        LocalDate today = context.getDate();
+        LocalDate weekStart = today.with(resetDay);
+        if (today.isBefore(weekStart)) {
+            weekStart = weekStart.minusWeeks(1);
+        }
+
+        LocalDate weekEndForQuery = today.minusDays(1);
+
+        TimesheetRepository timesheetRepo = context.getTimesheetRepository();
+
+        List<Timesheet> timesheetsThisWeek = timesheetRepo.findByEmployeeIdAndWorkDateBetween(context.getEmployeeId(), weekStart, weekEndForQuery);
+
+        int historicalRegularMinutes = timesheetsThisWeek.stream()
+                .mapToInt(ts -> ts.getRegularHoursMinutes() != null ? ts.getRegularHoursMinutes() : 0)
+                .sum();
+
+        int currentDayRegularMinutes = (int) context.getFacts().getOrDefault("finalRegularMinutes", 0);
+        int accumulatedRegularMinutes = historicalRegularMinutes + currentDayRegularMinutes;
+
+        int weeklyThresholdInMinutes = (this.weeklyThresholdHours != null ? this.weeklyThresholdHours : 0) * 60;
+
+        if (accumulatedRegularMinutes > weeklyThresholdInMinutes) {
+            int minutesOverThreshold = accumulatedRegularMinutes - weeklyThresholdInMinutes;
+            int weeklyOt = Math.min(minutesOverThreshold, currentDayRegularMinutes);
+            int excessOt = 0;
+
+            int newRegularMinutes = currentDayRegularMinutes - weeklyOt;
+            context.getFacts().put("finalRegularMinutes", newRegularMinutes);
+
+            if (maxOtPerWeek != null && maxOtPerWeek > 0) {
+                int maxWeeklyOtInMinutes = (int) (maxOtPerWeek * 60);
+                if (weeklyOt > maxWeeklyOtInMinutes) {
+                    excessOt = weeklyOt - maxWeeklyOtInMinutes;
+                    weeklyOt = maxWeeklyOtInMinutes;
+                }
+            }
+
+            context.getFacts().put("weeklyOtHoursMinutes", weeklyOt);
+            context.getFacts().put("excessHoursMinutes", (int) context.getFacts().getOrDefault("excessHoursMinutes", 0) + excessOt);
+
+            if (dailyWeeklyOtConflict != null) {
+                switch (dailyWeeklyOtConflict) {
+                    case EXCLUDE_DAILY_OT:
+                        int dailyOt = (int) context.getFacts().getOrDefault("dailyOtHoursMinutes", 0);
+                        int reduction = Math.min(dailyOt, weeklyOt);
+                        context.getFacts().put("dailyOtHoursMinutes", dailyOt - reduction);
+                        break;
+                    case PAY_HIGHER:
+                        context.getFacts().put("dailyOtHoursMinutes", 0);
+                        break;
+                    case PRIORITIZE_WEEKLY_OT:
+                        context.getFacts().put("dailyOtHoursMinutes", 0);
+                        break;
+                }
+            }
+        }
+    }
 
     private PayPolicyRuleResultDTO buildResult(String result, boolean success, String message) {
         return PayPolicyRuleResultDTO.builder()

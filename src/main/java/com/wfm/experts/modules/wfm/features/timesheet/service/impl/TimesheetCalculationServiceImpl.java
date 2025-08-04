@@ -69,15 +69,23 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
 
         // --- Final Consolidation ---
         int finalRegularMinutes = (int) context.getFacts().getOrDefault("finalRegularMinutes", 0);
-        int dailyOtMinutes = (int) context.getFacts().getOrDefault("dailyOtHoursMinutes", 0);
-        int weeklyOtMinutes = (int) context.getFacts().getOrDefault("weeklyOtHoursMinutes", 0);
         int finalExcessHours = (int) context.getFacts().getOrDefault("excessHoursMinutes", 0);
 
-        // Combine all non-regular paid time into "excess" for the final DTO
-        int totalExcessForDto = finalExcessHours + dailyOtMinutes + weeklyOtMinutes;
+        int totalExcessForDto;
+
+        if (policy != null) {
+            // When a policy is applied, strictly use the value from the ExcessHoursRule.
+            totalExcessForDto = finalExcessHours;
+        } else {
+            // When no policy is applied, the logic in buildAndExecuteRules calculates excess differently.
+            // We retrieve it from the same fact for consistency.
+            totalExcessForDto = (int) context.getFacts().getOrDefault("excessHoursMinutes", 0);
+        }
 
         // On holidays or weekends, all time becomes excess time.
         if ((boolean) context.getFacts().get("isHoliday") || (boolean) context.getFacts().get("isWeekend")) {
+            // Note: This logic now operates on the already determined excess value.
+            // For a complete implementation, you might want to add dailyOtMinutes here as well.
             totalExcessForDto += finalRegularMinutes;
             finalRegularMinutes = 0;
         }
