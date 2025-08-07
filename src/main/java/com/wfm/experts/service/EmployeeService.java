@@ -38,6 +38,11 @@ public interface EmployeeService extends UserDetailsService {
 //    Employee updateEmployee(String email, Employee updatedEmployee);
 
     /**
+     * ✅ Get all employee IDs.
+     */
+    List<String> getAllEmployeeIds();
+
+    /**
      * ✅ Delete an employee by email.
      */
     void deleteEmployee(String email);

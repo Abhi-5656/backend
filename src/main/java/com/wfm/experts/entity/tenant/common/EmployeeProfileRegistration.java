@@ -2,7 +2,9 @@ package com.wfm.experts.entity.tenant.common;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
 
+import java.sql.Types;
 import java.time.LocalDateTime;
 
 /**
@@ -32,12 +34,9 @@ public class EmployeeProfileRegistration {
     @Column(name = "employee_id", nullable = false, length = 64)
     private String employeeId;
 
-    /**
-     * The employee's profile image, stored as raw binary data (BLOB/BYTEA).
-     */
-    @Lob
-    @Column(name = "employee_image_data")
-    private byte[] employeeImageData;
+    @JdbcTypeCode(Types.LONGVARCHAR)
+    @Column(name = "employee_image_data", columnDefinition = "TEXT", nullable = false)
+    private String  employeeImageData;
 
     /**
      * A flag that is automatically set to true if an image is provided.
@@ -69,6 +68,6 @@ public class EmployeeProfileRegistration {
      * Helper method to set the registration status based on the presence of image data.
      */
     private void updateRegistrationStatus() {
-        this.hasRegisteredWithImage = (this.employeeImageData != null && this.employeeImageData.length > 0);
+        this.hasRegisteredWithImage = (this.employeeImageData != null && !this.employeeImageData.isEmpty());
     }
 }

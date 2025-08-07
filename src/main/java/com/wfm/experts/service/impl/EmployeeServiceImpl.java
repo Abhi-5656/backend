@@ -187,6 +187,13 @@ public UserDetails loadUserByUsername(String email) throws InvalidEmailException
         ensureSchemaSwitch();
         return employeeRepository.findAll();
     }
+    @Override
+    public List<String> getAllEmployeeIds() {
+        ensureSchemaSwitch();
+        return employeeRepository.findAll().stream()
+                .map(Employee::getEmployeeId)
+                .collect(Collectors.toList());
+    }
 
 //    @Transactional
 //    @Override

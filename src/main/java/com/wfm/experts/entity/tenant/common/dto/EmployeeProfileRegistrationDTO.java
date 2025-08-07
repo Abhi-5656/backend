@@ -1,4 +1,4 @@
-package com.wfm.experts.dto.tenant.common;
+package com.wfm.experts.entity.tenant.common.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.NotBlank;
@@ -25,10 +25,10 @@ public class EmployeeProfileRegistrationDTO {
     private String employeeId;
 
     /**
-     * The employee's profile image as a byte array.
-     * When sent or received as JSON, this will be Base64 encoded.
+     * The employee's profile image data in Base64 encoded String format.
      */
-    private byte[] employeeImageData;
+    @NotBlank(message = "Employee image data cannot be blank.")
+    private String employeeImageData;
 
     /**
      * A flag indicating if the employee has registered with an image.

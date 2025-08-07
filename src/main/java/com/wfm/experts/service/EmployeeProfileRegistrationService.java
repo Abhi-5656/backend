@@ -3,8 +3,10 @@ package com.wfm.experts.service;
 
 
 
-import com.wfm.experts.dto.tenant.common.EmployeeProfileRegistrationDTO;
 
+import com.wfm.experts.entity.tenant.common.dto.EmployeeProfileRegistrationDTO;
+
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -35,6 +37,15 @@ public interface EmployeeProfileRegistrationService {
      * @param email The unique email of the employee.
      * @return An {@link Optional} containing the registration DTO if found.
      */
+    /**
+     * Creates or updates multiple employee profile registration records.
+     *
+     * @param dtoList A list of DTOs containing employee details and the Base64 image.
+     * @return A list of the created or updated registration records.
+     */
+    List<EmployeeProfileRegistrationDTO> bulkCreateOrUpdateRegistrations(List<EmployeeProfileRegistrationDTO> dtoList);
+
+
     Optional<EmployeeProfileRegistrationDTO> getRegistrationByEmail(String email);
 
     /**

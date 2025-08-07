@@ -1,8 +1,8 @@
 package com.wfm.experts.entity.tenant.common.mapper;
 
 
-import com.wfm.experts.dto.tenant.common.EmployeeProfileRegistrationDTO;
 import com.wfm.experts.entity.tenant.common.EmployeeProfileRegistration;
+import com.wfm.experts.entity.tenant.common.dto.EmployeeProfileRegistrationDTO;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.factory.Mappers;

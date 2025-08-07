@@ -66,6 +66,14 @@ public class EmployeeController {
         return ResponseEntity.status(HttpStatus.CREATED).body(createdEmployees);
     }
 
+    @GetMapping("/ids")
+    public ResponseEntity<List<String>> getAllEmployeeIds(@RequestHeader("Authorization") String token) {
+        setTenantSchemaFromToken(token);
+        List<String> employeeIds = employeeService.getAllEmployeeIds();
+        return ResponseEntity.ok(employeeIds);
+    }
+
+
 
     @GetMapping("/{email}")
     public ResponseEntity<Employee> getEmployeeByEmail(@RequestHeader("Authorization") String token,

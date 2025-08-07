@@ -8,9 +8,8 @@ CREATE TABLE IF NOT EXISTS employee_profile_registrations (
                                                               id BIGSERIAL PRIMARY KEY,
                                                               employee_id VARCHAR(64) NOT NULL UNIQUE,
 
-    -- Use BYTEA for PostgreSQL for storing raw binary data.
-    -- For other databases like MySQL or H2, you might use BLOB.
-    employee_image_data BYTEA,
+    -- Use TEXT for storing Base64-encoded image data
+    employee_image_data TEXT NOT NULL,
 
     has_registered_with_image BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),

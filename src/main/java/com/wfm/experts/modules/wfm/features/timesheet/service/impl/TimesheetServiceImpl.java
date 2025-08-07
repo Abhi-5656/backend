@@ -114,6 +114,18 @@ public class TimesheetServiceImpl implements TimesheetService {
     }
 
     @Override
+    public List<TimesheetDTO> createTimesheets(List<TimesheetDTO> timesheetDTOs) {
+        if (timesheetDTOs == null || timesheetDTOs.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return timesheetDTOs.stream()
+                .map(this::createTimesheet)
+                .collect(Collectors.toList());
+    }
+
+
+
+    @Override
     public Optional<TimesheetDTO> getTimesheetById(Long id) {
         return timesheetRepository.findById(id).map(timesheetMapper::toDto);
     }

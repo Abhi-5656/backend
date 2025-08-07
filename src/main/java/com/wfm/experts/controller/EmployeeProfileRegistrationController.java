@@ -2,7 +2,8 @@ package com.wfm.experts.controller;
 
 
 
-import com.wfm.experts.dto.tenant.common.EmployeeProfileRegistrationDTO;
+
+import com.wfm.experts.entity.tenant.common.dto.EmployeeProfileRegistrationDTO;
 import com.wfm.experts.entity.tenant.common.exception.ProfileRegistrationNotFoundException;
 import com.wfm.experts.service.EmployeeProfileRegistrationService;
 import jakarta.validation.Valid;
@@ -11,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -42,6 +44,19 @@ public class EmployeeProfileRegistrationController {
      * @param employeeId The unique ID of the employee.
      * @return The registration record if found.
      */
+
+    /**
+     * Creates or updates a batch of employee profile registration records.
+     *
+     * @param dtoList A list of DTOs for bulk processing.
+     * @return A list of DTOs of the created or updated registration records.
+     */
+    @PostMapping("/bulk")
+    public ResponseEntity<List<EmployeeProfileRegistrationDTO>> bulkCreateOrUpdateRegistrations(@Valid @RequestBody List<EmployeeProfileRegistrationDTO> dtoList) {
+        List<EmployeeProfileRegistrationDTO> results = registrationService.bulkCreateOrUpdateRegistrations(dtoList);
+        return ResponseEntity.status(HttpStatus.CREATED).body(results);
+    }
+
     @GetMapping("/by-employee-id/{employeeId}")
     public ResponseEntity<EmployeeProfileRegistrationDTO> getRegistrationByEmployeeId(@PathVariable String employeeId) {
         return registrationService.getRegistrationByEmployeeId(employeeId)

@@ -1,8 +1,8 @@
 package com.wfm.experts.service.impl;
 
-import com.wfm.experts.dto.tenant.common.EmployeeProfileRegistrationDTO;
 import com.wfm.experts.entity.tenant.common.EmployeeProfileRegistration;
 
+import com.wfm.experts.entity.tenant.common.dto.EmployeeProfileRegistrationDTO;
 import com.wfm.experts.entity.tenant.common.exception.ProfileRegistrationNotFoundException;
 import com.wfm.experts.entity.tenant.common.exception.ResourceNotFoundException;
 import com.wfm.experts.entity.tenant.common.mapper.EmployeeProfileRegistrationMapper;
@@ -13,7 +13,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Service implementation for managing EmployeeProfileRegistration.
@@ -59,6 +61,13 @@ public class EmployeeProfileRegistrationServiceImpl implements EmployeeProfileRe
     public Optional<EmployeeProfileRegistrationDTO> getRegistrationByEmployeeId(String employeeId) {
         return registrationRepository.findByEmployeeId(employeeId)
                 .map(mapper::toDto);
+    }
+
+    @Override
+    public List<EmployeeProfileRegistrationDTO> bulkCreateOrUpdateRegistrations(List<EmployeeProfileRegistrationDTO> dtoList) {
+        return dtoList.stream()
+                .map(this::createOrUpdateRegistration)
+                .collect(Collectors.toList());
     }
 
     /**

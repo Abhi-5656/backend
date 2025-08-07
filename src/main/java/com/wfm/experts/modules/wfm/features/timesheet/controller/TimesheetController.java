@@ -31,6 +31,12 @@ public class TimesheetController {
         return ResponseEntity.ok(updated);
     }
 
+    @PostMapping("/bulk")
+    public ResponseEntity<List<TimesheetDTO>> createTimesheets(@RequestBody List<TimesheetDTO> timesheetDTOs) {
+        List<TimesheetDTO> created = timesheetService.createTimesheets(timesheetDTOs);
+        return ResponseEntity.ok(created);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<TimesheetDTO> getById(@PathVariable Long id) {
         Optional<TimesheetDTO> timesheet = timesheetService.getTimesheetById(id);
