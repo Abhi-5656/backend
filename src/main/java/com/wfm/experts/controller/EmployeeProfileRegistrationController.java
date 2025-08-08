@@ -57,6 +57,17 @@ public class EmployeeProfileRegistrationController {
         return ResponseEntity.status(HttpStatus.CREATED).body(results);
     }
 
+    /**
+     * Retrieves all registration records.
+     *
+     * @return A list of all registration records.
+     */
+    @GetMapping
+    public ResponseEntity<List<EmployeeProfileRegistrationDTO>> getAllRegistrations() {
+        List<EmployeeProfileRegistrationDTO> registrations = registrationService.getAllRegistrations();
+        return ResponseEntity.ok(registrations);
+    }
+
     @GetMapping("/by-employee-id/{employeeId}")
     public ResponseEntity<EmployeeProfileRegistrationDTO> getRegistrationByEmployeeId(@PathVariable String employeeId) {
         return registrationService.getRegistrationByEmployeeId(employeeId)

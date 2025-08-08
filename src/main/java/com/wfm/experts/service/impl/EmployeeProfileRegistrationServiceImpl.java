@@ -70,6 +70,15 @@ public class EmployeeProfileRegistrationServiceImpl implements EmployeeProfileRe
                 .collect(Collectors.toList());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<EmployeeProfileRegistrationDTO> getAllRegistrations() {
+        return registrationRepository.findAll().stream()
+                .map(mapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+
     /**
      * This method is no longer needed as the email has been removed.
      * It is kept here for reference but can be removed from the service interface.

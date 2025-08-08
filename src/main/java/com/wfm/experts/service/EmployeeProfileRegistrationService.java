@@ -46,6 +46,14 @@ public interface EmployeeProfileRegistrationService {
     List<EmployeeProfileRegistrationDTO> bulkCreateOrUpdateRegistrations(List<EmployeeProfileRegistrationDTO> dtoList);
 
 
+    /**
+     * Retrieves all registration records.
+     *
+     * @return A list of all registration DTOs.
+     */
+    List<EmployeeProfileRegistrationDTO> getAllRegistrations();
+
+
     Optional<EmployeeProfileRegistrationDTO> getRegistrationByEmail(String email);
 
     /**
