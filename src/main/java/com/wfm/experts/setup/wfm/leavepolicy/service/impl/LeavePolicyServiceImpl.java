@@ -1,88 +1,90 @@
-// LeavePolicyServiceImpl.java
 package com.wfm.experts.setup.wfm.leavepolicy.service.impl;
 
-import com.wfm.experts.setup.wfm.leavepolicy.dto.LeavePolicyDTO;
-import com.wfm.experts.setup.wfm.leavepolicy.entity.ConditionalRule;
+import com.wfm.experts.setup.wfm.leavepolicy.dto.LeavePolicyDto;
 import com.wfm.experts.setup.wfm.leavepolicy.entity.LeavePolicy;
-import com.wfm.experts.setup.wfm.leavepolicy.exception.LeavePolicyNotFoundException;
 import com.wfm.experts.setup.wfm.leavepolicy.mapper.LeavePolicyMapper;
 import com.wfm.experts.setup.wfm.leavepolicy.repository.LeavePolicyRepository;
 import com.wfm.experts.setup.wfm.leavepolicy.service.LeavePolicyService;
+// Assume these custom exceptions exist in your project's exception package
+// import com.wfm.experts.setup.wfm.exception.DuplicateResourceException;
+// import com.wfm.experts.setup.wfm.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * Implementation of the LeavePolicyService interface.
+ * Handles the business logic for leave policy operations.
+ */
 @Service
-@RequiredArgsConstructor
-@Transactional
+@RequiredArgsConstructor // Lombok annotation for constructor injection
+@Transactional // Ensures all methods are transactional
 public class LeavePolicyServiceImpl implements LeavePolicyService {
 
-    private final LeavePolicyRepository policyRepo;
-    private final LeavePolicyMapper mapper;
+    private final LeavePolicyRepository leavePolicyRepository;
+    private final LeavePolicyMapper leavePolicyMapper;
 
     @Override
-    public LeavePolicyDTO create(LeavePolicyDTO dto) {
-        LeavePolicy policy = mapper.toEntity(dto);
-        // ensure any child rules have back-reference
-        if (policy.getConditionalRules() != null) {
-            policy.getConditionalRules().forEach(rule -> rule.setLeavePolicy(policy));
+    public LeavePolicyDto createLeavePolicy(LeavePolicyDto leavePolicyDto) {
+        // --- Business Rule: Check for duplicates before creating ---
+        if (leavePolicyRepository.existsByPolicyName(leavePolicyDto.getPolicyName())) {
+            // throw new DuplicateResourceException("Leave policy with name '" + leavePolicyDto.getPolicyName() + "' already exists.");
         }
-        LeavePolicy saved = policyRepo.save(policy);
-        return mapper.toDto(saved);
+        if (leavePolicyDto.getLeaveCode() != null && leavePolicyRepository.existsByLeaveCode(leavePolicyDto.getLeaveCode())) {
+            // throw new DuplicateResourceException("Leave policy with code '" + leavePolicyDto.getLeaveCode() + "' already exists.");
+        }
+
+        LeavePolicy leavePolicy = leavePolicyMapper.toEntity(leavePolicyDto);
+        LeavePolicy savedPolicy = leavePolicyRepository.save(leavePolicy);
+        return leavePolicyMapper.toDto(savedPolicy);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public LeavePolicyDTO getById(Long id) {
-        LeavePolicy policy = policyRepo.findById(id)
-                .orElseThrow(() -> new LeavePolicyNotFoundException(id));
-        return mapper.toDto(policy);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public LeavePolicyDTO getByCode(String code) {
-        LeavePolicy policy = policyRepo.findByCode(code)
-                .orElseThrow(() -> new LeavePolicyNotFoundException(code, true));
-        return mapper.toDto(policy);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<LeavePolicyDTO> getAll() {
-        return policyRepo.findAll()
+    public List<LeavePolicyDto> getAllLeavePolicies() {
+        return leavePolicyRepository.findAll()
                 .stream()
-                .map(mapper::toDto)
+                .map(leavePolicyMapper::toDto)
                 .collect(Collectors.toList());
     }
 
     @Override
-    public LeavePolicyDTO update(Long id, LeavePolicyDTO dto) {
-        LeavePolicy existing = policyRepo.findById(id)
-                .orElseThrow(() -> new LeavePolicyNotFoundException(id));
-
-        // map all updatable fields
-        LeavePolicy updated = mapper.toEntity(dto);
-        updated.setId(existing.getId());
-
-        // preserve orphanRemoval: clear existing children, then reattach from dto
-        existing.getConditionalRules().clear();
-        if (updated.getConditionalRules() != null) {
-            updated.getConditionalRules()
-                    .forEach(rule -> rule.setLeavePolicy(updated));
-        }
-
-        LeavePolicy saved = policyRepo.save(updated);
-        return mapper.toDto(saved);
+    @Transactional(readOnly = true)
+    public Optional<LeavePolicyDto> getLeavePolicyById(Long id) {
+        return leavePolicyRepository.findById(id)
+                .map(leavePolicyMapper::toDto);
     }
 
     @Override
-    public void delete(Long id) {
-        LeavePolicy existing = policyRepo.findById(id)
-                .orElseThrow(() -> new LeavePolicyNotFoundException(id));
-        policyRepo.delete(existing);
+    public LeavePolicyDto updateLeavePolicy(Long id, LeavePolicyDto leavePolicyDto) {
+        // --- Find the existing entity or throw an exception ---
+        LeavePolicy existingPolicy = leavePolicyRepository.findById(id)
+                .orElseThrow(/*() -> new ResourceNotFoundException("Leave Policy not found with id: " + id)*/);
+
+        // --- Business Rule: Check for duplicate name/code on other policies ---
+        leavePolicyRepository.findByPolicyName(leavePolicyDto.getPolicyName())
+                .ifPresent(policy -> {
+                    if (!policy.getId().equals(id)) {
+                        // throw new DuplicateResourceException("Leave policy name '" + leavePolicyDto.getPolicyName() + "' is already in use.");
+                    }
+                });
+
+        // --- Use the mapper to update the found entity from the DTO ---
+        leavePolicyMapper.updateLeavePolicyFromDto(leavePolicyDto, existingPolicy);
+
+        LeavePolicy updatedPolicy = leavePolicyRepository.save(existingPolicy);
+        return leavePolicyMapper.toDto(updatedPolicy);
+    }
+
+    @Override
+    public void deleteLeavePolicy(Long id) {
+        if (!leavePolicyRepository.existsById(id)) {
+            // throw new ResourceNotFoundException("Leave Policy not found with id: " + id);
+        }
+        leavePolicyRepository.deleteById(id);
     }
 }

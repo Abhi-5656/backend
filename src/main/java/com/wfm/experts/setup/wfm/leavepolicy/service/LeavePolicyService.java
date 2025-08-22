@@ -1,51 +1,51 @@
-// src/main/java/com/wfm/experts/setup/wfm/leavepolicy/service/LeavePolicyService.java
 package com.wfm.experts.setup.wfm.leavepolicy.service;
 
-import com.wfm.experts.setup.wfm.leavepolicy.dto.LeavePolicyDTO;
-import com.wfm.experts.setup.wfm.leavepolicy.exception.LeavePolicyNotFoundException;
-
+import com.wfm.experts.setup.wfm.leavepolicy.dto.LeavePolicyDto;
 import java.util.List;
+import java.util.Optional;
 
+/**
+ * Service interface for managing Leave Policies.
+ * Defines the contract for business operations related to leave policies.
+ */
 public interface LeavePolicyService {
 
     /**
-     * Create a new LeavePolicy.
-     * @param dto the data for the new policy
-     * @return the saved policy
+     * Creates a new leave policy based on the provided DTO.
+     *
+     * @param leavePolicyDto The DTO containing the details of the policy to create.
+     * @return The created LeavePolicyDto, including the generated ID.
      */
-    LeavePolicyDTO create(LeavePolicyDTO dto);
+    LeavePolicyDto createLeavePolicy(LeavePolicyDto leavePolicyDto);
 
     /**
-     * Retrieve an existing policy by its database ID.
-     * @param id the policy ID
-     * @throws LeavePolicyNotFoundException if not found
+     * Retrieves a list of all leave policies.
+     *
+     * @return A list of LeavePolicyDto objects.
      */
-    LeavePolicyDTO getById(Long id);
+    List<LeavePolicyDto> getAllLeavePolicies();
 
     /**
-     * Retrieve an existing policy by its unique code.
-     * @param code the policy code
-     * @throws LeavePolicyNotFoundException if not found
+     * Finds a leave policy by its unique ID.
+     *
+     * @param id The ID of the leave policy.
+     * @return An Optional containing the LeavePolicyDto if found, otherwise empty.
      */
-    LeavePolicyDTO getByCode(String code);
+    Optional<LeavePolicyDto> getLeavePolicyById(Long id);
 
     /**
-     * Return all leave policies in the system.
+     * Updates an existing leave policy.
+     *
+     * @param id The ID of the policy to update.
+     * @param leavePolicyDto The DTO with the updated details.
+     * @return The updated LeavePolicyDto.
      */
-    List<LeavePolicyDTO> getAll();
+    LeavePolicyDto updateLeavePolicy(Long id, LeavePolicyDto leavePolicyDto);
 
     /**
-     * Update an existing LeavePolicy.
-     * @param id  the ID of the policy to update
-     * @param dto the new data
-     * @throws LeavePolicyNotFoundException if the policy does not exist
+     * Deletes a leave policy by its ID.
+     *
+     * @param id The ID of the policy to delete.
      */
-    LeavePolicyDTO update(Long id, LeavePolicyDTO dto);
-
-    /**
-     * Delete a policy permanently.
-     * @param id the policy ID
-     * @throws LeavePolicyNotFoundException if the policy does not exist
-     */
-    void delete(Long id);
+    void deleteLeavePolicy(Long id);
 }
