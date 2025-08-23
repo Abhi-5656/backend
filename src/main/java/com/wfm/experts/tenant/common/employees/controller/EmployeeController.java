@@ -1,8 +1,8 @@
-package com.wfm.experts.controller;
+package com.wfm.experts.tenant.common.employees.controller;
 
-import com.wfm.experts.tenant.common.employees.entity.Employee;
 import com.wfm.experts.security.JwtUtil;
-import com.wfm.experts.service.EmployeeService;
+import com.wfm.experts.tenant.common.employees.dto.EmployeeDTO;
+import com.wfm.experts.tenant.common.employees.service.EmployeeService;
 import com.wfm.experts.tenancy.TenantContext;
 import com.wfm.experts.util.TenantSchemaUtil;
 import com.wfm.experts.validation.groups.OnEmployeeProfile;
@@ -44,10 +44,10 @@ public class EmployeeController {
     }
 
     @PostMapping
-    public ResponseEntity<Employee> createEmployee(@RequestHeader("Authorization") String token,
-                                                   @Validated(OnEmployeeProfile.class) @RequestBody Employee employee) {
+    public ResponseEntity<EmployeeDTO> createEmployee(@RequestHeader("Authorization") String token,
+                                                      @Validated(OnEmployeeProfile.class) @RequestBody EmployeeDTO employeeDTO) {
         setTenantSchemaFromToken(token);
-        Employee savedEmployee = employeeService.createEmployee(employee);
+        EmployeeDTO savedEmployee = employeeService.createEmployee(employeeDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedEmployee);
     }
 
@@ -55,13 +55,12 @@ public class EmployeeController {
      * Create multiple new Employees (Bulk Creation).
      * Validates each employee in the list against the OnEmployeeProfile group.
      */
-    // Change mapping from "/bulk" to "/multi-create"
-    @PostMapping("/multi-create") // <<<<------ MODIFIED HERE
-    public ResponseEntity<List<Employee>> createMultipleEmployees(
+    @PostMapping("/multi-create")
+    public ResponseEntity<List<EmployeeDTO>> createMultipleEmployees(
             @RequestHeader("Authorization") String token,
-            @Validated(OnEmployeeProfile.class) @RequestBody List<@Valid Employee> employees) {
+            @Validated(OnEmployeeProfile.class) @RequestBody List<@Valid EmployeeDTO> employees) {
         setTenantSchemaFromToken(token);
-        List<Employee> createdEmployees = employeeService.createMultipleEmployees(employees);
+        List<EmployeeDTO> createdEmployees = employeeService.createMultipleEmployees(employees);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdEmployees);
     }
 
@@ -75,21 +74,21 @@ public class EmployeeController {
 
 
     @GetMapping("/{email}")
-    public ResponseEntity<Employee> getEmployeeByEmail(@RequestHeader("Authorization") String token,
-                                                       @PathVariable String email) {
+    public ResponseEntity<EmployeeDTO> getEmployeeByEmail(@RequestHeader("Authorization") String token,
+                                                          @PathVariable String email) {
         setTenantSchemaFromToken(token);
-        Optional<Employee> employee = employeeService.getEmployeeByEmail(email);
+        Optional<EmployeeDTO> employee = employeeService.getEmployeeByEmail(email);
         return employee.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-//    @PutMapping("/{email}")
-//    public ResponseEntity<Employee> updateEmployee(@RequestHeader("Authorization") String token,
-//                                                   @PathVariable String email,
-//                                                   @Validated(OnEmployeeProfile.class) @RequestBody Employee employee) {
-//        setTenantSchemaFromToken(token);
-//        Employee updatedEmployee = employeeService.updateEmployee(email, employee);
-//        return ResponseEntity.ok(updatedEmployee);
-//    }
+    @PutMapping("/{email}")
+    public ResponseEntity<EmployeeDTO> updateEmployee(@RequestHeader("Authorization") String token,
+                                                      @PathVariable String email,
+                                                      @Validated(OnEmployeeProfile.class) @RequestBody EmployeeDTO employeeDTO) {
+        setTenantSchemaFromToken(token);
+        EmployeeDTO updatedEmployee = employeeService.updateEmployee(email, employeeDTO);
+        return ResponseEntity.ok(updatedEmployee);
+    }
 
     @DeleteMapping("/{email}")
     public ResponseEntity<Void> deleteEmployee(@RequestHeader("Authorization") String token,
@@ -100,18 +99,18 @@ public class EmployeeController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Employee>> getAllEmployees(@RequestHeader("Authorization") String token) {
+    public ResponseEntity<List<EmployeeDTO>> getAllEmployees(@RequestHeader("Authorization") String token) {
         setTenantSchemaFromToken(token);
-        List<Employee> employees = employeeService.getAllEmployees();
+        List<EmployeeDTO> employees = employeeService.getAllEmployees();
         return ResponseEntity.ok(employees);
     }
 
     @GetMapping("/by-employee-id/{employeeId}")
-    public ResponseEntity<Employee> getEmployeeByEmployeeId(
+    public ResponseEntity<EmployeeDTO> getEmployeeByEmployeeId(
             @RequestHeader("Authorization") String token,
             @PathVariable String employeeId) {
         setTenantSchemaFromToken(token);
-        Optional<Employee> employee = employeeService.getEmployeeByEmployeeId(employeeId);
+        Optional<EmployeeDTO> employee = employeeService.getEmployeeByEmployeeId(employeeId);
         return employee.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
