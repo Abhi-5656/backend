@@ -1,11 +1,10 @@
 package com.wfm.experts.controller;
 
-import com.wfm.experts.entity.tenant.common.Employee;
+import com.wfm.experts.tenant.common.employees.entity.Employee;
 import com.wfm.experts.security.JwtUtil;
 import com.wfm.experts.service.EmployeeService;
 import com.wfm.experts.tenancy.TenantContext;
 import com.wfm.experts.util.TenantSchemaUtil;
-import com.wfm.experts.validation.groups.OnAdminCreation;
 import com.wfm.experts.validation.groups.OnEmployeeProfile;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;

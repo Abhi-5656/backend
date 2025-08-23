@@ -20,8 +20,8 @@
 //
 //import com.wfm.experts.dto.tenant.common.AuthRequest;
 //import com.wfm.experts.dto.tenant.common.AuthResponse;
-//import com.wfm.experts.entity.tenant.common.Employee;
-//import com.wfm.experts.entity.tenant.common.Role;
+//import com.wfm.experts.tenant.common.employees.entity.Employee;
+//import com.wfm.experts.tenant.common.employees.entity.Role;
 //import com.wfm.experts.exception.*;
 //import com.wfm.experts.security.JwtUtil;
 //import com.wfm.experts.service.EmployeeService;
@@ -169,10 +169,10 @@
 
 package com.wfm.experts.controller;
 
-import com.wfm.experts.dto.tenant.common.AuthRequest;
-import com.wfm.experts.dto.tenant.common.AuthResponse;
-import com.wfm.experts.entity.tenant.common.Employee;
-import com.wfm.experts.entity.tenant.common.Role;
+import com.wfm.experts.tenant.common.auth.AuthRequest;
+import com.wfm.experts.tenant.common.auth.AuthResponse;
+import com.wfm.experts.tenant.common.employees.entity.Employee;
+import com.wfm.experts.tenant.common.employees.entity.Role;
 import com.wfm.experts.exception.*;
 import com.wfm.experts.security.JwtUtil;
 import com.wfm.experts.service.EmployeeService;
@@ -188,7 +188,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")

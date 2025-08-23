@@ -1,7 +1,7 @@
 package com.wfm.experts.tenant.common.setup.wizard.service.impl;
 
-import com.wfm.experts.entity.core.Subscription;
-import com.wfm.experts.entity.core.SubscriptionModule;
+import com.wfm.experts.tenant.common.core.Subscription;
+import com.wfm.experts.tenant.common.core.SubscriptionModule;
 import com.wfm.experts.service.SubscriptionService;
 import com.wfm.experts.tenant.common.setup.wizard.dto.SetupWizardDto;
 import com.wfm.experts.tenant.common.setup.wizard.entity.SetupWizard;

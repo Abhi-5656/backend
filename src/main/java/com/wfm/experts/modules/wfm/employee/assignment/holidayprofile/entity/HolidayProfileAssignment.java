@@ -1,11 +1,9 @@
 package com.wfm.experts.modules.wfm.employee.assignment.holidayprofile.entity;
 
-import com.wfm.experts.entity.tenant.common.Employee;
 import com.wfm.experts.setup.wfm.holiday.entity.HolidayProfile;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
-import java.util.List;
 
 @Entity
 @Table(name = "holiday_profile_assignments")

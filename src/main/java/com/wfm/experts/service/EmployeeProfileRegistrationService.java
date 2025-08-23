@@ -4,7 +4,7 @@ package com.wfm.experts.service;
 
 
 
-import com.wfm.experts.entity.tenant.common.dto.EmployeeProfileRegistrationDTO;
+import com.wfm.experts.tenant.common.employees.dto.EmployeeProfileRegistrationDTO;
 
 import java.util.List;
 import java.util.Optional;

@@ -1,6 +1,6 @@
 package com.wfm.experts.service;
 
-import com.wfm.experts.entity.tenant.common.Employee;
+import com.wfm.experts.tenant.common.employees.entity.Employee;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import java.util.List;
 import java.util.Optional;

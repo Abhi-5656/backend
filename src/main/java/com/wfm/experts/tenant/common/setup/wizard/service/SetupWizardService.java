@@ -1,7 +1,7 @@
 package com.wfm.experts.tenant.common.setup.wizard.service;
 
 import com.wfm.experts.tenant.common.setup.wizard.dto.SetupWizardDto;
-import com.wfm.experts.entity.core.Subscription;
+import com.wfm.experts.tenant.common.core.Subscription;
 
 /**
  * Service interface for managing the multi-step setup wizard process.

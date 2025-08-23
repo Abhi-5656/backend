@@ -1,11 +1,11 @@
 package com.wfm.experts.service.impl;
 
-import com.wfm.experts.entity.tenant.common.EmployeeProfileRegistration;
+import com.wfm.experts.tenant.common.employees.entity.EmployeeProfileRegistration;
 
-import com.wfm.experts.entity.tenant.common.dto.EmployeeProfileRegistrationDTO;
-import com.wfm.experts.entity.tenant.common.exception.ProfileRegistrationNotFoundException;
-import com.wfm.experts.entity.tenant.common.exception.ResourceNotFoundException;
-import com.wfm.experts.entity.tenant.common.mapper.EmployeeProfileRegistrationMapper;
+import com.wfm.experts.tenant.common.employees.dto.EmployeeProfileRegistrationDTO;
+import com.wfm.experts.tenant.common.employees.exception.ProfileRegistrationNotFoundException;
+import com.wfm.experts.tenant.common.employees.exception.ResourceNotFoundException;
+import com.wfm.experts.tenant.common.employees.mapper.EmployeeProfileRegistrationMapper;
 import com.wfm.experts.repository.tenant.common.EmployeeProfileRegistrationRepository;
 import com.wfm.experts.repository.tenant.common.EmployeeRepository;
 import com.wfm.experts.service.EmployeeProfileRegistrationService;

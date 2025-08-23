@@ -1,9 +1,6 @@
 package com.wfm.experts.service;
 
-import com.wfm.experts.entity.core.Subscription;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import com.wfm.experts.tenant.common.core.Subscription;
 
 public interface SubscriptionService {
 

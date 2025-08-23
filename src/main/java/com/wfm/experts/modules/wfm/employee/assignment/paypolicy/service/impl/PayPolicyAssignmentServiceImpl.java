@@ -1,6 +1,6 @@
 package com.wfm.experts.modules.wfm.employee.assignment.paypolicy.service.impl;
 
-import com.wfm.experts.entity.tenant.common.Employee;
+import com.wfm.experts.tenant.common.employees.entity.Employee;
 import com.wfm.experts.modules.wfm.employee.assignment.paypolicy.dto.PayPolicyAssignmentDTO;
 import com.wfm.experts.modules.wfm.employee.assignment.paypolicy.entity.PayPolicyAssignment;
 import com.wfm.experts.modules.wfm.employee.assignment.paypolicy.mapper.PayPolicyAssignmentMapper;

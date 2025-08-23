@@ -51,14 +51,6 @@ public class PunchEvent {
     @Column(name = "notes", length = 255)
     private String notes;
 
-    /**
-     * Stores the employee's image as a Base64 encoded string.
-     * The @Lob annotation ensures that a large text type column is used in the database.
-     */
-//    @Lob
-//    @Column(name = "employee_image_base64")
-//    private String employeeImageBase64;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "timesheet_id", foreignKey = @ForeignKey(name = "fk_punch_events_timesheet"))
     private Timesheet timesheet;
@@ -75,26 +67,6 @@ public class PunchEvent {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-
-//    @PrePersist
-//    protected void onCreate() {
-//        this.createdAt = LocalDateTime.now();
-//        this.updatedAt = this.createdAt;
-//    }
-//
-//    @PreUpdate
-//    protected void onUpdate() {
-//        this.updatedAt = LocalDateTime.now();
-//    }
-public void setEventTime(LocalDateTime eventTime) {
-    if (eventTime != null) {
-        this.eventTime = ZonedDateTime.of(eventTime, ZoneId.systemDefault())
-                .withZoneSameInstant(ZoneId.of("Asia/Kolkata"))
-                .toLocalDateTime();
-    } else {
-        this.eventTime = null;
-    }
-}
 
     @PrePersist
     protected void onCreate() {

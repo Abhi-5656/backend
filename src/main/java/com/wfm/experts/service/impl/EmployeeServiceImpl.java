@@ -1,14 +1,12 @@
 package com.wfm.experts.service.impl;
 
-import com.wfm.experts.entity.tenant.common.*;
 // Import necessary entities if you need to pre-populate them for bulk creation
-import com.wfm.experts.entity.tenant.common.enums.EmploymentStatus;
-import com.wfm.experts.entity.tenant.common.enums.EmploymentType;
-import com.wfm.experts.entity.tenant.common.enums.WorkMode;
 import com.wfm.experts.exception.InvalidEmailException;
 import com.wfm.experts.repository.tenant.common.EmployeeRepository;
 import com.wfm.experts.service.EmployeeService;
 import com.wfm.experts.tenancy.TenantContext;
+import com.wfm.experts.tenant.common.employees.entity.Employee;
+import com.wfm.experts.tenant.common.employees.entity.Role;
 import com.wfm.experts.util.TenantSchemaUtil;
 // Import validation groups if you intend to validate with a specific group
 // import com.wfm.experts.validation.groups.OnEmployeeProfile;
@@ -23,10 +21,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import jakarta.validation.Valid; // Import for @Valid
 
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+        import java.util.ArrayList;
+        import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 

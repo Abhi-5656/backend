@@ -1,15 +1,15 @@
 package com.wfm.experts.service.impl;
 
-import com.wfm.experts.entity.core.Subscription;
-import com.wfm.experts.entity.tenant.common.Employee;
-import com.wfm.experts.entity.tenant.common.PersonalInfo;
-import com.wfm.experts.entity.tenant.common.OrganizationalInfo;
-import com.wfm.experts.entity.tenant.common.EmploymentDetails;
-import com.wfm.experts.entity.tenant.common.JobContextDetails;
-import com.wfm.experts.entity.tenant.common.Role;
-import com.wfm.experts.entity.tenant.common.enums.EmploymentStatus;
-import com.wfm.experts.entity.tenant.common.enums.EmploymentType;
-import com.wfm.experts.entity.tenant.common.enums.WorkMode;
+import com.wfm.experts.tenant.common.core.Subscription;
+import com.wfm.experts.tenant.common.employees.entity.Employee;
+import com.wfm.experts.tenant.common.employees.entity.PersonalInfo;
+import com.wfm.experts.tenant.common.employees.entity.OrganizationalInfo;
+import com.wfm.experts.tenant.common.employees.entity.EmploymentDetails;
+import com.wfm.experts.tenant.common.employees.entity.JobContextDetails;
+import com.wfm.experts.tenant.common.employees.entity.Role;
+import com.wfm.experts.tenant.common.employees.enums.EmploymentStatus;
+import com.wfm.experts.tenant.common.employees.enums.EmploymentType;
+import com.wfm.experts.tenant.common.employees.enums.WorkMode;
 // Only import enums for PersonalInfo if you decide to set default values for admin for fields not provided
 // import com.wfm.experts.entity.tenant.common.enums.Gender;
 // import com.wfm.experts.entity.tenant.common.enums.MaritalStatus;

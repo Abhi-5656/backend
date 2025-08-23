@@ -1,6 +1,6 @@
 package com.wfm.experts.controller;
 
-import com.wfm.experts.entity.core.Subscription;
+import com.wfm.experts.tenant.common.core.Subscription;
 import com.wfm.experts.tenant.common.setup.wizard.dto.SetupWizardDto;
 import com.wfm.experts.tenant.common.setup.wizard.service.SetupWizardService;
 import org.springframework.beans.factory.annotation.Autowired;

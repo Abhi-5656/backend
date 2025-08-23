@@ -18,7 +18,7 @@
 
 package com.wfm.experts.controller;
 
-import com.wfm.experts.entity.core.Subscription;
+import com.wfm.experts.tenant.common.core.Subscription;
 import com.wfm.experts.service.SubscriptionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;

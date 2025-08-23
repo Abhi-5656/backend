@@ -3,8 +3,8 @@ package com.wfm.experts.controller;
 
 
 
-import com.wfm.experts.entity.tenant.common.dto.EmployeeProfileRegistrationDTO;
-import com.wfm.experts.entity.tenant.common.exception.ProfileRegistrationNotFoundException;
+import com.wfm.experts.tenant.common.employees.dto.EmployeeProfileRegistrationDTO;
+import com.wfm.experts.tenant.common.employees.exception.ProfileRegistrationNotFoundException;
 import com.wfm.experts.service.EmployeeProfileRegistrationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
