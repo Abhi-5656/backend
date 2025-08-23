@@ -3,24 +3,22 @@ package com.wfm.experts.controller;
 import com.wfm.experts.tenant.common.auth.AuthRequest;
 import com.wfm.experts.tenant.common.auth.AuthResponse;
 import com.wfm.experts.tenant.common.employees.dto.EmployeeDTO;
-import com.wfm.experts.tenant.common.employees.entity.Employee;
-import com.wfm.experts.tenant.common.employees.entity.Role;
 import com.wfm.experts.exception.*;
 import com.wfm.experts.security.JwtUtil;
-import com.wfm.experts.tenant.common.employees.mapper.EmployeeMapper;
-import com.wfm.experts.tenant.common.employees.service.EmployeeService;
 import com.wfm.experts.tenancy.TenantContext;
+import com.wfm.experts.tenant.common.employees.service.EmployeeService;
 import io.jsonwebtoken.JwtException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -37,9 +35,6 @@ public class AuthController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private EmployeeMapper employeeMapper;
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestBody AuthRequest request) {
@@ -58,23 +53,14 @@ public class AuthController {
             throw new RuntimeException("Tenant ID not found in context.");
         }
 
+        UserDetails userDetails = employeeService.loadUserByUsername(request.getEmail());
+
+        if (!passwordEncoder.matches(request.getPassword(), userDetails.getPassword())) {
+            throw new InvalidPasswordException("Invalid password for email: " + request.getEmail());
+        }
+
         EmployeeDTO employeeDTO = employeeService.getEmployeeByEmail(request.getEmail())
                 .orElseThrow(() -> new InvalidEmailException("Email not found: " + request.getEmail()));
-
-        // The password from the DTO is not available, so we need to fetch the entity to verify the password
-        Employee employeeEntity = employeeService.getEmployeeByEmail(request.getEmail())
-                .map(employeeMapper::toEntity) // Assuming you add a method to convert DTO to entity in your service/mapper
-                .orElseThrow(() -> new InvalidEmailException("Email not found: " + request.getEmail()));
-
-        if (employeeEntity.getPassword() == null || employeeEntity.getPassword().trim().isEmpty()) {
-            throw new InvalidPasswordException("Invalid password for email: " + request.getEmail());
-        }
-
-
-        if (!passwordEncoder.matches(request.getPassword(), employeeEntity.getPassword())) {
-            throw new InvalidPasswordException("Invalid password for email: " + request.getEmail());
-        }
-
 
         String fullName = "";
         if (employeeDTO.getPersonalInfo() != null) {
@@ -83,7 +69,9 @@ public class AuthController {
             fullName = ((first != null ? first.trim() : "") + " " + (last != null ? last.trim() : "")).trim();
         }
 
-        List<String> roles = employeeDTO.getRoles();
+        List<String> roles = userDetails.getAuthorities().stream()
+                .map(grantedAuthority -> grantedAuthority.getAuthority())
+                .collect(Collectors.toList());
 
         String accessToken = jwtUtil.generateToken(employeeDTO.getEmail(), tenantId, roles, fullName);
         String refreshToken = jwtUtil.generateRefreshToken(employeeDTO.getEmail(), tenantId);
@@ -119,8 +107,7 @@ public class AuthController {
             if (employee.getPersonalInfo() != null) {
                 String first = employee.getPersonalInfo().getFirstName();
                 String last = employee.getPersonalInfo().getLastName();
-                fullName = ((first != null ? first.trim() : "") + " " + (last != null ? last.trim() : "")).trim();
-            }
+                fullName = ((first != null ? first.trim() : "") + " " + (last != null ? last.trim() : "")).trim();}
 
             List<String> roles = employee.getRoles();
 
