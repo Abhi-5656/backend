@@ -19,6 +19,8 @@ public interface PermissionService {
 
     Optional<PermissionDto> getPermissionById(Long id);
 
+    List<PermissionDto> createPermissions(List<PermissionDto> dtos);
+
     Optional<PermissionDto> getPermissionByName(String name);
 
     List<PermissionDto> getAllPermissions();

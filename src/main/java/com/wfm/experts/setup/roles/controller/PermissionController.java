@@ -29,6 +29,12 @@ public class PermissionController {
         return ResponseEntity.ok(permissionService.updatePermission(id, dto));
     }
 
+    @PostMapping("/bulk")
+    public ResponseEntity<List<PermissionDto>> bulkCreate(@RequestBody List<PermissionDto> dtos) {
+        List<PermissionDto> created = permissionService.createPermissions(dtos);
+        return ResponseEntity.status(201).body(created); // 201 + created list
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<PermissionDto> getById(@PathVariable Long id) {
         return permissionService.getPermissionById(id)

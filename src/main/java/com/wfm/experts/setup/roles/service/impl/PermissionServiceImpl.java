@@ -9,6 +9,7 @@ import com.wfm.experts.setup.roles.entity.Permission;
 import com.wfm.experts.setup.roles.mapper.PermissionMapper;
 import com.wfm.experts.setup.roles.repository.PermissionRepository;
 import com.wfm.experts.setup.roles.service.PermissionService;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +27,26 @@ public class PermissionServiceImpl implements PermissionService {
     public PermissionDto createPermission(PermissionDto dto) {
         Permission entity = permissionMapper.toEntity(dto);
         return permissionMapper.toDto(permissionRepository.save(entity));
+    }
+
+    @Override
+    @Transactional
+    public List<PermissionDto> createPermissions(List<PermissionDto> dtos) {
+        if (dtos == null || dtos.isEmpty()) return List.of();
+
+        List<PermissionDto> created = new java.util.ArrayList<>(dtos.size());
+        for (PermissionDto dto : dtos) {
+            // Create-only behavior: skip if a permission with same name already exists
+            if (dto.getName() == null || dto.getName().isBlank()) {
+                continue; // or throw an IllegalArgumentException if you want strict validation
+            }
+            if (permissionRepository.existsByName(dto.getName())) {
+                continue; // ignore duplicates by 'name'
+            }
+            Permission saved = permissionRepository.save(permissionMapper.toEntity(dto));
+            created.add(permissionMapper.toDto(saved));
+        }
+        return created;
     }
 
     @Override
