@@ -1,8 +1,9 @@
 package com.wfm.experts.tenant.common.employees.mapper;
 
+import com.wfm.experts.setup.roles.mapper.RoleMapper;
 import com.wfm.experts.tenant.common.employees.dto.EmployeeDTO;
 import com.wfm.experts.tenant.common.employees.entity.Employee;
-import com.wfm.experts.tenant.common.employees.entity.Role;
+import com.wfm.experts.setup.roles.entity.Role;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Mappings;

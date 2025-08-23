@@ -6,7 +6,7 @@
 //import com.wfm.experts.service.EmployeeService;
 //import com.wfm.experts.tenancy.TenantContext;
 //import com.wfm.experts.tenant.common.employees.entity.Employee;
-//import com.wfm.experts.tenant.common.employees.entity.Role;
+//import com.wfm.experts.setup.roles.entity.Role;
 //import com.wfm.experts.util.TenantSchemaUtil;
 //// Import validation groups if you intend to validate with a specific group
 //// import com.wfm.experts.validation.groups.OnEmployeeProfile;

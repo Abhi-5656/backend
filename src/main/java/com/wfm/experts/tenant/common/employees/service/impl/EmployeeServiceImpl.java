@@ -4,7 +4,7 @@ import com.wfm.experts.exception.InvalidEmailException;
 import com.wfm.experts.repository.tenant.common.EmployeeRepository;
 import com.wfm.experts.tenant.common.employees.dto.EmployeeDTO;
 import com.wfm.experts.tenant.common.employees.entity.Employee;
-import com.wfm.experts.tenant.common.employees.entity.Role;
+import com.wfm.experts.setup.roles.entity.Role;
 import com.wfm.experts.tenant.common.employees.mapper.EmployeeMapper;
 import com.wfm.experts.tenant.common.employees.service.EmployeeService;
 import com.wfm.experts.tenancy.TenantContext;
@@ -17,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -71,6 +72,8 @@ public class EmployeeServiceImpl implements EmployeeService, UserDetailsService 
         // Ensure password is encoded if not already
         if (employee.getPassword() != null && !employee.getPassword().startsWith("$2a$")) { // Basic check
             employee.setPassword(passwordEncoder.encode(employee.getPassword()));
+        } else {
+            employee.setPassword(passwordEncoder.encode(generateRandomPassword()));
         }
         // Ensure cascaded entities are handled if they are new
         prepareCascadedEntities(employee);
@@ -89,10 +92,9 @@ public class EmployeeServiceImpl implements EmployeeService, UserDetailsService 
         List<Employee> employeesToSave = new ArrayList<>();
         for (EmployeeDTO employeeDTO : employeeDTOs) {
             Employee employee = employeeMapper.toEntity(employeeDTO);
-            // Ensure password is encoded if not already
-            if (employee.getPassword() != null && !employee.getPassword().startsWith("$2a$")) { // Basic check
-                employee.setPassword(passwordEncoder.encode(employee.getPassword()));
-            }
+
+            employee.setPassword(passwordEncoder.encode(generateRandomPassword()));
+
             // Ensure tenantId is set (can be derived from context if not set on each employee object)
             if (employee.getTenantId() == null) {
                 employee.setTenantId(TenantContext.getTenant());
@@ -169,7 +171,7 @@ public class EmployeeServiceImpl implements EmployeeService, UserDetailsService 
     public EmployeeDTO updateEmployee(String email, @Valid EmployeeDTO updatedEmployeeDTO) {
         ensureSchemaSwitch();
         Employee existingEmployee = employeeRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("❌ Employee not found: " + email));
+                .orElseThrow(() -> new RuntimeException("Employee not found: " + email));
 
         // Smartly update fields from updatedEmployee to existingEmployee
         updateExistingEmployeeData(existingEmployee, updatedEmployeeDTO);
@@ -213,7 +215,7 @@ public class EmployeeServiceImpl implements EmployeeService, UserDetailsService 
     public void deleteEmployee(String email) {
         ensureSchemaSwitch();
         Employee employee = employeeRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("❌ Employee not found: " + email));
+                .orElseThrow(() -> new RuntimeException("Employee not found: " + email));
         employeeRepository.delete(employee);
     }
 
@@ -226,5 +228,16 @@ public class EmployeeServiceImpl implements EmployeeService, UserDetailsService 
         ensureSchemaSwitch();
         return employeeRepository.findByEmployeeId(employeeId)
                 .map(employeeMapper::toDto);
+    }
+
+    private String generateRandomPassword() {
+        String characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%&!";
+        int passwordLength = 12;
+        SecureRandom random = new SecureRandom();
+        StringBuilder password = new StringBuilder(passwordLength);
+        for (int i = 0; i < passwordLength; i++) {
+            password.append(characters.charAt(random.nextInt(characters.length())));
+        }
+        return password.toString();
     }
 }

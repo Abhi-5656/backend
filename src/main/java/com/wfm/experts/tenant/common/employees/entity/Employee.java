@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.wfm.experts.setup.orgstructure.entity.BusinessUnit;
 import com.wfm.experts.setup.orgstructure.entity.JobTitle;
 import com.wfm.experts.setup.orgstructure.entity.Location;
+import com.wfm.experts.setup.roles.entity.Role;
 import com.wfm.experts.validation.groups.OnEmployeeProfile; // Import group
 import jakarta.persistence.*;
 import lombok.Getter;

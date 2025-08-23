@@ -1,12 +1,13 @@
 package com.wfm.experts.service.impl;
 
+import com.wfm.experts.setup.roles.repository.RoleRepository;
 import com.wfm.experts.tenant.common.core.Subscription;
 import com.wfm.experts.tenant.common.employees.entity.Employee;
 import com.wfm.experts.tenant.common.employees.entity.PersonalInfo;
 import com.wfm.experts.tenant.common.employees.entity.OrganizationalInfo;
 import com.wfm.experts.tenant.common.employees.entity.EmploymentDetails;
 import com.wfm.experts.tenant.common.employees.entity.JobContextDetails;
-import com.wfm.experts.tenant.common.employees.entity.Role;
+import com.wfm.experts.setup.roles.entity.Role;
 import com.wfm.experts.tenant.common.employees.enums.EmploymentStatus;
 import com.wfm.experts.tenant.common.employees.enums.EmploymentType;
 import com.wfm.experts.tenant.common.employees.enums.WorkMode;
@@ -15,7 +16,6 @@ import com.wfm.experts.tenant.common.employees.enums.WorkMode;
 // import com.wfm.experts.entity.tenant.common.enums.MaritalStatus;
 import com.wfm.experts.repository.core.SubscriptionRepository;
 import com.wfm.experts.repository.tenant.common.EmployeeRepository;
-import com.wfm.experts.repository.tenant.common.RoleRepository;
 import com.wfm.experts.service.SubscriptionService;
 import com.wfm.experts.service.TenantService;
 import com.wfm.experts.util.TenantIdUtil;
