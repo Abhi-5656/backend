@@ -122,11 +122,11 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
     private void createAdminEmployeeInTenant(String tenantId, String firstName, String lastName, String email,
                                              String employeeId, String phoneNumber) {
-        Role adminRole = roleRepository.findByRoleName("ADMIN")
+        Role adminRole = roleRepository.findByRoleName("Admin")
                 .orElseGet(() -> {
-                    LOGGER.log(Level.WARNING, "ADMIN role not found in schema for tenant {0}, creating it.", tenantId);
+                    LOGGER.log(Level.WARNING, "Admin role not found in schema for tenant {0}, creating it.", tenantId);
                     Role newAdminRole = new Role();
-                    newAdminRole.setRoleName("ADMIN");
+                    newAdminRole.setRoleName("Admin");
                     return roleRepository.save(newAdminRole);
                 });
 

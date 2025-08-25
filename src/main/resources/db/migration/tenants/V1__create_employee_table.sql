@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS roles (
     );
 
 INSERT INTO roles (role_name) VALUES
-                                  ('ADMIN'), ('MANAGER'), ('EMPLOYEE'), ('HR')
+                                  ('Admin'), ('Manager'), ('Employee'), ('HR')
     ON CONFLICT (role_name) DO NOTHING;
 
 -- ===============================
