@@ -120,14 +120,20 @@
 //}
 //
 //
+//
 package com.wfm.experts.config;
 
+import com.wfm.experts.security.CustomAccessDeniedHandler;
+import com.wfm.experts.security.CustomPermissionEvaluator;
 import com.wfm.experts.security.JwtAuthenticationFilter;
 import com.wfm.experts.tenancy.TenantFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler;
+import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -144,14 +150,19 @@ import java.util.List;
 import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
+@EnableMethodSecurity
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final TenantFilter tenantFilter;
+    private final CustomPermissionEvaluator customPermissionEvaluator;
+    private final CustomAccessDeniedHandler customAccessDeniedHandler;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, TenantFilter tenantFilter) {
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, TenantFilter tenantFilter, CustomPermissionEvaluator customPermissionEvaluator, CustomAccessDeniedHandler customAccessDeniedHandler) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.tenantFilter = tenantFilter;
+        this.customPermissionEvaluator = customPermissionEvaluator;
+        this.customAccessDeniedHandler = customAccessDeniedHandler;
     }
 
     @Bean
@@ -181,6 +192,7 @@ public class SecurityConfig {
                         ).permitAll()
                         .anyRequest().authenticated() // All other requests require authentication
                 )
+                .exceptionHandling(exceptions -> exceptions.accessDeniedHandler(customAccessDeniedHandler)) // ✅ Use custom access denied handler
                 // TenantFilter runs before JwtAuthenticationFilter to set up TenantContext
                 .addFilterBefore(tenantFilter, UsernamePasswordAuthenticationFilter.class)
                 // JwtAuthenticationFilter runs after TenantFilter to handle JWT for HTTP requests
@@ -206,5 +218,12 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
+    }
+
+    @Bean
+    public MethodSecurityExpressionHandler methodSecurityExpressionHandler() {
+        DefaultMethodSecurityExpressionHandler expressionHandler = new DefaultMethodSecurityExpressionHandler();
+        expressionHandler.setPermissionEvaluator(customPermissionEvaluator);
+        return expressionHandler;
     }
 }

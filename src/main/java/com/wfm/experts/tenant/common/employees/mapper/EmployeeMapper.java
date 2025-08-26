@@ -8,6 +8,7 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Mappings;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -34,7 +35,7 @@ public interface EmployeeMapper {
 
     default List<String> mapRolesToStrings(List<Role> roles) {
         if (roles == null) {
-            return null;
+            return Collections.emptyList();
         }
         return roles.stream()
                 .map(Role::getRoleName)

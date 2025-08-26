@@ -1,5 +1,6 @@
 package com.wfm.experts.setup.wfm.shift.controller;
 
+import com.wfm.experts.setup.wfm.controller.WfmSetupController;
 import com.wfm.experts.setup.wfm.shift.dto.ShiftDTO;
 import com.wfm.experts.setup.wfm.shift.service.ShiftService;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +12,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/setup/wfm/shifts")
 @RequiredArgsConstructor
-public class ShiftController {
+public class ShiftController extends WfmSetupController {
 
     private final ShiftService shiftService;
 

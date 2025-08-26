@@ -3,6 +3,7 @@
  */
 
 package com.wfm.experts.setup.roles.service.impl;
+import org.springframework.cache.annotation.Cacheable;
 
 import com.wfm.experts.setup.roles.dto.PermissionDto;
 import com.wfm.experts.setup.roles.entity.Permission;
@@ -80,6 +81,7 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     @Override
+    @Cacheable("permissions")
     public List<PermissionDto> getAllPermissions() {
         return permissionMapper.toDtoList(permissionRepository.findAll());
     }

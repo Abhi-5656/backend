@@ -255,6 +255,8 @@ import com.wfm.experts.tenant.common.employees.service.EmployeeService;
 import com.wfm.experts.tenancy.TenantContext;
 import com.wfm.experts.util.TenantSchemaUtil;
 import jakarta.validation.Valid;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -280,7 +282,7 @@ public class EmployeeServiceImpl implements EmployeeService, UserDetailsService 
     private final EmployeeMapper employeeMapper;
     private final RoleRepository roleRepository;
 
-    public EmployeeServiceImpl(EmployeeRepository employeeRepository, TenantSchemaUtil tenantSchemaUtil, PasswordEncoder passwordEncoder, EmployeeMapper employeeMapper, RoleRepository roleRepository) {
+    public EmployeeServiceImpl(EmployeeRepository employeeRepository, TenantSchemaUtil tenantSchemaUtil, @Lazy PasswordEncoder passwordEncoder, EmployeeMapper employeeMapper, RoleRepository roleRepository) {
         this.employeeRepository = employeeRepository;
         this.tenantSchemaUtil = tenantSchemaUtil;
         this.passwordEncoder = passwordEncoder;
@@ -295,11 +297,12 @@ public class EmployeeServiceImpl implements EmployeeService, UserDetailsService 
                 .orElseThrow(() -> new InvalidEmailException("Employee not found with email: " + email));
 
         // Multi-role support: collect all authorities
-        List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+        List<GrantedAuthority> authorities = new ArrayList<>();
         if (employee.getRoles() != null) {
             for (Role role : employee.getRoles()) {
                 if (role != null && role.getRoleName() != null) {
                     authorities.add(new SimpleGrantedAuthority(role.getRoleName()));
+                    role.getPermissions().forEach(p -> authorities.add(new SimpleGrantedAuthority(p.getName())));
                 }
             }
         }
