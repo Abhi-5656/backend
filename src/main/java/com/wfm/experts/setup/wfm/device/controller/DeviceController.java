@@ -1,5 +1,6 @@
 package com.wfm.experts.setup.wfm.device.controller;
 
+import com.wfm.experts.setup.wfm.controller.WfmSetupController;
 import com.wfm.experts.setup.wfm.device.dto.DeviceDTO;
 import com.wfm.experts.setup.wfm.device.enums.DeviceStatus;
 import com.wfm.experts.setup.wfm.device.enums.DeviceType;
@@ -14,7 +15,7 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/devices")
 @RequiredArgsConstructor
-public class DeviceController {
+public class DeviceController extends WfmSetupController {
 
     private final DeviceService deviceService;
 

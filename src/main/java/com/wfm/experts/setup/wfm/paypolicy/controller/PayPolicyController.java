@@ -1,5 +1,6 @@
 package com.wfm.experts.setup.wfm.paypolicy.controller;
 
+import com.wfm.experts.setup.wfm.controller.WfmSetupController;
 import com.wfm.experts.setup.wfm.paypolicy.dto.PayPolicyDTO;
 import com.wfm.experts.setup.wfm.paypolicy.service.PayPolicyService;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/setup/wfm/pay-policies")
 @RequiredArgsConstructor
-public class PayPolicyController {
+public class PayPolicyController extends WfmSetupController {
 
     private final PayPolicyService payPolicyService;
 

@@ -1,5 +1,6 @@
 package com.wfm.experts.setup.wfm.leavepolicy.controller;
 
+import com.wfm.experts.setup.wfm.controller.WfmSetupController;
 import com.wfm.experts.setup.wfm.leavepolicy.dto.LeavePolicyDto;
 import com.wfm.experts.setup.wfm.leavepolicy.service.LeavePolicyService;
 import jakarta.validation.Valid;
@@ -17,7 +18,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/setup/wfm/leave-policies")
 @RequiredArgsConstructor
-public class LeavePolicyController {
+public class LeavePolicyController extends WfmSetupController {
 
     private final LeavePolicyService leavePolicyService;
 

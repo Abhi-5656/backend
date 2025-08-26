@@ -1,5 +1,6 @@
 package com.wfm.experts.setup.wfm.holiday.controller;
 
+import com.wfm.experts.setup.wfm.controller.WfmSetupController;
 import com.wfm.experts.setup.wfm.holiday.dto.HolidayDTO;
 import com.wfm.experts.setup.wfm.holiday.service.HolidayService;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +12,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/setup/wfm/holidays")
 @RequiredArgsConstructor
-public class HolidayController {
+public class HolidayController extends WfmSetupController {
 
     private final HolidayService holidayService;
 
