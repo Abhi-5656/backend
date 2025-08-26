@@ -188,7 +188,8 @@ public class SecurityConfig {
                                 "/public/**",            // Publicly accessible job application endpoints
                                 "/ws/**",                // WebSocket handshake endpoint and its subpaths
                                 "/swagger-ui/**",        // Swagger UI (optional)
-                                "/v3/api-docs/**"      // OpenAPI docs (optional)
+                                "/v3/api-docs/**",      // OpenAPI docs (optional)
+                                "/actuator/health"
                         ).permitAll()
                         .anyRequest().authenticated() // All other requests require authentication
                 )
@@ -207,9 +208,11 @@ public class SecurityConfig {
         config.setAllowedOrigins(List.of(
                 "http://localhost:4200",
                 "http://192.168.1.4:4200", // ✅ Added IP-based frontend access
-                "http://192.168.0.211:4200",
+                "http://192.168.0.210:4200",
                 "http://192.168.1.100:4200",
-                ""
+                "http://d3hs9u8alp2av.cloudfront.net",
+                "https://d3hs9u8alp2av.cloudfront.net",// ✅ Add your CloudFront domain here
+                "http://wfm-backend-alb-60464600.ap-south-1.elb.amazonaws.com"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));

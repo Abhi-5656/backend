@@ -90,11 +90,9 @@ CREATE TABLE IF NOT EXISTS employee_organizational_info (
                                                             job_context_details_id BIGINT UNIQUE NOT NULL,
                                                             org_assignment_effective_date DATE NOT NULL,
                                                             CONSTRAINT fk_orginfo_employment_details
-                                                            FOREIGN KEY (employment_details_id)
-    REFERENCES employee_employment_details(id) ON DELETE RESTRICT,
+                                                            FOREIGN KEY (employment_details_id) REFERENCES employee_employment_details(id) ON DELETE RESTRICT,
     CONSTRAINT fk_orginfo_job_context_details
-    FOREIGN KEY (job_context_details_id)
-    REFERENCES employee_job_context_details(id) ON DELETE RESTRICT
+    FOREIGN KEY (job_context_details_id) REFERENCES employee_job_context_details(id) ON DELETE RESTRICT
     );
 
 -- ===============================
@@ -216,7 +214,10 @@ INSERT INTO permissions (name, description, module_name) VALUES
 ('wfm:employee:shift-rotation-assignment:assign', 'Allows a user to assign shift rotations to employees.', 'WFM Employee Assignment'),
 ('wfm:employee:shift-rotation-assignment:update', 'Allows a user to update employee shift rotation assignments.', 'WFM Employee Assignment'),
 ('wfm:employee:shift-rotation-assignment:read', 'Allows a user to view employee shift rotation assignments.', 'WFM Employee Assignment'),
-('wfm:employee:shift-rotation-assignment:delete', 'Allows a user to delete employee shift rotation assignments.', 'WFM Employee Assignment')
+('wfm:employee:shift-rotation-assignment:delete', 'Allows a user to delete employee shift rotation assignments.', 'WFM Employee Assignment'),
+
+-- WFM Roster
+('wfm:roster:readAll', 'Allows a user to view the complete roster data for all employees.', 'WFM Roster')
     ON CONFLICT (name) DO NOTHING;
 
 -- ===============================
@@ -245,7 +246,7 @@ INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.role_id, p.id
 FROM role_ids r
          JOIN permissions p ON p.name IN (
-    -- Employee CRUD (including readAll)
+    -- Employee CRUD
                                           'employee:create','employee:read','employee:readAll','employee:update','employee:delete',
     -- Timesheet
                                           'timesheet:read','timesheet:readAll','timesheet:update','timesheet:create',
