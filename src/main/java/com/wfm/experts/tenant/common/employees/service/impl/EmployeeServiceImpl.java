@@ -244,12 +244,14 @@
 //
 package com.wfm.experts.tenant.common.employees.service.impl;
 
+import com.wfm.experts.dashboard.dto.EmployeeAnalyticsDTO;
 import com.wfm.experts.exception.InvalidEmailException;
 import com.wfm.experts.repository.tenant.common.EmployeeRepository;
 import com.wfm.experts.setup.roles.repository.RoleRepository;
 import com.wfm.experts.tenant.common.employees.dto.EmployeeDTO;
 import com.wfm.experts.tenant.common.employees.entity.Employee;
 import com.wfm.experts.setup.roles.entity.Role;
+import com.wfm.experts.tenant.common.employees.enums.EmploymentStatus;
 import com.wfm.experts.tenant.common.employees.mapper.EmployeeMapper;
 import com.wfm.experts.tenant.common.employees.service.EmployeeService;
 import com.wfm.experts.tenancy.TenantContext;
@@ -265,9 +267,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.ZoneId;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -508,6 +511,27 @@ public class EmployeeServiceImpl implements EmployeeService, UserDetailsService 
 
     private void ensureSchemaSwitch() {
         tenantSchemaUtil.ensureTenantSchemaIsSet();
+    }
+
+    @Override
+    public EmployeeAnalyticsDTO getEmployeeAnalytics(int year, int month) {
+        ensureSchemaSwitch();
+
+        YearMonth yearMonth = YearMonth.of(year, month);
+        LocalDate startOfMonth = yearMonth.atDay(1);
+        LocalDate endOfMonth = yearMonth.atEndOfMonth();
+
+        long newHires = employeeRepository.countByOrganizationalInfoEmploymentDetailsDateOfJoiningBetween(startOfMonth, endOfMonth);
+        long departures = employeeRepository.countByOrganizationalInfoEmploymentDetailsEmploymentStatusInAndUpdatedAtBetween(
+                Arrays.asList(EmploymentStatus.RESIGNED, EmploymentStatus.TERMINATED),
+                Date.from(startOfMonth.atStartOfDay(ZoneId.systemDefault()).toInstant()),
+                Date.from(endOfMonth.atStartOfDay(ZoneId.systemDefault()).toInstant())
+        );
+
+        return EmployeeAnalyticsDTO.builder()
+                .newHires(newHires)
+                .departures(departures)
+                .build();
     }
 
     @Override

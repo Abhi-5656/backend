@@ -2,9 +2,13 @@ package com.wfm.experts.repository.tenant.common;
 
 import com.wfm.experts.tenant.common.employees.entity.Employee;
 import com.wfm.experts.setup.roles.entity.Role;
+import com.wfm.experts.tenant.common.employees.enums.EmploymentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
+import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,4 +26,9 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
     // (Optional) Find Employees with any of a set of roles
     List<Employee> findByRolesIn(List<Role> roles);
+
+    long countByOrganizationalInfoEmploymentDetailsDateOfJoiningBetween(LocalDate startDate, LocalDate endDate);
+
+    long countByOrganizationalInfoEmploymentDetailsEmploymentStatusInAndUpdatedAtBetween(Collection<EmploymentStatus> statuses, Date startDate, Date endDate);
+
 }

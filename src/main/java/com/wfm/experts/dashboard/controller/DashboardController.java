@@ -1,10 +1,10 @@
 package com.wfm.experts.dashboard.controller;
 
+import com.wfm.experts.dashboard.dto.EmployeeAnalyticsDTO;
 import com.wfm.experts.dashboard.dto.TodaysStatusDTO;
 import com.wfm.experts.modules.wfm.features.timesheet.dto.PunchEventDTO;
 import com.wfm.experts.modules.wfm.features.timesheet.dto.TimesheetDTO;
 import com.wfm.experts.modules.wfm.features.timesheet.enums.PunchType;
-import com.wfm.experts.modules.wfm.features.timesheet.service.PunchEventService;
 import com.wfm.experts.modules.wfm.features.timesheet.service.TimesheetService;
 import com.wfm.experts.tenant.common.employees.service.EmployeeService;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -26,7 +27,6 @@ public class DashboardController {
 
     private final TimesheetService timesheetService;
     private final EmployeeService employeeService;
-    private final PunchEventService punchEventService;
 
     /**
      * Get the weekly timesheet data for a specific employee.
@@ -58,14 +58,41 @@ public class DashboardController {
 
     /**
      * Create a new punch event for an employee (punch in/out).
+     * This action finds or creates a timesheet for the day and adds the punch event to it.
      *
      * @param punchEventDTO The punch event data.
      * @return The created punch event.
      */
     @PostMapping("/punch-in-out")
-    @PreAuthorize("hasAuthority('timesheet:create') or (hasAuthority('timesheet:create:own') and #punchEventDTO.employeeId == authentication.principal.username)")
+    @PreAuthorize("hasAuthority('dashboard:punch-in-out:create')")
     public ResponseEntity<PunchEventDTO> punchInOut(@RequestBody PunchEventDTO punchEventDTO) {
-        return ResponseEntity.ok(punchEventService.createPunchEvent(punchEventDTO));
+        // Get the timesheet for the employee and date of the punch. If it doesn't exist, create a new one.
+        TimesheetDTO timesheetForToday = timesheetService.getTimesheetByEmployeeAndDate(
+                        punchEventDTO.getEmployeeId(), punchEventDTO.getEventTime().toLocalDate())
+                .orElseGet(() -> {
+                    TimesheetDTO newDto = new TimesheetDTO();
+                    newDto.setEmployeeId(punchEventDTO.getEmployeeId());
+                    newDto.setWorkDate(punchEventDTO.getEventTime().toLocalDate());
+                    newDto.setPunchEvents(new ArrayList<>());
+                    return newDto;
+                });
+
+        // Add the new punch event to the timesheet
+        if (timesheetForToday.getPunchEvents() == null) {
+            timesheetForToday.setPunchEvents(new ArrayList<>());
+        }
+        timesheetForToday.getPunchEvents().add(punchEventDTO);
+
+        // Call the timesheet service to save the timesheet and the new punch
+        TimesheetDTO updatedTimesheet = timesheetService.createTimesheet(timesheetForToday);
+
+        // Find the newly created punch event from the result to return it
+        PunchEventDTO createdPunch = updatedTimesheet.getPunchEvents().stream()
+                .filter(p -> p.getEventTime().equals(punchEventDTO.getEventTime()) && p.getPunchType().equals(punchEventDTO.getPunchType()))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Could not find the created punch event in the timesheet response."));
+
+        return ResponseEntity.ok(createdPunch);
     }
 
     /**
@@ -75,7 +102,7 @@ public class DashboardController {
      * @return Today's status, including clock-in time, working hours, and attendance status.
      */
     @GetMapping("/todays-status/{employeeId}")
-    @PreAuthorize("hasAuthority('timesheet:readAll') or (hasAuthority('timesheet:read:own') and #employeeId == authentication.principal.username)")
+    @PreAuthorize("hasAuthority('dashboard:todays-status:read')")
     public ResponseEntity<TodaysStatusDTO> getTodaysStatus(@PathVariable String employeeId) {
         Optional<TimesheetDTO> todaysTimesheetOpt = timesheetService.getTimesheetByEmployeeAndDate(employeeId, LocalDate.now());
 
@@ -110,5 +137,13 @@ public class DashboardController {
                 .build();
 
         return ResponseEntity.ok(todaysStatus);
+    }
+
+    @GetMapping("/employee-analytics")
+    @PreAuthorize("hasAuthority('dashboard:employeeAnalytics:read')")
+    public ResponseEntity<EmployeeAnalyticsDTO> getEmployeeAnalytics(
+            @RequestParam int year,
+            @RequestParam int month) {
+        return ResponseEntity.ok(employeeService.getEmployeeAnalytics(year, month));
     }
 }
