@@ -176,6 +176,17 @@ public class EmployeeController {
         return ResponseEntity.status(HttpStatus.CREATED).body(createdEmployees);
     }
 
+    @PutMapping("/multi-update")
+    @PreAuthorize("hasAuthority('employee:update')")
+    public ResponseEntity<List<EmployeeDTO>> updateMultipleEmployees(
+            @RequestHeader("Authorization") String token,
+            @RequestBody List<@Valid EmployeeDTO> employees) {
+        setTenantSchemaFromToken(token);
+        List<EmployeeDTO> updatedEmployees = employeeService.updateMultipleEmployees(employees);
+        return ResponseEntity.ok(updatedEmployees);
+    }
+
+
     @GetMapping("/ids")
     @PreAuthorize("hasAuthority('employee:readAll')")
     public ResponseEntity<List<String>> getAllEmployeeIds(@RequestHeader("Authorization") String token) {

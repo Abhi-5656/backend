@@ -6,7 +6,7 @@ import com.wfm.experts.notificationengine.repository.AppNotificationRepository;
 import com.wfm.experts.notificationengine.service.AppNotificationService;
 import com.wfm.experts.notificationengine.service.TemplatingService;
 import com.wfm.experts.tenancy.TenantContext;
-import com.wfm.experts.repository.tenant.common.EmployeeRepository;
+import com.wfm.experts.tenant.common.employees.repository.EmployeeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,14 +17,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async; // Import Async
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture; // For async result
-import java.util.stream.Collectors;
+
 
 @Service
 // Transactional at class level might be okay, but for async methods, be careful.

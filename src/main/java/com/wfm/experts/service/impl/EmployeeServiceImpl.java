@@ -2,7 +2,7 @@
 //
 //// Import necessary entities if you need to pre-populate them for bulk creation
 //import com.wfm.experts.exception.InvalidEmailException;
-//import com.wfm.experts.repository.tenant.common.EmployeeRepository;
+//import com.wfm.experts.tenant.common.employees.repository.EmployeeRepository;
 //import com.wfm.experts.service.EmployeeService;
 //import com.wfm.experts.tenancy.TenantContext;
 //import com.wfm.experts.tenant.common.employees.entity.Employee;

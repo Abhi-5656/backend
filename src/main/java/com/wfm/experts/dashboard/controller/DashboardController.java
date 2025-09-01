@@ -2,6 +2,8 @@ package com.wfm.experts.dashboard.controller;
 
 import com.wfm.experts.dashboard.dto.EmployeeAnalyticsDTO;
 import com.wfm.experts.dashboard.dto.TodaysStatusDTO;
+import com.wfm.experts.modules.wfm.features.roster.dto.EmployeeShiftRosterDTO;
+import com.wfm.experts.modules.wfm.features.roster.service.EmployeeShiftService;
 import com.wfm.experts.modules.wfm.features.timesheet.dto.PunchEventDTO;
 import com.wfm.experts.modules.wfm.features.timesheet.dto.TimesheetDTO;
 import com.wfm.experts.modules.wfm.features.timesheet.enums.PunchType;
@@ -13,7 +15,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.DayOfWeek;
+import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -27,6 +31,7 @@ public class DashboardController {
 
     private final TimesheetService timesheetService;
     private final EmployeeService employeeService;
+    private final EmployeeShiftService employeeShiftService;
 
     /**
      * Get the weekly timesheet data for a specific employee.
@@ -51,10 +56,11 @@ public class DashboardController {
      * @return The total number of employees.
      */
     @GetMapping("/total-employees")
-    @PreAuthorize("hasAuthority('employee:readAll')")
+    @PreAuthorize("hasAuthority('dashboard:total-employees:read')")
     public ResponseEntity<Integer> getTotalEmployees() {
         return ResponseEntity.ok(employeeService.getAllEmployees().size());
     }
+
 
     /**
      * Create a new punch event for an employee (punch in/out).
@@ -112,7 +118,10 @@ public class DashboardController {
 
         TimesheetDTO todaysTimesheet = todaysTimesheetOpt.get();
         String clockIn = "N/A";
+        String clockOut = null;
         String workingHours = "0h 0m";
+
+        List<EmployeeShiftRosterDTO> roster = employeeShiftService.getRosterForEmployeeByDateRange(employeeId, LocalDate.now(), LocalDate.now());
 
         if (todaysTimesheet.getPunchEvents() != null && !todaysTimesheet.getPunchEvents().isEmpty()) {
             Optional<PunchEventDTO> firstInPunch = todaysTimesheet.getPunchEvents().stream()
@@ -123,17 +132,33 @@ public class DashboardController {
                 clockIn = firstInPunch.get().getEventTime().format(DateTimeFormatter.ofPattern("h:mm a"));
             }
 
-            if (todaysTimesheet.getTotalWorkDurationMinutes() != null) {
-                long hours = todaysTimesheet.getTotalWorkDurationMinutes() / 60;
-                long minutes = todaysTimesheet.getTotalWorkDurationMinutes() % 60;
-                workingHours = String.format("%dh %dm", hours, minutes);
+            Optional<PunchEventDTO> lastOutPunch = todaysTimesheet.getPunchEvents().stream()
+                    .filter(p -> p.getPunchType() == PunchType.OUT)
+                    .max(Comparator.comparing(PunchEventDTO::getEventTime));
+
+            if (lastOutPunch.isPresent()) {
+                clockOut = lastOutPunch.get().getEventTime().format(DateTimeFormatter.ofPattern("h:mm a"));
             }
+        }
+
+        if (!roster.isEmpty() && roster.get(0).getShift() != null) {
+            LocalTime startTime = LocalTime.parse(roster.get(0).getShift().getStartTime());
+            LocalTime endTime = LocalTime.parse(roster.get(0).getShift().getEndTime());
+            Duration shiftDuration = Duration.between(startTime, endTime);
+            long hours = shiftDuration.toHours();
+            long minutes = shiftDuration.toMinutes() % 60;
+            workingHours = String.format("%dh %dm", hours, minutes);
+        } else if (todaysTimesheet.getTotalWorkDurationMinutes() != null) {
+            long hours = todaysTimesheet.getTotalWorkDurationMinutes() / 60;
+            long minutes = todaysTimesheet.getTotalWorkDurationMinutes() % 60;
+            workingHours = String.format("%dh %dm", hours, minutes);
         }
 
         TodaysStatusDTO todaysStatus = TodaysStatusDTO.builder()
                 .clockIn(clockIn)
                 .workingHours(workingHours)
                 .status(todaysTimesheet.getStatus())
+                .clockOut(clockOut)
                 .build();
 
         return ResponseEntity.ok(todaysStatus);

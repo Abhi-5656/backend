@@ -7,7 +7,7 @@ import com.wfm.experts.modules.wfm.employee.assignment.shiftrotation.mapper.Shif
 import com.wfm.experts.modules.wfm.employee.assignment.shiftrotation.repository.ShiftRotationAssignmentRepository;
 import com.wfm.experts.modules.wfm.employee.assignment.shiftrotation.service.ShiftRotationAssignmentService;
 import com.wfm.experts.modules.wfm.features.roster.service.EmployeeShiftService;
-import com.wfm.experts.repository.tenant.common.EmployeeRepository;
+import com.wfm.experts.tenant.common.employees.repository.EmployeeRepository;
 import com.wfm.experts.setup.wfm.shift.entity.ShiftRotation;
 import com.wfm.experts.setup.wfm.shift.repository.ShiftRotationRepository;
 import jakarta.transaction.Transactional;

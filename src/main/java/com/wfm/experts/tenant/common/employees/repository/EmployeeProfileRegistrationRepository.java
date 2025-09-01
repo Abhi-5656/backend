@@ -1,4 +1,4 @@
-package com.wfm.experts.repository.tenant.common;
+package com.wfm.experts.tenant.common.employees.repository;
 
 import com.wfm.experts.tenant.common.employees.entity.EmployeeProfileRegistration;
 import org.springframework.data.jpa.repository.JpaRepository;

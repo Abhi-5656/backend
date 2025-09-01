@@ -6,7 +6,7 @@ import com.wfm.experts.modules.wfm.employee.assignment.paypolicy.entity.PayPolic
 import com.wfm.experts.modules.wfm.employee.assignment.paypolicy.mapper.PayPolicyAssignmentMapper;
 import com.wfm.experts.modules.wfm.employee.assignment.paypolicy.repository.PayPolicyAssignmentRepository;
 import com.wfm.experts.modules.wfm.employee.assignment.paypolicy.service.PayPolicyAssignmentService;
-import com.wfm.experts.repository.tenant.common.EmployeeRepository;
+import com.wfm.experts.tenant.common.employees.repository.EmployeeRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

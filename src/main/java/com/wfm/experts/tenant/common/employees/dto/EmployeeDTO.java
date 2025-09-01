@@ -1,5 +1,6 @@
 package com.wfm.experts.tenant.common.employees.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.wfm.experts.setup.orgstructure.dto.BusinessUnitDto;
 import com.wfm.experts.setup.orgstructure.dto.JobTitleDto;
 import com.wfm.experts.setup.orgstructure.dto.LocationDto;
@@ -21,6 +22,8 @@ public class EmployeeDTO {
     private String employeeId;
     private String email;
     private String phoneNumber;
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private String password;
     private List<String> roles;
     private PersonalInfoDTO personalInfo;
     private OrganizationalInfoDTO organizationalInfo;

@@ -54,4 +54,6 @@ public interface EmployeeService extends UserDetailsService {
     Optional<EmployeeDTO> getEmployeeByEmployeeId(String employeeId);
 
     EmployeeAnalyticsDTO getEmployeeAnalytics(int year, int month);
+
+    List<EmployeeDTO> updateMultipleEmployees(List<EmployeeDTO> employeeDTOs);
 }

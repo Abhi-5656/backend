@@ -6,8 +6,8 @@ import com.wfm.experts.tenant.common.employees.dto.EmployeeProfileRegistrationDT
 import com.wfm.experts.tenant.common.employees.exception.ProfileRegistrationNotFoundException;
 import com.wfm.experts.tenant.common.employees.exception.ResourceNotFoundException;
 import com.wfm.experts.tenant.common.employees.mapper.EmployeeProfileRegistrationMapper;
-import com.wfm.experts.repository.tenant.common.EmployeeProfileRegistrationRepository;
-import com.wfm.experts.repository.tenant.common.EmployeeRepository;
+import com.wfm.experts.tenant.common.employees.repository.EmployeeProfileRegistrationRepository;
+import com.wfm.experts.tenant.common.employees.repository.EmployeeRepository;
 import com.wfm.experts.service.EmployeeProfileRegistrationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

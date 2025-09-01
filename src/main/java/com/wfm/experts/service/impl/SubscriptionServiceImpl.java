@@ -15,7 +15,7 @@ import com.wfm.experts.tenant.common.employees.enums.WorkMode;
 // import com.wfm.experts.entity.tenant.common.enums.Gender;
 // import com.wfm.experts.entity.tenant.common.enums.MaritalStatus;
 import com.wfm.experts.repository.core.SubscriptionRepository;
-import com.wfm.experts.repository.tenant.common.EmployeeRepository;
+import com.wfm.experts.tenant.common.employees.repository.EmployeeRepository;
 import com.wfm.experts.service.SubscriptionService;
 import com.wfm.experts.service.TenantService;
 import com.wfm.experts.util.TenantIdUtil;
