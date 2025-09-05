@@ -5,7 +5,8 @@ import lombok.Data;
 
 @Data
 @Builder
-public class EmployeeAnalyticsDTO {
-    private long newHires;
-    private long departures;
+public class DailyHoursDTO {
+
+    private String day;
+    private double hours;
 }

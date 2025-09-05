@@ -244,7 +244,6 @@
 //
 package com.wfm.experts.tenant.common.employees.service.impl;
 
-import com.wfm.experts.dashboard.dto.EmployeeAnalyticsDTO;
 import com.wfm.experts.exception.InvalidEmailException;
 import com.wfm.experts.tenant.common.employees.repository.EmployeeRepository;
 import com.wfm.experts.setup.roles.repository.RoleRepository;
@@ -683,26 +682,7 @@ public class EmployeeServiceImpl implements EmployeeService, UserDetailsService 
         tenantSchemaUtil.ensureTenantSchemaIsSet();
     }
 
-    @Override
-    public EmployeeAnalyticsDTO getEmployeeAnalytics(int year, int month) {
-        ensureSchemaSwitch();
 
-        YearMonth yearMonth = YearMonth.of(year, month);
-        LocalDate startOfMonth = yearMonth.atDay(1);
-        LocalDate endOfMonth = yearMonth.atEndOfMonth();
-
-        long newHires = employeeRepository.countByOrganizationalInfoEmploymentDetailsDateOfJoiningBetween(startOfMonth, endOfMonth);
-        long departures = employeeRepository.countByOrganizationalInfoEmploymentDetailsEmploymentStatusInAndUpdatedAtBetween(
-                Arrays.asList(EmploymentStatus.RESIGNED, EmploymentStatus.TERMINATED),
-                Date.from(startOfMonth.atStartOfDay(ZoneId.systemDefault()).toInstant()),
-                Date.from(endOfMonth.atStartOfDay(ZoneId.systemDefault()).toInstant())
-        );
-
-        return EmployeeAnalyticsDTO.builder()
-                .newHires(newHires)
-                .departures(departures)
-                .build();
-    }
 
     @Override
     public Optional<EmployeeDTO> getEmployeeByEmployeeId(String employeeId) {

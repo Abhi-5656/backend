@@ -1,6 +1,5 @@
 package com.wfm.experts.tenant.common.employees.service;
 
-import com.wfm.experts.dashboard.dto.EmployeeAnalyticsDTO;
 import com.wfm.experts.tenant.common.employees.dto.EmployeeDTO;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import java.util.List;
@@ -53,7 +52,6 @@ public interface EmployeeService extends UserDetailsService {
      */
     Optional<EmployeeDTO> getEmployeeByEmployeeId(String employeeId);
 
-    EmployeeAnalyticsDTO getEmployeeAnalytics(int year, int month);
 
     List<EmployeeDTO> updateMultipleEmployees(List<EmployeeDTO> employeeDTOs);
 }
