@@ -1,6 +1,7 @@
 package com.wfm.experts.dashboard.controller;
 
 import com.wfm.experts.dashboard.dto.AttendanceTimesheetDTO;
+import com.wfm.experts.dashboard.dto.MySummaryDTO;
 import com.wfm.experts.dashboard.service.DashboardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -21,5 +22,11 @@ public class DashboardController {
     @PreAuthorize("hasAuthority('timesheet:readAll') or (hasAuthority('timesheet:read:own') and #employeeId == authentication.principal.username)")
     public ResponseEntity<AttendanceTimesheetDTO> getAttendanceTimesheet(@PathVariable String employeeId) {
         return ResponseEntity.ok(dashboardService.getAttendanceTimesheet(employeeId));
+    }
+
+    @GetMapping("/my-summary/{employeeId}")
+    @PreAuthorize("hasAuthority('timesheet:readAll') or (hasAuthority('timesheet:read:own') and #employeeId == authentication.principal.username)")
+    public ResponseEntity<MySummaryDTO> getMySummary(@PathVariable String employeeId) {
+        return ResponseEntity.ok(dashboardService.getMySummary(employeeId));
     }
 }
