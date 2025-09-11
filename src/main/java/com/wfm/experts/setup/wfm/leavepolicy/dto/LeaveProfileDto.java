@@ -1,0 +1,18 @@
+package com.wfm.experts.setup.wfm.leavepolicy.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import lombok.Data;
+import java.util.Set;
+
+@Data
+public class LeaveProfileDto {
+
+    private Long id;
+
+    @NotBlank(message = "Profile name cannot be blank.")
+    private String profileName;
+
+    @NotEmpty(message = "At least one leave policy must be selected.")
+    private Set<Long> leavePolicyIds;
+}
