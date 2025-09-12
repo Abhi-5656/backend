@@ -3,6 +3,7 @@ package com.wfm.experts.setup.wfm.leavepolicy.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import java.util.HashSet;
 import java.util.Set;
 
 @Entity
@@ -18,11 +19,10 @@ public class LeaveProfile {
     @Column(name = "profile_name", nullable = false, unique = true)
     private String profileName;
 
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            name = "leave_profile_policies",
-            joinColumns = @JoinColumn(name = "leave_profile_id"),
-            inverseJoinColumns = @JoinColumn(name = "leave_policy_id")
+    @OneToMany(
+            mappedBy = "leaveProfile",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
     )
-    private Set<LeavePolicy> leavePolicies;
+    private Set<LeaveProfilePolicy> leaveProfilePolicies = new HashSet<>();
 }

@@ -40,7 +40,7 @@ public class LeaveProfileController extends WfmSetupController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('wfm:setup:leave-profile:read')")
+//    @PreAuthorize("hasAuthority('wfm:setup:leave-profile:read')")
     public ResponseEntity<List<LeaveProfileDto>> getAll() {
         return ResponseEntity.ok(leaveProfileService.getAllLeaveProfiles());
     }

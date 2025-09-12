@@ -1,10 +1,13 @@
 package com.wfm.experts.setup.wfm.leavepolicy.service.impl;
 
+import com.wfm.experts.setup.wfm.leavepolicy.dto.LeavePolicySettingDto;
 import com.wfm.experts.setup.wfm.leavepolicy.dto.LeaveProfileDto;
 import com.wfm.experts.setup.wfm.leavepolicy.entity.LeavePolicy;
 import com.wfm.experts.setup.wfm.leavepolicy.entity.LeaveProfile;
+import com.wfm.experts.setup.wfm.leavepolicy.entity.LeaveProfilePolicy;
 import com.wfm.experts.setup.wfm.leavepolicy.exception.LeaveProfileAlreadyExistsException;
 import com.wfm.experts.setup.wfm.leavepolicy.exception.LeaveProfileNotFoundException;
+import com.wfm.experts.setup.wfm.leavepolicy.exception.ResourceNotFoundException;
 import com.wfm.experts.setup.wfm.leavepolicy.mapper.LeaveProfileMapper;
 import com.wfm.experts.setup.wfm.leavepolicy.repository.LeavePolicyRepository;
 import com.wfm.experts.setup.wfm.leavepolicy.repository.LeaveProfileRepository;
@@ -34,9 +37,22 @@ public class LeaveProfileServiceImpl implements LeaveProfileService {
             throw new LeaveProfileAlreadyExistsException(dto.getProfileName());
         }
 
-        LeaveProfile leaveProfile = leaveProfileMapper.toEntity(dto);
-        Set<LeavePolicy> policies = new HashSet<>(leavePolicyRepository.findAllById(dto.getLeavePolicyIds()));
-        leaveProfile.setLeavePolicies(policies);
+        LeaveProfile leaveProfile = new LeaveProfile();
+        leaveProfile.setProfileName(dto.getProfileName());
+
+        Set<LeaveProfilePolicy> profilePolicies = new HashSet<>();
+        for (LeavePolicySettingDto settingDto : dto.getLeavePolicySettings()) {
+            LeavePolicy leavePolicy = leavePolicyRepository.findById(settingDto.getPolicyId())
+                    .orElseThrow(() -> new ResourceNotFoundException("LeavePolicy not found with id: " + settingDto.getPolicyId()));
+
+            LeaveProfilePolicy profilePolicy = new LeaveProfilePolicy();
+            profilePolicy.setLeaveProfile(leaveProfile);
+            profilePolicy.setLeavePolicy(leavePolicy);
+            profilePolicy.setVisibility(settingDto.getVisibility());
+
+            profilePolicies.add(profilePolicy);
+        }
+        leaveProfile.setLeaveProfilePolicies(profilePolicies);
 
         LeaveProfile savedProfile = leaveProfileRepository.save(leaveProfile);
         return leaveProfileMapper.toDto(savedProfile);
@@ -47,7 +63,6 @@ public class LeaveProfileServiceImpl implements LeaveProfileService {
         LeaveProfile existingProfile = leaveProfileRepository.findById(id)
                 .orElseThrow(() -> new LeaveProfileNotFoundException(id));
 
-        // Check if the new name is already taken by another profile
         leaveProfileRepository.findByProfileName(dto.getProfileName()).ifPresent(p -> {
             if (!p.getId().equals(id)) {
                 throw new LeaveProfileAlreadyExistsException(dto.getProfileName());
@@ -55,8 +70,21 @@ public class LeaveProfileServiceImpl implements LeaveProfileService {
         });
 
         existingProfile.setProfileName(dto.getProfileName());
-        Set<LeavePolicy> policies = new HashSet<>(leavePolicyRepository.findAllById(dto.getLeavePolicyIds()));
-        existingProfile.setLeavePolicies(policies);
+
+        // This clears the existing set and the orphanRemoval=true on the entity will delete the old records
+        existingProfile.getLeaveProfilePolicies().clear();
+
+        for (LeavePolicySettingDto settingDto : dto.getLeavePolicySettings()) {
+            LeavePolicy leavePolicy = leavePolicyRepository.findById(settingDto.getPolicyId())
+                    .orElseThrow(() -> new ResourceNotFoundException("LeavePolicy not found with id: " + settingDto.getPolicyId()));
+
+            LeaveProfilePolicy profilePolicy = new LeaveProfilePolicy();
+            profilePolicy.setLeaveProfile(existingProfile);
+            profilePolicy.setLeavePolicy(leavePolicy);
+            profilePolicy.setVisibility(settingDto.getVisibility());
+
+            existingProfile.getLeaveProfilePolicies().add(profilePolicy);
+        }
 
         LeaveProfile updatedProfile = leaveProfileRepository.save(existingProfile);
         return leaveProfileMapper.toDto(updatedProfile);

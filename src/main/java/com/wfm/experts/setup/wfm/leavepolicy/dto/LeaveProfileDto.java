@@ -1,9 +1,10 @@
 package com.wfm.experts.setup.wfm.leavepolicy.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import lombok.Data;
-import java.util.Set;
+import java.util.List;
 
 @Data
 public class LeaveProfileDto {
@@ -14,5 +15,6 @@ public class LeaveProfileDto {
     private String profileName;
 
     @NotEmpty(message = "At least one leave policy must be selected.")
-    private Set<Long> leavePolicyIds;
+    @Valid
+    private List<LeavePolicySettingDto> leavePolicySettings;
 }
