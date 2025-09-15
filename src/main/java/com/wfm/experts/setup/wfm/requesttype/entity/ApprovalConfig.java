@@ -1,6 +1,6 @@
 package com.wfm.experts.setup.wfm.requesttype.entity;
 
-import com.wfm.experts.setup.wfm.requesttype.enums.AutoActionType;
+import com.wfm.experts.setup.wfm.requesttype.enums.ApprovalModeType; // Import the new enum
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.List;
@@ -15,7 +15,10 @@ public class ApprovalConfig {
     private Long id;
 
     private boolean enabled;
-    private boolean requires;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "mode")
+    private ApprovalModeType mode; // Replaces 'requires' and 'autoAction'
 
     @ElementCollection
     @CollectionTable(name = "approval_chain_steps", joinColumns = @JoinColumn(name = "approval_id"))
@@ -27,10 +30,9 @@ public class ApprovalConfig {
     @Column(name = "notify_target")
     private List<String> notify;
 
-    private int escalate;
+    // Use Integer wrapper class to allow for null values
+    private Integer escalate;
 
-    @Enumerated(EnumType.STRING)
-    private AutoActionType autoAction;
-
-    private int autoDays;
+    // Use Integer wrapper class to allow for null values
+    private Integer autoDays;
 }
