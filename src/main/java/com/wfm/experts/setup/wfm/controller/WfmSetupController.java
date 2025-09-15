@@ -6,6 +6,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/setup/wfm")
-@PreAuthorize("hasAuthority('wfm:setup:manage')")
+//@PreAuthorize("hasAuthority('wfm:setup:manage')")
 public abstract class WfmSetupController {
 }

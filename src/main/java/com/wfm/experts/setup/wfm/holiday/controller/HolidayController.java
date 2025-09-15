@@ -90,7 +90,7 @@ public class HolidayController extends WfmSetupController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('wfm:setup:holiday:read')")
+//    @PreAuthorize("hasAuthority('wfm:setup:holiday:read')")
     public ResponseEntity<HolidayDTO> getHoliday(@PathVariable Long id) {
         HolidayDTO holiday = holidayService.getHoliday(id);
         return ResponseEntity.ok(holiday);

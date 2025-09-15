@@ -95,7 +95,7 @@ public class PayPolicyController extends WfmSetupController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('wfm:setup:pay-policy:read')")
+//    @PreAuthorize("hasAuthority('wfm:setup:pay-policy:read')")
     public ResponseEntity<List<PayPolicyDTO>> getAll() {
         List<PayPolicyDTO> policies = payPolicyService.getAll();
         return ResponseEntity.ok(policies);

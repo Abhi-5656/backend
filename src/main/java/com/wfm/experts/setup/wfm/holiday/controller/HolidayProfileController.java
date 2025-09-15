@@ -93,7 +93,7 @@ public class HolidayProfileController extends WfmSetupController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('wfm:setup:holiday-profile:read')")
+//    @PreAuthorize("hasAuthority('wfm:setup:holiday-profile:read')")
     public ResponseEntity<List<HolidayProfileDTO>> getAllProfiles() {
         List<HolidayProfileDTO> profiles = holidayProfileService.getAllProfiles();
         return ResponseEntity.ok(profiles);
