@@ -97,7 +97,7 @@ public class HolidayController extends WfmSetupController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('wfm:setup:holiday:read')")
+//    @PreAuthorize("hasAuthority('wfm:setup:holiday:read')")
     public ResponseEntity<List<HolidayDTO>> getAllHolidays() {
         List<HolidayDTO> holidays = holidayService.getAllHolidays();
         return ResponseEntity.ok(holidays);
@@ -111,7 +111,7 @@ public class HolidayController extends WfmSetupController {
     }
 
     @PostMapping("/multi_create")
-    @PreAuthorize("hasAuthority('wfm:setup:holiday:create')")
+//    @PreAuthorize("hasAuthority('wfm:setup:holiday:create')")
     public ResponseEntity<List<HolidayDTO>> createHolidays(@RequestBody List<HolidayDTO> holidayDTOs) {
         List<HolidayDTO> createdList = holidayService.createHolidays(holidayDTOs);
         return ResponseEntity.ok(createdList);

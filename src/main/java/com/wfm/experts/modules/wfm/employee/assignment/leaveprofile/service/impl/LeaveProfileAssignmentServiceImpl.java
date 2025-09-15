@@ -1,11 +1,16 @@
 package com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.service.impl;
 
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.dto.LeaveProfileAssignmentDTO;
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.entity.LeaveBalance;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.entity.LeaveProfileAssignment;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.mapper.LeaveProfileAssignmentMapper;
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.repository.LeaveBalanceRepository;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.repository.LeaveProfileAssignmentRepository;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.service.LeaveProfileAssignmentService;
+import com.wfm.experts.setup.wfm.leavepolicy.entity.LeavePolicy;
+import com.wfm.experts.setup.wfm.leavepolicy.entity.LeaveProfile;
 import com.wfm.experts.setup.wfm.leavepolicy.repository.LeaveProfileRepository;
+import com.wfm.experts.tenant.common.employees.entity.Employee;
 import com.wfm.experts.tenant.common.employees.repository.EmployeeRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -24,16 +29,17 @@ public class LeaveProfileAssignmentServiceImpl implements LeaveProfileAssignment
     private final LeaveProfileAssignmentRepository assignmentRepository;
     private final EmployeeRepository employeeRepository;
     private final LeaveProfileRepository leaveProfileRepository;
+    private final LeaveBalanceRepository leaveBalanceRepository;
     private final LeaveProfileAssignmentMapper mapper;
 
     @Override
     public List<LeaveProfileAssignmentDTO> assignLeaveProfile(LeaveProfileAssignmentDTO dto) {
-        leaveProfileRepository.findById(dto.getLeaveProfileId())
+        LeaveProfile leaveProfile = leaveProfileRepository.findById(dto.getLeaveProfileId())
                 .orElseThrow(() -> new RuntimeException("LeaveProfile not found with id: " + dto.getLeaveProfileId()));
 
         List<LeaveProfileAssignment> assignments = new ArrayList<>();
         for (String employeeId : dto.getEmployeeIds()) {
-            employeeRepository.findByEmployeeId(employeeId)
+            Employee employee = employeeRepository.findByEmployeeId(employeeId)
                     .orElseThrow(() -> new RuntimeException("Employee not found with id: " + employeeId));
 
             LeaveProfileAssignment assignment = LeaveProfileAssignment.builder()
@@ -45,12 +51,39 @@ public class LeaveProfileAssignmentServiceImpl implements LeaveProfileAssignment
                     .active(true)
                     .build();
             assignments.add(assignment);
+
+            // Calculate and save initial leave balances
+            for (LeavePolicy leavePolicy : getLeavePoliciesFromProfile(leaveProfile)) {
+                double initialBalance = calculateInitialBalance(leavePolicy);
+                LeaveBalance leaveBalance = LeaveBalance.builder()
+                        .employee(employee)
+                        .leavePolicy(leavePolicy)
+                        .balance(initialBalance)
+                        .build();
+                leaveBalanceRepository.save(leaveBalance);
+            }
         }
 
         List<LeaveProfileAssignment> savedAssignments = assignmentRepository.saveAll(assignments);
         return savedAssignments.stream()
                 .map(mapper::toDto)
                 .collect(Collectors.toList());
+    }
+
+    private List<LeavePolicy> getLeavePoliciesFromProfile(LeaveProfile leaveProfile) {
+        return leaveProfile.getLeaveProfilePolicies().stream()
+                .map(lpp -> lpp.getLeavePolicy())
+                .collect(Collectors.toList());
+    }
+
+
+    private double calculateInitialBalance(LeavePolicy leavePolicy) {
+        // Implement your logic to calculate the initial leave balance based on the leave policy configuration.
+        // This is a placeholder for your business logic.
+        if (leavePolicy.getGrantsConfig() != null && leavePolicy.getGrantsConfig().getFixedGrant() != null && leavePolicy.getGrantsConfig().getFixedGrant().getOneTimeDetails() != null) {
+            return leavePolicy.getGrantsConfig().getFixedGrant().getOneTimeDetails().getMaxDays();
+        }
+        return 0; // Default to 0 if no grant configuration is found
     }
 
     @Override

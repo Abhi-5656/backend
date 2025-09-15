@@ -1,14 +1,21 @@
+// Modify the file: harshwfm/wfm-backend/src/main/java/com/wfm/experts/dashboard/service/impl/DashboardServiceImpl.java
 package com.wfm.experts.dashboard.service.impl;
 
-import com.wfm.experts.dashboard.dto.AnomalyDTO;
-import com.wfm.experts.dashboard.dto.AttendanceTimesheetDTO;
-import com.wfm.experts.dashboard.dto.DailyHoursDTO;
-import com.wfm.experts.dashboard.dto.MySummaryDTO;
+import com.wfm.experts.dashboard.dto.*;
 import com.wfm.experts.dashboard.service.DashboardService;
+import com.wfm.experts.modules.wfm.employee.assignment.holidayprofile.service.HolidayProfileAssignmentService;
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.dto.LeaveBalanceDTO;
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.entity.LeaveProfileAssignment;
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.repository.LeaveProfileAssignmentRepository;
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.service.LeaveBalanceService;
 import com.wfm.experts.modules.wfm.features.roster.entity.EmployeeShift;
 import com.wfm.experts.modules.wfm.features.roster.repository.EmployeeShiftRepository;
 import com.wfm.experts.modules.wfm.features.timesheet.dto.TimesheetDTO;
 import com.wfm.experts.modules.wfm.features.timesheet.service.TimesheetService;
+import com.wfm.experts.setup.wfm.holiday.dto.HolidayDTO;
+import com.wfm.experts.setup.wfm.leavepolicy.entity.LeavePolicy;
+import com.wfm.experts.setup.wfm.leavepolicy.entity.LeaveProfile;
+import com.wfm.experts.setup.wfm.leavepolicy.repository.LeaveProfileRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +33,11 @@ public class DashboardServiceImpl implements DashboardService {
 
     private final TimesheetService timesheetService;
     private final EmployeeShiftRepository employeeShiftRepository;
+    private final LeaveBalanceService leaveBalanceService;
+    private final LeaveProfileAssignmentRepository leaveProfileAssignmentRepository;
+    private final LeaveProfileRepository leaveProfileRepository;
+    private final HolidayProfileAssignmentService holidayProfileAssignmentService;
+
 
     // TODO: inject from policy/profile (per-employee). Defaults keep you moving.
     private static final Set<DayOfWeek> WEEKLY_OFF = Set.of(DayOfWeek.SUNDAY);
@@ -105,14 +117,56 @@ public class DashboardServiceImpl implements DashboardService {
             }
         }
 
-
-        // Dummy data as requested
         return MySummaryDTO.builder()
-                .leaveBalance("12 Days")
                 .pendingRequests(2)
                 .daysThisWeek(daysThisWeek)
                 .upcomingShift(upcomingShift)
                 .build();
+    }
+
+    @Override
+    public LeaveAndHolidaysDTO getLeaveAndHolidays(String employeeId) {
+        List<LeaveBalanceSummaryDTO> leaveBalanceSummaries = getLeaveBalanceSummaries(employeeId);
+        List<HolidayDTO> upcomingHolidays = holidayProfileAssignmentService.getAssignedHolidaysByEmployeeId(employeeId)
+                .stream()
+                .filter(holiday -> !holiday.getStartDate().isBefore(LocalDate.now()))
+                .collect(Collectors.toList());
+
+        return LeaveAndHolidaysDTO.builder()
+                .leaveBalances(leaveBalanceSummaries)
+                .upcomingHolidays(upcomingHolidays)
+                .build();
+    }
+
+    private List<LeaveBalanceSummaryDTO> getLeaveBalanceSummaries(String employeeId) {
+        Optional<LeaveProfileAssignment> assignment = leaveProfileAssignmentRepository.findByEmployeeId(employeeId).stream().findFirst();
+        if (assignment.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        LeaveProfile leaveProfile = leaveProfileRepository.findById(assignment.get().getLeaveProfileId()).orElse(null);
+        if (leaveProfile == null) {
+            return Collections.emptyList();
+        }
+
+        List<LeavePolicy> policies = leaveProfile.getLeaveProfilePolicies().stream()
+                .map(p -> p.getLeavePolicy()).collect(Collectors.toList());
+
+        List<LeaveBalanceDTO> balances = leaveBalanceService.getLeaveBalances(employeeId);
+        Map<String, Double> balanceMap = balances.stream()
+                .collect(Collectors.toMap(LeaveBalanceDTO::getLeavePolicyName, LeaveBalanceDTO::getBalance));
+
+        return policies.stream().map(policy -> {
+            double total = 0;
+            if (policy.getGrantsConfig() != null && policy.getGrantsConfig().getFixedGrant() != null && policy.getGrantsConfig().getFixedGrant().getOneTimeDetails() != null) {
+                total = policy.getGrantsConfig().getFixedGrant().getOneTimeDetails().getMaxDays();
+            }
+            return LeaveBalanceSummaryDTO.builder()
+                    .leaveName(policy.getPolicyName())
+                    .balance(balanceMap.getOrDefault(policy.getPolicyName(), 0.0))
+                    .total(total)
+                    .build();
+        }).collect(Collectors.toList());
     }
 
     private AnomalyDTO checkForAnomaly(List<TimesheetDTO> timesheets) {
