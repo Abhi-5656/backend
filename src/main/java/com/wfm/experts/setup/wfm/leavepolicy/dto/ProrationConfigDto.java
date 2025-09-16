@@ -11,10 +11,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class RepeatedlyGrantDetailsDto {
-    private Integer maxDaysPerYear;
-    private Integer maxDaysPerMonth;
-    private Integer minAdvanceNoticeInDays;
-    private Integer minWorkedBeforeGrantInDays;
-    private ProrationConfigDto prorationConfig;
+public class ProrationConfigDto {
+    private boolean isEnabled;
+    private Integer cutoffDay;
+    private Integer grantPercentageBeforeCutoff;
+    private Integer grantPercentageAfterCutoff;
 }

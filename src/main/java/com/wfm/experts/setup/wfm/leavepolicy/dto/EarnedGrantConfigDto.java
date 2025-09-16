@@ -20,4 +20,5 @@ public class EarnedGrantConfigDto {
     private AccrualCadence accrualCadence;
     private PostingType posting;
     private Integer minAdvanceNoticeInDays;
+    private ProrationConfigDto prorationConfig;
 }

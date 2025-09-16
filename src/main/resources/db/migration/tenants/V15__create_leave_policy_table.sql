@@ -3,6 +3,14 @@
 -- Section 1: Create the most granular configuration tables first.
 -- These tables have no dependencies on other tables in this schema.
 
+CREATE TABLE lp_proration_config (
+                                     id BIGSERIAL PRIMARY KEY,
+                                     is_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+                                     cutoff_day INT,
+                                     grant_percentage_before_cutoff INT,
+                                     grant_percentage_after_cutoff INT
+);
+
 CREATE TABLE lp_one_time_grant_details (
                                            id BIGSERIAL PRIMARY KEY,
                                            max_days INT,
@@ -15,7 +23,8 @@ CREATE TABLE lp_repeatedly_grant_details (
                                              max_days_per_year INT,
                                              max_days_per_month INT,
                                              min_advance_notice_in_days INT,
-                                             min_worked_before_grant_in_days INT
+                                             min_worked_before_grant_in_days INT,
+                                             proration_config_id BIGINT UNIQUE REFERENCES lp_proration_config(id)
 );
 
 CREATE TABLE lp_earned_grant_config (
@@ -25,7 +34,8 @@ CREATE TABLE lp_earned_grant_config (
                                         max_consecutive_days INT,
                                         accrual_cadence VARCHAR(255),
                                         posting VARCHAR(255),
-                                        min_advance_notice_in_days INT
+                                        min_advance_notice_in_days INT,
+                                        proration_config_id BIGINT UNIQUE REFERENCES lp_proration_config(id)
 );
 
 CREATE TABLE lp_carry_forward_config (

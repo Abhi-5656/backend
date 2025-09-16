@@ -17,4 +17,8 @@ public class RepeatedlyGrantDetails {
     private Integer maxDaysPerMonth;
     private Integer minAdvanceNoticeInDays;
     private Integer minWorkedBeforeGrantInDays;
+
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "proration_config_id", referencedColumnName = "id")
+    private ProrationConfig prorationConfig;
 }

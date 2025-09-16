@@ -26,4 +26,8 @@ public class EarnedGrantConfig {
     private PostingType posting;
 
     private Integer minAdvanceNoticeInDays;
+
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "proration_config_id", referencedColumnName = "id")
+    private ProrationConfig prorationConfig;
 }
