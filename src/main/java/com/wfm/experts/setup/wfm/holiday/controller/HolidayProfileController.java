@@ -69,7 +69,7 @@ public class HolidayProfileController extends WfmSetupController {
     private final HolidayProfileService holidayProfileService;
 
     @PostMapping
-    @PreAuthorize("hasAuthority('wfm:setup:holiday-profile:create')")
+//    @PreAuthorize("hasAuthority('wfm:setup:holiday-profile:create')")
     public ResponseEntity<HolidayProfileDTO> createProfile(@RequestBody HolidayProfileDTO dto) {
         HolidayProfileDTO created = holidayProfileService.createProfile(dto);
         return ResponseEntity.ok(created);
