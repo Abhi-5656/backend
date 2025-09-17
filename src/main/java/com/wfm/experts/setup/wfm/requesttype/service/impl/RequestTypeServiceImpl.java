@@ -56,9 +56,9 @@ public class RequestTypeServiceImpl implements RequestTypeService {
     public RequestTypeDTO create(RequestTypeDTO requestTypeDTO) {
         RequestType requestType = requestTypeMapper.toEntity(requestTypeDTO);
 
-        if (requestTypeDTO.getLeavePolicy() != null && requestTypeDTO.getLeavePolicy().getId() != null) {
-            LeavePolicy leavePolicy = leavePolicyRepository.findById(requestTypeDTO.getLeavePolicy().getId())
-                    .orElseThrow(() -> new NotFoundException("LeavePolicy not found with id: " + requestTypeDTO.getLeavePolicy().getId()));
+        if (requestTypeDTO.getLeavePolicyId() != null) {
+            LeavePolicy leavePolicy = leavePolicyRepository.findById(requestTypeDTO.getLeavePolicyId())
+                    .orElseThrow(() -> new NotFoundException("LeavePolicy not found with id: " + requestTypeDTO.getLeavePolicyId()));
             requestType.setLeavePolicy(leavePolicy);
         }
 
@@ -75,9 +75,9 @@ public class RequestTypeServiceImpl implements RequestTypeService {
         RequestType updatedRequestType = requestTypeMapper.toEntity(requestTypeDTO);
         updatedRequestType.setId(existingRequestType.getId());
 
-        if (requestTypeDTO.getLeavePolicy() != null && requestTypeDTO.getLeavePolicy().getId() != null) {
-            LeavePolicy leavePolicy = leavePolicyRepository.findById(requestTypeDTO.getLeavePolicy().getId())
-                    .orElseThrow(() -> new NotFoundException("LeavePolicy not found with id: " + requestTypeDTO.getLeavePolicy().getId()));
+        if (requestTypeDTO.getLeavePolicyId() != null) {
+            LeavePolicy leavePolicy = leavePolicyRepository.findById(requestTypeDTO.getLeavePolicyId())
+                    .orElseThrow(() -> new NotFoundException("LeavePolicy not found with id: " + requestTypeDTO.getLeavePolicyId()));
             updatedRequestType.setLeavePolicy(leavePolicy);
         } else {
             updatedRequestType.setLeavePolicy(null);

@@ -1,4 +1,3 @@
-// src/main/java/com/wfm/experts/setup/wfm/requesttype/dto/RequestTypeDTO.java
 package com.wfm.experts.setup.wfm.requesttype.dto;
 
 import com.wfm.experts.setup.wfm.leavepolicy.dto.LeavePolicyDto;
@@ -14,7 +13,7 @@ public class RequestTypeDTO {
     private String name;
     private Date effectiveDate;
     private Date expirationDate;
-    private LeavePolicyDto leavePolicy;
+    private Long leavePolicyId; // Changed from LeavePolicyDto
     private ApprovalConfigDTO approval;
     private ClubbingConfigDTO clubbing;
     private ValidationConfigDTO validation;
