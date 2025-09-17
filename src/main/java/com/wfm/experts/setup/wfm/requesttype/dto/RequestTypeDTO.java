@@ -13,7 +13,7 @@ public class RequestTypeDTO {
     private String name;
     private Date effectiveDate;
     private Date expirationDate;
-    private Long leavePolicyId; // Changed from LeavePolicyDto
+    private Long leavePolicyId;
     private ApprovalConfigDTO approval;
     private ClubbingConfigDTO clubbing;
     private ValidationConfigDTO validation;

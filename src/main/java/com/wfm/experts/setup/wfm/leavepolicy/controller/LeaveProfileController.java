@@ -26,13 +26,13 @@ public class LeaveProfileController extends WfmSetupController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('wfm:setup:leave-profile:update')")
+//    @PreAuthorize("hasAuthority('wfm:setup:leave-profile:update')")
     public ResponseEntity<LeaveProfileDto> update(@PathVariable Long id, @Valid @RequestBody LeaveProfileDto dto) {
         return ResponseEntity.ok(leaveProfileService.updateLeaveProfile(id, dto));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('wfm:setup:leave-profile:read')")
+//    @PreAuthorize("hasAuthority('wfm:setup:leave-profile:read')")
     public ResponseEntity<LeaveProfileDto> getById(@PathVariable Long id) {
         return leaveProfileService.getLeaveProfileById(id)
                 .map(ResponseEntity::ok)
@@ -46,7 +46,7 @@ public class LeaveProfileController extends WfmSetupController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('wfm:setup:leave-profile:delete')")
+//    @PreAuthorize("hasAuthority('wfm:setup:leave-profile:delete')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         leaveProfileService.deleteLeaveProfile(id);
         return ResponseEntity.noContent().build();

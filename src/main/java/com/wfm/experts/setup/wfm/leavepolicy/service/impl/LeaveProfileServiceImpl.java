@@ -86,6 +86,7 @@ public class LeaveProfileServiceImpl implements LeaveProfileService {
             existingProfile.getLeaveProfilePolicies().add(profilePolicy);
         }
 
+
         LeaveProfile updatedProfile = leaveProfileRepository.save(existingProfile);
         return leaveProfileMapper.toDto(updatedProfile);
     }
