@@ -1,15 +1,20 @@
+// src/main/java/com/wfm/experts/setup/wfm/requesttype/dto/RequestTypeDTO.java
 package com.wfm.experts.setup.wfm.requesttype.dto;
 
-import lombok.*;
-import java.time.LocalDate;
+import com.wfm.experts.setup.wfm.leavepolicy.dto.LeavePolicyDto;
+import lombok.Getter;
+import lombok.Setter;
 
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+import java.util.Date;
+
+@Getter
+@Setter
 public class RequestTypeDTO {
-    private Long id;  // null for create, populated for read
+    private Long id;
     private String name;
-    private LocalDate effectiveDate;
-    private LocalDate expirationDate;
-
+    private Date effectiveDate;
+    private Date expirationDate;
+    private LeavePolicyDto leavePolicy;
     private ApprovalConfigDTO approval;
     private ClubbingConfigDTO clubbing;
     private ValidationConfigDTO validation;
