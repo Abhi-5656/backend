@@ -1,7 +1,7 @@
 package com.wfm.experts.setup.wfm.leavepolicy.mapper;
 
 import com.wfm.experts.setup.wfm.leavepolicy.dto.LeaveProfileDto;
-import com.wfm.experts.setup.wfm.leavepolicy.dto.LeavePolicySettingDto; // <-- ADD THIS IMPORT
+import com.wfm.experts.setup.wfm.leavepolicy.dto.LeavePolicySettingDto;
 import com.wfm.experts.setup.wfm.leavepolicy.entity.LeaveProfile;
 import com.wfm.experts.setup.wfm.leavepolicy.entity.LeaveProfilePolicy;
 import org.mapstruct.Mapper;

@@ -16,10 +16,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -71,26 +69,40 @@ public class LeaveProfileServiceImpl implements LeaveProfileService {
 
         existingProfile.setProfileName(dto.getProfileName());
 
-        // This clears the existing set and the orphanRemoval=true on the entity will delete the old records
-        existingProfile.getLeaveProfilePolicies().clear();
+        // Create a map of the new policies by policy ID
+        Map<Long, LeavePolicySettingDto> newPoliciesMap = dto.getLeavePolicySettings().stream()
+                .collect(Collectors.toMap(LeavePolicySettingDto::getPolicyId, Function.identity()));
 
+        // Remove policies that are no longer in the new set
+        existingProfile.getLeaveProfilePolicies().removeIf(
+                existingPolicy -> !newPoliciesMap.containsKey(existingPolicy.getLeavePolicy().getId())
+        );
+
+        // Add or update policies
         for (LeavePolicySettingDto settingDto : dto.getLeavePolicySettings()) {
-            LeavePolicy leavePolicy = leavePolicyRepository.findById(settingDto.getPolicyId())
-                    .orElseThrow(() -> new ResourceNotFoundException("LeavePolicy not found with id: " + settingDto.getPolicyId()));
+            Optional<LeaveProfilePolicy> existingPolicyOpt = existingProfile.getLeaveProfilePolicies().stream()
+                    .filter(p -> p.getLeavePolicy().getId().equals(settingDto.getPolicyId()))
+                    .findFirst();
 
-            LeaveProfilePolicy profilePolicy = new LeaveProfilePolicy();
-            profilePolicy.setLeaveProfile(existingProfile);
-            profilePolicy.setLeavePolicy(leavePolicy);
-            profilePolicy.setVisibility(settingDto.getVisibility());
+            if (existingPolicyOpt.isPresent()) {
+                // Update existing
+                existingPolicyOpt.get().setVisibility(settingDto.getVisibility());
+            } else {
+                // Add new
+                LeavePolicy leavePolicy = leavePolicyRepository.findById(settingDto.getPolicyId())
+                        .orElseThrow(() -> new ResourceNotFoundException("LeavePolicy not found with id: " + settingDto.getPolicyId()));
 
-            existingProfile.getLeaveProfilePolicies().add(profilePolicy);
+                LeaveProfilePolicy newProfilePolicy = new LeaveProfilePolicy();
+                newProfilePolicy.setLeaveProfile(existingProfile);
+                newProfilePolicy.setLeavePolicy(leavePolicy);
+                newProfilePolicy.setVisibility(settingDto.getVisibility());
+                existingProfile.getLeaveProfilePolicies().add(newProfilePolicy);
+            }
         }
-
 
         LeaveProfile updatedProfile = leaveProfileRepository.save(existingProfile);
         return leaveProfileMapper.toDto(updatedProfile);
     }
-
     @Override
     public void deleteLeaveProfile(Long id) {
         if (!leaveProfileRepository.existsById(id)) {
