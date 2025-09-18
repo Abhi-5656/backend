@@ -498,6 +498,18 @@ public class EmployeeServiceImpl implements EmployeeService, UserDetailsService 
             existing.setRoles(roles);
         }
 
+        if (incoming.getReportingManagerId() != null) {
+            Employee manager = employeeRepository.findByEmployeeId(incoming.getReportingManagerId())
+                    .orElseThrow(() -> new RuntimeException("Reporting Manager not found: " + incoming.getReportingManagerId()));
+            existing.setReportingManager(manager);
+        }
+
+        if (incoming.getHrManagerId() != null) {
+            Employee hrManager = employeeRepository.findByEmployeeId(incoming.getHrManagerId())
+                    .orElseThrow(() -> new RuntimeException("HR Manager not found: " + incoming.getHrManagerId()));
+            existing.setHrManager(hrManager);
+        }
+
         // Update PersonalInfo
         if (incoming.getPersonalInfo() != null) {
             if (existing.getPersonalInfo() == null) {

@@ -22,7 +22,8 @@ public class LeaveBalance {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "employee_id")
+//    @JoinColumn(name = "employee_id")
+    @JoinColumn(name = "employee_id", referencedColumnName = "employee_id")
     private Employee employee;
 
     @ManyToOne

@@ -27,6 +27,8 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     // (Optional) Find Employees with any of a set of roles
     List<Employee> findByRolesIn(List<Role> roles);
 
+    Optional<Employee> findFirstByRoles_RoleName(String roleName);
+
     long countByOrganizationalInfoEmploymentDetailsDateOfJoiningBetween(LocalDate startDate, LocalDate endDate);
 
     long countByOrganizationalInfoEmploymentDetailsEmploymentStatusInAndUpdatedAtBetween(Collection<EmploymentStatus> statuses, Date startDate, Date endDate);

@@ -17,7 +17,7 @@ public class RequestTypeProfileAssignmentController {
     private final RequestTypeProfileAssignmentService assignmentService;
 
     @PostMapping
-    @PreAuthorize("hasAuthority('wfm:employee:request-type-profile-assignment:assign')")
+//    @PreAuthorize("hasAuthority('wfm:employee:request-type-profile-assignment:assign')")
     public ResponseEntity<List<RequestTypeProfileAssignmentDTO>> assignRequestTypeProfile(@RequestBody RequestTypeProfileAssignmentDTO dto) {
         return ResponseEntity.ok(assignmentService.assignRequestTypeProfile(dto));
     }
