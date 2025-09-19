@@ -93,7 +93,7 @@ public class TargetedNotificationController {
 //    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<Page<AppNotification>> getUnreadNotificationsForUser(
             @PathVariable String userId,
-            @PageableDefault(size = 10, sort = "createdAt,desc") Pageable pageable) {
+            @PageableDefault(size = 10) Pageable pageable) {
         logger.info("Admin fetching unread notifications for user: {} in tenant: {}", userId, TenantContext.getTenant());
         Page<AppNotification> notifications = appNotificationService.getUnreadNotificationsForUser(userId, pageable);
         return ResponseEntity.ok(notifications);
@@ -103,7 +103,7 @@ public class TargetedNotificationController {
 //    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<Page<AppNotification>> getAllNotificationsForUser(
             @PathVariable String userId,
-            @PageableDefault(size = 20, sort = "createdAt,desc") Pageable pageable) {
+            @PageableDefault(size = 20) Pageable pageable) {
         logger.info("Admin fetching all notifications for user: {} in tenant: {}", userId, TenantContext.getTenant());
         Page<AppNotification> notifications = appNotificationService.getAllNotificationsForUser(userId, pageable);
         return ResponseEntity.ok(notifications);
