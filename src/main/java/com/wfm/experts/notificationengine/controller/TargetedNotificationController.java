@@ -36,7 +36,7 @@ public class TargetedNotificationController {
     }
 
     @PostMapping("/in-app/users")
-    @PreAuthorize("hasAuthority('ADMIN')")
+//    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<Map<String, Object>> sendInAppNotificationToSpecificUsers(
             @Valid @RequestBody TargetedNotificationRequestDto targetedRequest) {
 
@@ -90,7 +90,7 @@ public class TargetedNotificationController {
     }
 
     @GetMapping("/user/{userId}/unread")
-    @PreAuthorize("hasAuthority('ADMIN')")
+//    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<Page<AppNotification>> getUnreadNotificationsForUser(
             @PathVariable String userId,
             @PageableDefault(size = 10, sort = "createdAt,desc") Pageable pageable) {
@@ -100,7 +100,7 @@ public class TargetedNotificationController {
     }
 
     @GetMapping("/user/{userId}/all")
-    @PreAuthorize("hasAuthority('ADMIN')")
+//    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<Page<AppNotification>> getAllNotificationsForUser(
             @PathVariable String userId,
             @PageableDefault(size = 20, sort = "createdAt,desc") Pageable pageable) {
@@ -110,7 +110,7 @@ public class TargetedNotificationController {
     }
 
     @GetMapping("/user/{userId}/unread/count")
-    @PreAuthorize("hasAuthority('ADMIN')")
+//    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<Map<String, Object>> getUnreadNotificationCountForUser(@PathVariable String userId) { // Changed to Map<String, Object>
         logger.info("Admin fetching unread notification count for user: {} in tenant: {}", userId, TenantContext.getTenant());
         long count = appNotificationService.getUnreadNotificationCountForUser(userId);
@@ -123,7 +123,7 @@ public class TargetedNotificationController {
     }
 
     @GetMapping("/user/{userId}/notification/{notificationId}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+//    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<AppNotification> getNotificationByIdForUser(
             @PathVariable String userId,
             @PathVariable Long notificationId) {
@@ -135,7 +135,7 @@ public class TargetedNotificationController {
     }
 
     @PostMapping("/user/{userId}/notification/{notificationId}/mark-as-read")
-    @PreAuthorize("hasAuthority('ADMIN')")
+//    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<AppNotification> markNotificationAsReadForUser(
             @PathVariable String userId,
             @PathVariable Long notificationId) {
@@ -147,7 +147,7 @@ public class TargetedNotificationController {
     }
 
     @PostMapping("/user/{userId}/mark-multiple-as-read")
-    @PreAuthorize("hasAuthority('ADMIN')")
+//    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<Map<String, Object>> markNotificationsAsReadForUser(
             @PathVariable String userId,
             @RequestBody List<Long> notificationIds) {
@@ -164,7 +164,7 @@ public class TargetedNotificationController {
     }
 
     @PostMapping("/user/{userId}/mark-all-as-read")
-    @PreAuthorize("hasAuthority('ADMIN')")
+//    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<Map<String, Object>> markAllNotificationsAsReadForUser(@PathVariable String userId) {
         logger.info("Admin attempting to mark all notifications as read for user {} in tenant: {}", userId, TenantContext.getTenant());
         int count = appNotificationService.markAllNotificationsAsReadForUser(userId);
