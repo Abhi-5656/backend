@@ -11,23 +11,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Lazy; // For async self-injection
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.scheduling.annotation.Async; // Import Async
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.CompletableFuture; // For async result
-
+import java.util.concurrent.CompletableFuture;
 
 @Service
-// Transactional at class level might be okay, but for async methods, be careful.
-// Individual async methods should often manage their own transactions if they do DB work.
 public class AppNotificationServiceImpl implements AppNotificationService {
 
     private static final Logger logger = LoggerFactory.getLogger(AppNotificationServiceImpl.class);
@@ -36,20 +33,12 @@ public class AppNotificationServiceImpl implements AppNotificationService {
     private final TemplatingService templatingService;
     private final SimpMessagingTemplate messagingTemplate;
     private final EmployeeRepository employeeRepository;
-
-    // For self-injection to call @Async methods from within the same class
-    private AppNotificationService self;
-
-    @Autowired
-    public void setSelf(@Lazy AppNotificationService self) {
-        this.self = self;
-    }
-
+    private final AppNotificationService self; // Self-injection for @Async
 
     @Value("${notification.inapp.default-language:en-US}")
     private String defaultInAppLanguage;
 
-    // ... (payload keys and BROADCAST_USER_ID_PLACEHOLDER remain the same) ...
+    // Constants for payload keys
     private static final String PAYLOAD_KEY_IN_APP_TITLE = "inAppTitle";
     private static final String PAYLOAD_KEY_IN_APP_BODY = "inAppMessage";
     private static final String PAYLOAD_KEY_ACTION_URL = "actionUrl";
@@ -59,22 +48,21 @@ public class AppNotificationServiceImpl implements AppNotificationService {
     private static final String PAYLOAD_KEY_ADDITIONAL_DATA = "additionalData";
     static final String BROADCAST_USER_ID_PLACEHOLDER = "BROADCAST_ALL_USERS";
 
-
     @Autowired
     public AppNotificationServiceImpl(AppNotificationRepository appNotificationRepository,
                                       TemplatingService templatingService,
                                       SimpMessagingTemplate messagingTemplate,
-                                      EmployeeRepository employeeRepository) {
+                                      EmployeeRepository employeeRepository,
+                                      @Lazy AppNotificationService self) {
         this.appNotificationRepository = appNotificationRepository;
         this.templatingService = templatingService;
         this.messagingTemplate = messagingTemplate;
         this.employeeRepository = employeeRepository;
+        this.self = self;
     }
 
-    // --- createAppNotification and createAndBroadcastAppNotification remain the same ---
-    // They are already efficient for their specific purposes (single user, single topic broadcast)
     @Override
-    @Transactional // This transaction is for a single user notification
+    @Transactional
     public AppNotification createAppNotification(NotificationRequest notificationRequest) {
         String currentTenantId = TenantContext.getTenant();
         logger.info("Creating in-app notification for userId: {}, from requestId: {} within tenant: {}",
@@ -102,7 +90,7 @@ public class AppNotificationServiceImpl implements AppNotificationService {
     }
 
     @Override
-    @Transactional // This transaction is for the representative broadcast entity
+    @Transactional
     public AppNotification createAndBroadcastAppNotification(NotificationRequest notificationRequest) {
         String currentTenantId = TenantContext.getTenant();
         if (currentTenantId == null || currentTenantId.trim().isEmpty()) {
@@ -129,14 +117,10 @@ public class AppNotificationServiceImpl implements AppNotificationService {
         return savedBroadcastRepresentative;
     }
 
-    // --- OPTIMIZED METHOD for sending to a list of specific users ---
     @Override
-    // This outer method should NOT be @Transactional if the inner work is async and has its own transactions.
-    // Or, if it is, be aware of the implications for the async calls.
-    // For simplicity, let's make the async helper transactional.
     public List<AppNotification> createAppNotificationsForSpecificUsers(
             NotificationRequest baseNotificationRequest, List<String> targetUserIds) {
-        String currentTenantId = TenantContext.getTenant(); // Capture tenant from the calling (admin's HTTP) thread
+        String currentTenantId = TenantContext.getTenant();
         if (currentTenantId == null || currentTenantId.trim().isEmpty()) {
             logger.error("Cannot send targeted notifications: Tenant ID is missing from context. Base request ID: {}", baseNotificationRequest.getNotificationId());
             throw new IllegalStateException("Tenant context is not set.");
@@ -149,9 +133,8 @@ public class AppNotificationServiceImpl implements AppNotificationService {
         logger.info("Initiating sending in-app notifications to {} specific users. Base request ID: {}, Tenant: {}",
                 targetUserIds.size(), baseNotificationRequest.getNotificationId(), currentTenantId);
 
-        // Build the common content ONCE
-        // The 'userId' in this initial build is just a template; it will be overridden for each actual user.
-        AppNotification commonContentNotification = buildAppNotificationEntity(baseNotificationRequest, "TEMPLATE_USER");
+        // Build the common content ONCE. The userId is a placeholder and will be overridden.
+        AppNotification commonContentNotification = buildAppNotificationEntity(baseNotificationRequest, "common-content-placeholder");
 
         List<CompletableFuture<AppNotification>> futures = new ArrayList<>();
         for (String targetUserId : targetUserIds) {
@@ -159,19 +142,16 @@ public class AppNotificationServiceImpl implements AppNotificationService {
                 logger.warn("Skipping empty/null targetUserId for base request ID: {}", baseNotificationRequest.getNotificationId());
                 continue;
             }
-            // Call the @Async helper method
-            // Pass currentTenantId explicitly because TenantContext is thread-local and won't propagate to @Async threads by default
             futures.add(self.processAndSendToSingleUserAsync(commonContentNotification, targetUserId, currentTenantId, baseNotificationRequest.getNotificationId()));
         }
 
-        // Wait for all async tasks to complete and collect results (optional, depending on desired behavior)
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join(); // Wait for all
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 
         List<AppNotification> successfullySentNotifications = new ArrayList<>();
         int failureCount = 0;
         for (CompletableFuture<AppNotification> future : futures) {
             try {
-                AppNotification result = future.getNow(null); // Get result, null if exception
+                AppNotification result = future.getNow(null);
                 if (result != null) {
                     successfullySentNotifications.add(result);
                 } else {
@@ -187,20 +167,14 @@ public class AppNotificationServiceImpl implements AppNotificationService {
         return successfullySentNotifications;
     }
 
-    @Async // Make sure @EnableAsync is on a @Configuration class
+    @Async("notificationTaskExecutor")
+    @Transactional
     public CompletableFuture<AppNotification> processAndSendToSingleUserAsync(
             AppNotification commonContent, String targetUserId, String tenantId, String baseNotificationRequestId) {
 
-        TenantContext.setTenant(tenantId); // SET TenantContext for this async thread
+        TenantContext.setTenant(tenantId);
         try {
-            // Optional: User existence check (EmployeeRepository)
-            // if (!employeeRepository.existsByEmployeeIdAndTenantId(targetUserId, tenantId)) { // Example
-            //     logger.warn("User {} not found in tenant {}. Skipping.", targetUserId, tenantId);
-            //     return CompletableFuture.completedFuture(null); // Indicate failure or skip
-            // }
-
             AppNotification userSpecificNotification = new AppNotification();
-            // Copy content from commonContent
             userSpecificNotification.setTitle(commonContent.getTitle());
             userSpecificNotification.setMessageBody(commonContent.getMessageBody());
             userSpecificNotification.setActionUrl(commonContent.getActionUrl());
@@ -209,15 +183,13 @@ public class AppNotificationServiceImpl implements AppNotificationService {
             userSpecificNotification.setExpiresAt(commonContent.getExpiresAt());
             userSpecificNotification.setAdditionalData(commonContent.getAdditionalData() != null ? new HashMap<>(commonContent.getAdditionalData()) : null);
 
-            // Set user-specific details
             userSpecificNotification.setUserId(targetUserId);
-            userSpecificNotification.setNotificationRequestId(baseNotificationRequestId + "-" + targetUserId + "-" + UUID.randomUUID().toString().substring(0,4)); // Unique request ID
+            // Generate a unique request ID for each individual notification to avoid DB constraint violations.
+            userSpecificNotification.setNotificationRequestId(baseNotificationRequestId + "-" + targetUserId + "-" + UUID.randomUUID().toString().substring(0, 8));
 
             AppNotification savedNotification = appNotificationRepository.save(userSpecificNotification);
-            // logger.debug("Saved notification for user {} (ID: {}) in tenant {}", targetUserId, savedNotification.getId(), tenantId);
 
-
-            String userPrincipalName = targetUserId; // Assuming targetUserId is the STOMP principal name
+            String userPrincipalName = targetUserId;
             String destination = "/queue/in-app-notifications";
             messagingTemplate.convertAndSendToUser(userPrincipalName, destination, savedNotification);
             logger.info("Async: Sent to user {} (Notif ID {}) in tenant {}", userPrincipalName, savedNotification.getId(), tenantId);
@@ -225,16 +197,13 @@ public class AppNotificationServiceImpl implements AppNotificationService {
             return CompletableFuture.completedFuture(savedNotification);
         } catch (Exception e) {
             logger.error("Async: Failed for user {} in tenant {}: {}", targetUserId, tenantId, e.getMessage(), e);
-            return CompletableFuture.completedFuture(null); // Indicate failure
+            return CompletableFuture.completedFuture(null);
         } finally {
-            TenantContext.clear(); // CLEAR TenantContext for this async thread
+            TenantContext.clear();
         }
     }
 
-
-    // Helper method buildAppNotificationEntity (remains mostly the same)
     private AppNotification buildAppNotificationEntity(NotificationRequest notificationRequest, String targetUserId) {
-        // ... (implementation as before)
         String title;
         String messageBody;
         Map<String, Object> payload = notificationRequest.getPayload() != null ? notificationRequest.getPayload() : Map.of();
@@ -294,7 +263,6 @@ public class AppNotificationServiceImpl implements AppNotificationService {
         return appNotification;
     }
 
-    // ... (other existing methods: getUnreadNotificationsForUser, etc.) ...
     @Override
     @Transactional(readOnly = true)
     public Page<AppNotification> getUnreadNotificationsForUser(String userId, Pageable pageable) {
@@ -315,30 +283,32 @@ public class AppNotificationServiceImpl implements AppNotificationService {
         logger.debug("Fetching unread in-app notification count for userId: {} in tenant: {}", userId, TenantContext.getTenant());
         return appNotificationRepository.countByUserIdAndIsReadFalse(userId);
     }
+
     @Override
+    @Transactional
     public Optional<AppNotification> markNotificationAsRead(Long notificationId, String userId) {
         String currentTenantId = TenantContext.getTenant();
         logger.info("Attempting to mark in-app notification ID: {} as read for userId: {} in tenant: {}", notificationId, userId, currentTenantId);
-        Optional<AppNotification> notificationOpt = appNotificationRepository.findByIdAndUserId(notificationId, userId);
-        if (notificationOpt.isEmpty() || BROADCAST_USER_ID_PLACEHOLDER.equals(notificationOpt.get().getUserId())) {
-            logger.warn("AppNotification not found for user or it's a broadcast representative: ID {}, User {}, Tenant: {}", notificationId, userId, currentTenantId);
-            return Optional.empty();
-        }
-        AppNotification notification = notificationOpt.get();
-        if (!notification.isRead()) {
-            notification.setRead(true);
-            notification.setReadAt(LocalDateTime.now());
-            AppNotification saved = appNotificationRepository.save(notification);
-            logger.info("Marked notification ID: {} as read for userId: {} in tenant: {}", saved.getId(), userId, currentTenantId);
-            return Optional.of(saved);
-        }
-        logger.debug("Notification ID: {} was already read for userId: {} in tenant: {}", notificationId, userId, currentTenantId);
-        return Optional.of(notification);
+
+        return appNotificationRepository.findById(notificationId)
+                .filter(notification -> userId.equals(notification.getUserId())) // Ensure it belongs to the user
+                .map(notification -> {
+                    if (!notification.isRead()) {
+                        notification.setRead(true);
+                        notification.setReadAt(LocalDateTime.now());
+                        AppNotification saved = appNotificationRepository.save(notification);
+                        logger.info("Marked notification ID: {} as read for userId: {} in tenant: {}", saved.getId(), userId, currentTenantId);
+                        return saved;
+                    }
+                    logger.debug("Notification ID: {} was already read for userId: {} in tenant: {}", notificationId, userId, currentTenantId);
+                    return notification;
+                });
     }
 
+
     @Override
+    @Transactional
     public int markNotificationsAsRead(List<Long> notificationIds, String userId) {
-        // ... (remains the same) ...
         if (notificationIds == null || notificationIds.isEmpty()) {
             return 0;
         }
@@ -350,8 +320,8 @@ public class AppNotificationServiceImpl implements AppNotificationService {
     }
 
     @Override
+    @Transactional
     public int markAllNotificationsAsReadForUser(String userId) {
-        // ... (remains the same) ...
         String currentTenantId = TenantContext.getTenant();
         logger.info("Attempting to mark all unread in-app notifications as read for userId: {} in tenant: {}", userId, currentTenantId);
         int updatedCount = appNotificationRepository.markAllAsReadForUser(userId, LocalDateTime.now());
@@ -362,12 +332,7 @@ public class AppNotificationServiceImpl implements AppNotificationService {
     @Override
     @Transactional(readOnly = true)
     public Optional<AppNotification> getNotificationByIdAndUser(Long notificationId, String userId) {
-        // ... (remains the same, with consideration for BROADCAST_USER_ID_PLACEHOLDER) ...
         logger.debug("Fetching in-app notification by ID: {} for userId: {} in tenant: {}", notificationId, userId, TenantContext.getTenant());
-        Optional<AppNotification> notification = appNotificationRepository.findByIdAndUserId(notificationId, userId);
-        if (notification.isPresent() && BROADCAST_USER_ID_PLACEHOLDER.equals(notification.get().getUserId()) && !BROADCAST_USER_ID_PLACEHOLDER.equals(userId)) {
-            return Optional.empty();
-        }
-        return notification;
+        return appNotificationRepository.findByIdAndUserId(notificationId, userId);
     }
 }
