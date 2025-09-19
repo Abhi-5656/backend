@@ -12,6 +12,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -27,18 +28,25 @@ public class RequestTypeProfileServiceImpl implements RequestTypeProfileService 
     private final RequestTypeRepository requestTypeRepository;
     private final RequestTypeProfileMapper requestTypeProfileMapper;
 
-
     @Override
     public RequestTypeProfileDTO createRequestTypeProfile(RequestTypeProfileDTO dto) {
         if (requestTypeProfileRepository.existsByProfileName(dto.getProfileName())) {
             throw new RuntimeException("Profile with name " + dto.getProfileName() + " already exists.");
         }
 
-        RequestTypeProfile requestTypeProfile = new RequestTypeProfile();
-        requestTypeProfile.setProfileName(dto.getProfileName());
+        // Validate & normalize dates
+        normalizeAndValidateDates(dto);
 
+        // Map simple fields
+        RequestTypeProfile requestTypeProfile = requestTypeProfileMapper.toEntity(dto);
+
+        // Resolve request types from IDs
         Set<RequestType> requestTypes = new HashSet<>(requestTypeRepository.findAllById(dto.getRequestTypeIds()));
         requestTypeProfile.setRequestTypes(requestTypes);
+
+        // Explicitly set dates (mapper already did, but keep it obvious)
+        requestTypeProfile.setEffectiveDate(dto.getEffectiveDate());
+        requestTypeProfile.setExpirationDate(dto.getExpirationDate());
 
         RequestTypeProfile savedProfile = requestTypeProfileRepository.save(requestTypeProfile);
         return requestTypeProfileMapper.toDto(savedProfile);
@@ -49,12 +57,20 @@ public class RequestTypeProfileServiceImpl implements RequestTypeProfileService 
         RequestTypeProfile existingProfile = requestTypeProfileRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("RequestTypeProfile not found with id: " + id));
 
-        if (!existingProfile.getProfileName().equals(dto.getProfileName()) && requestTypeProfileRepository.existsByProfileName(dto.getProfileName())) {
+        if (!existingProfile.getProfileName().equals(dto.getProfileName())
+                && requestTypeProfileRepository.existsByProfileName(dto.getProfileName())) {
             throw new RuntimeException("Profile with name " + dto.getProfileName() + " already exists.");
         }
 
-        existingProfile.setProfileName(dto.getProfileName());
+        // Validate & normalize dates
+        normalizeAndValidateDates(dto);
 
+        // Update simple fields
+        existingProfile.setProfileName(dto.getProfileName());
+        existingProfile.setEffectiveDate(dto.getEffectiveDate());
+        existingProfile.setExpirationDate(dto.getExpirationDate());
+
+        // Update request types
         Set<RequestType> requestTypes = new HashSet<>(requestTypeRepository.findAllById(dto.getRequestTypeIds()));
         existingProfile.setRequestTypes(requestTypes);
 
@@ -80,5 +96,17 @@ public class RequestTypeProfileServiceImpl implements RequestTypeProfileService 
         return requestTypeProfileRepository.findAll().stream()
                 .map(requestTypeProfileMapper::toDto)
                 .collect(Collectors.toList());
+    }
+
+    /** Ensures effectiveDate is present and expirationDate, if present, is not before effectiveDate. */
+    private void normalizeAndValidateDates(RequestTypeProfileDTO dto) {
+        if (dto.getEffectiveDate() == null) {
+            // choose either strict validation or defaulting; I recommend strict
+            // throw new IllegalArgumentException("effectiveDate is required");
+            dto.setEffectiveDate(LocalDate.now()); // <- if you prefer defaulting
+        }
+        if (dto.getExpirationDate() != null && dto.getExpirationDate().isBefore(dto.getEffectiveDate())) {
+            throw new IllegalArgumentException("expirationDate cannot be before effectiveDate");
+        }
     }
 }

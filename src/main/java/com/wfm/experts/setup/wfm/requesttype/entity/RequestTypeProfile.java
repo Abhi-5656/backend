@@ -3,6 +3,8 @@ package com.wfm.experts.setup.wfm.requesttype.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -26,4 +28,11 @@ public class RequestTypeProfile {
             inverseJoinColumns = @JoinColumn(name = "request_type_id")
     )
     private Set<RequestType> requestTypes = new HashSet<>();
+
+    /** ✅ New fields */
+    @Column(name = "effective_date", nullable = false)
+    private LocalDate effectiveDate;
+
+    @Column(name = "expiration_date")
+    private LocalDate expirationDate;
 }
