@@ -1,3 +1,4 @@
+// harshwfm/wfm-backend/HarshWfm-wfm-backend-505d16993db54f997bfe6d610d42bf01feca5578/src/main/java/com/wfm/experts/controller/AuthController.java
 package com.wfm.experts.controller;
 
 import com.wfm.experts.tenant.common.auth.AuthRequest;
@@ -73,7 +74,7 @@ public class AuthController {
                 .map(grantedAuthority -> grantedAuthority.getAuthority())
                 .collect(Collectors.toList());
 
-        String accessToken = jwtUtil.generateToken(employeeDTO.getEmail(), tenantId, roles, fullName);
+        String accessToken = jwtUtil.generateToken(employeeDTO.getEmail(), tenantId, roles, fullName, employeeDTO.getEmployeeId());
         String refreshToken = jwtUtil.generateRefreshToken(employeeDTO.getEmail(), tenantId);
         String expiresIn = jwtUtil.getExpiresIn(accessToken);
 
@@ -111,7 +112,7 @@ public class AuthController {
 
             List<String> roles = employee.getRoles();
 
-            String newAccessToken = jwtUtil.generateToken(email, tenantId, roles, fullName);
+            String newAccessToken = jwtUtil.generateToken(email, tenantId, roles, fullName, employee.getEmployeeId());
             String newRefreshToken = jwtUtil.generateRefreshToken(email, tenantId); // Issue a new refresh token
             String expiresIn = jwtUtil.getExpiresIn(newAccessToken);
 
