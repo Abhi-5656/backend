@@ -3,6 +3,7 @@ package com.wfm.experts.setup.wfm.leavepolicy.service.impl;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.entity.LeaveBalance;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.repository.LeaveBalanceRepository;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.repository.LeaveProfileAssignmentRepository;
+import com.wfm.experts.setup.wfm.leavepolicy.entity.LeaveProfilePolicy;
 import com.wfm.experts.setup.wfm.leavepolicy.service.LeaveAccrualService;
 import com.wfm.experts.setup.wfm.leavepolicy.engine.context.LeavePolicyExecutionContext;
 import com.wfm.experts.setup.wfm.leavepolicy.engine.executor.LeavePolicyRuleExecutor;
@@ -70,7 +71,7 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
 
     private List<LeavePolicy> getLeavePoliciesFromProfile(LeaveProfile leaveProfile) {
         return leaveProfile.getLeaveProfilePolicies().stream()
-                .map(lpp -> lpp.getLeavePolicy())
+                .map(LeaveProfilePolicy::getLeavePolicy)
                 .collect(Collectors.toList());
     }
 }

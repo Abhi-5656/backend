@@ -11,10 +11,16 @@ import java.util.List;
 @Service
 public class LeaveBalanceRuleProvider {
 
+    private final ProrataLeaveBalanceRule prorataLeaveBalanceRule;
     private final EarnedLeaveBalanceRule earnedLeaveBalanceRule;
+    private final DefaultLeaveBalanceRule defaultLeaveBalanceRule;
 
-    public LeaveBalanceRuleProvider(EarnedLeaveBalanceRule earnedLeaveBalanceRule) {
+    public LeaveBalanceRuleProvider(ProrataLeaveBalanceRule prorataLeaveBalanceRule,
+                                    EarnedLeaveBalanceRule earnedLeaveBalanceRule,
+                                    DefaultLeaveBalanceRule defaultLeaveBalanceRule) {
+        this.prorataLeaveBalanceRule = prorataLeaveBalanceRule;
         this.earnedLeaveBalanceRule = earnedLeaveBalanceRule;
+        this.defaultLeaveBalanceRule = defaultLeaveBalanceRule;
     }
 
     /**
@@ -27,10 +33,10 @@ public class LeaveBalanceRuleProvider {
     public List<LeavePolicyRule> getRules() {
         return Arrays.asList(
                 // Most specific rules should come first.
-                new ProrataLeaveBalanceRule(),
+                prorataLeaveBalanceRule,
                 earnedLeaveBalanceRule,
                 // The default rule should always be last as a fallback.
-                new DefaultLeaveBalanceRule()
+                defaultLeaveBalanceRule
         );
     }
 }
