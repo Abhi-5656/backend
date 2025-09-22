@@ -42,7 +42,7 @@ public class BroadcastController {
      * @return A ResponseEntity indicating the outcome.
      */
     @PostMapping("/in-app")
-    @PreAuthorize("hasAuthority('ADMIN')") // Example: Only users with ADMIN role can broadcast
+//    @PreAuthorize("hasAuthority('ADMIN')") // Example: Only users with ADMIN role can broadcast
     public ResponseEntity<Map<String, Object>> broadcastInAppNotification(@Valid @RequestBody NotificationRequest broadcastRequest) {
         Map<String, Object> response = new HashMap<>();
         String currentTenantId = TenantContext.getTenant();

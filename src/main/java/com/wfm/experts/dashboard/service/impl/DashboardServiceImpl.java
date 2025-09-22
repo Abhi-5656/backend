@@ -1,4 +1,3 @@
-// Modify the file: harshwfm/wfm-backend/src/main/java/com/wfm/experts/dashboard/service/impl/DashboardServiceImpl.java
 package com.wfm.experts.dashboard.service.impl;
 
 import com.wfm.experts.dashboard.dto.*;
@@ -162,6 +161,7 @@ public class DashboardServiceImpl implements DashboardService {
                 total = policy.getGrantsConfig().getFixedGrant().getOneTimeDetails().getMaxDays();
             }
             return LeaveBalanceSummaryDTO.builder()
+                    .leavePolicyId(policy.getId())
                     .leaveName(policy.getPolicyName())
                     .balance(balanceMap.getOrDefault(policy.getPolicyName(), 0.0))
                     .total(total)
