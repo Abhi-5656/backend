@@ -13,6 +13,7 @@ import com.wfm.experts.tenant.common.employees.entity.Employee;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
@@ -48,13 +49,8 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
         LocalDate accrualDate = getAccrualDate(today, earnedGrant);
 
         if (today.isEqual(accrualDate)) {
-            if (isFirstAccrual(employee, context.getLeavePolicy()) && earnedGrant.getProrationConfig() != null && earnedGrant.getProrationConfig().isEnabled()) {
-                balance = calculateProratedFirstGrant(employee, earnedGrant);
-                message = "Prorated first grant applied.";
-            } else {
-                balance = calculateRegularAccrual(employee, earnedGrant);
-                message = "Regular monthly leave accrued.";
-            }
+            balance = calculateEarnedLeaveForMonth(employee, earnedGrant, YearMonth.from(today));
+            message = "Earned leave accrued for the month.";
         }
 
         return LeavePolicyRuleResultDTO.builder()
@@ -65,43 +61,12 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
                 .build();
     }
 
-    private double calculateProratedFirstGrant(Employee employee, EarnedGrantConfig earnedGrant) {
-        LocalDate hireDate = employee.getOrganizationalInfo().getEmploymentDetails().getDateOfJoining();
-        long monthsRemaining = 12 - hireDate.getMonthValue();
-        double totalLeaves = earnedGrant.getMaxDaysPerYear();
-        return (totalLeaves / 12.0) * monthsRemaining;
+    private double calculateEarnedLeaveForMonth(Employee employee, EarnedGrantConfig earnedGrant, YearMonth month) {
+        // Assuming 1 day of leave is earned per month if maxDaysPerYear is 12
+        double monthlyAccrual = (double) earnedGrant.getMaxDaysPerYear() / 12;
+        return monthlyAccrual;
     }
 
-    private double calculateRegularAccrual(Employee employee, EarnedGrantConfig earnedGrant) {
-        LocalDate today = LocalDate.now();
-        LocalDate lastMonth = today.minusMonths(1);
-        LocalDate startOfLastMonth = lastMonth.withDayOfMonth(1);
-        LocalDate endOfLastMonth = lastMonth.withDayOfMonth(lastMonth.lengthOfMonth());
-
-        List<Timesheet> timesheets = timesheetRepository.findByEmployeeIdAndWorkDateBetween(
-                employee.getEmployeeId(), startOfLastMonth, endOfLastMonth
-        );
-
-        long daysWorked = timesheets.stream()
-                .filter(ts -> ts.getRegularHoursMinutes() != null && ts.getRegularHoursMinutes() > 0)
-                .map(Timesheet::getWorkDate)
-                .distinct()
-                .count();
-
-        if (earnedGrant.getMaxDaysPerYear() != null && earnedGrant.getMaxDaysPerYear() > 0) {
-            double dailyAccrualRate = (double) earnedGrant.getMaxDaysPerYear() / 264; // Assuming 22 working days/month
-            return daysWorked * dailyAccrualRate;
-        }
-        return 0;
-    }
-
-    private boolean isFirstAccrual(Employee employee, LeavePolicy leavePolicy) {
-        // This is a simplified check. A more robust implementation would check
-        // for existing leave balances for this policy.
-        LocalDate hireDate = employee.getOrganizationalInfo().getEmploymentDetails().getDateOfJoining();
-        LocalDate today = LocalDate.now();
-        return hireDate.getMonth() == today.minusMonths(1).getMonth() && hireDate.getYear() == today.getYear();
-    }
 
     private LocalDate getAccrualDate(LocalDate today, EarnedGrantConfig earnedGrant) {
         if (earnedGrant.getAccrualCadence() == AccrualCadence.MONTHLY) {
