@@ -197,14 +197,16 @@ public class EmployeeController {
 
 
 
-    @GetMapping("/{email}")
-    @PreAuthorize("hasAuthority('employee:read') or hasPermission(#email, 'EmployeeDTO', 'self')")
-    public ResponseEntity<EmployeeDTO> getEmployeeByEmail(@RequestHeader("Authorization") String token,
-                                                          @PathVariable String email) {
-        setTenantSchemaFromToken(token);
-        Optional<EmployeeDTO> employee = employeeService.getEmployeeByEmail(email);
-        return employee.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
-    }
+
+
+//    @GetMapping("/{email}")
+//    @PreAuthorize("hasAuthority('employee:read') or hasPermission(#email, 'EmployeeDTO', 'self')")
+//    public ResponseEntity<EmployeeDTO> getEmployeeByEmail(@RequestHeader("Authorization") String token,
+//                                                          @PathVariable String email) {
+//        setTenantSchemaFromToken(token);
+//        Optional<EmployeeDTO> employee = employeeService.getEmployeeByEmail(email);
+//        return employee.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+//    }
 
     @PutMapping("/{email}")
     @PreAuthorize("hasAuthority('employee:update') or hasPermission(#email, 'EmployeeDTO', 'self')")
@@ -233,8 +235,8 @@ public class EmployeeController {
         return ResponseEntity.ok(employees);
     }
 
-    @GetMapping("/by-employee-id/{employeeId}")
-    @PreAuthorize("hasAuthority('employee:read') or hasPermission(#employeeId, 'EmployeeDTO', 'self')")
+    @GetMapping("/{employeeId}")
+//    @PreAuthorize("hasAuthority('employee:read') or hasPermission(#employeeId, 'EmployeeDTO', 'self')")
     public ResponseEntity<EmployeeDTO> getEmployeeByEmployeeId(
             @RequestHeader("Authorization") String token,
             @PathVariable String employeeId) {
