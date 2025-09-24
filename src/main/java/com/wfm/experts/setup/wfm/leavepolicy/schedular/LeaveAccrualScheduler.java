@@ -23,7 +23,7 @@
 //        subscriptionRepository.findAll().forEach(subscription -> {
 //            try {
 //                TenantContext.setTenant(subscription.getTenantId());
-//                leaveAccrualService.accrueLeaveForMonth(YearMonth.now());
+//                leaveAccrualService.accrueRepeatedGrant(YearMonth.now());
 //            } finally {
 //                TenantContext.clear();
 //            }
@@ -60,7 +60,7 @@ public class LeaveAccrualScheduler {
             subscriptionRepository.findAll().forEach(subscription -> {
                 try {
                     TenantContext.setTenant(subscription.getTenantId());
-                    leaveAccrualService.accrueLeaveForMonth(YearMonth.now());
+                    leaveAccrualService.accrueRepeatedGrant(YearMonth.now());
                 } finally {
                     TenantContext.clear();
                 }

@@ -48,37 +48,28 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
         Employee employee = context.getEmployee();
         EarnedGrantConfig earnedGrant = context.getLeavePolicy().getGrantsConfig().getEarnedGrant();
         double balance = 0;
-        String message = "Leave not yet accrued for this period.";
+        String message;
 
-        LocalDate today = LocalDate.now();
-        LocalDate accrualDate = getAccrualDate(today, earnedGrant);
+        YearMonth monthToAccrue = context.getProcessingMonth();
+        LocalDate startOfMonth = monthToAccrue.atDay(1);
+        LocalDate endOfMonth = monthToAccrue.atEndOfMonth();
 
-        // Only run the accrual on the designated accrual day of the month
-        if (today.isEqual(accrualDate)) {
+        long punchCount = punchEventRepository.countByEmployeeIdAndEventTimeBetween(
+                employee.getEmployeeId(),
+                startOfMonth.atStartOfDay(),
+                endOfMonth.atTime(23, 59, 59)
+        );
 
-            YearMonth monthToAccrue = YearMonth.from(today.minusMonths(1));
-            LocalDate startOfMonth = monthToAccrue.atDay(1);
-            LocalDate endOfMonth = monthToAccrue.atEndOfMonth();
-
-            // Fetch all punches for the employee within the entire month
-            long punchCount = punchEventRepository.countByEmployeeIdAndEventTimeBetween(
-                    employee.getEmployeeId(),
-                    startOfMonth.atStartOfDay(),
-                    endOfMonth.atTime(23, 59, 59)
-            );
-
-            // *** YOUR VALIDATION LOGIC ***
-            if (punchCount >= 30) {
-                if (isFirstAccrual(employee, context.getLeavePolicy()) && earnedGrant.getProrationConfig() != null && earnedGrant.getProrationConfig().isEnabled()) {
-                    balance = calculateProratedFirstGrant(employee, earnedGrant);
-                    message = "Prorated first grant applied based on punch validation.";
-                } else {
-                    balance = calculateRegularAccrual(employee, earnedGrant, monthToAccrue);
-                    message = "Monthly earned leave accrued after punch validation.";
-                }
+        if (punchCount >= 30) {
+            if (isFirstAccrual(employee, context.getProcessingMonth()) && earnedGrant.getProrationConfig() != null && earnedGrant.getProrationConfig().isEnabled()) {
+                balance = calculateProratedFirstGrant(employee, earnedGrant);
+                message = "Prorated first grant applied based on punch validation.";
             } else {
-                message = "Leave not accrued. Punch count of " + punchCount + " is below the threshold of 30.";
+                balance = calculateRegularAccrual(employee, earnedGrant, monthToAccrue);
+                message = "Monthly earned leave accrued after punch validation.";
             }
+        } else {
+            message = "Leave not accrued. Punch count of " + punchCount + " is below the threshold of 30.";
         }
 
         return LeavePolicyRuleResultDTO.builder()
@@ -91,9 +82,10 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
 
     private double calculateProratedFirstGrant(Employee employee, EarnedGrantConfig earnedGrant) {
         LocalDate hireDate = employee.getOrganizationalInfo().getEmploymentDetails().getDateOfJoining();
-        long monthsRemaining = 12 - hireDate.getMonthValue();
-        double totalLeaves = earnedGrant.getMaxDaysPerYear();
-        return (totalLeaves / 12.0) * monthsRemaining;
+        long daysInMonth = hireDate.lengthOfMonth();
+        long daysWorked = daysInMonth - hireDate.getDayOfMonth() + 1;
+        double monthlyGrant = earnedGrant.getMaxDaysPerYear() / 12.0;
+        return (monthlyGrant / daysInMonth) * daysWorked;
     }
 
     private double calculateRegularAccrual(Employee employee, EarnedGrantConfig earnedGrant, YearMonth monthToAccrue) {
@@ -111,28 +103,14 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
                 .count();
 
         if (earnedGrant.getMaxDaysPerYear() != null && earnedGrant.getMaxDaysPerYear() > 0) {
-            // A common practice is to assume a standard number of working days in a year
             double dailyAccrualRate = (double) earnedGrant.getMaxDaysPerYear() / 264; // e.g., 22 working days/month * 12
             return daysWorked * dailyAccrualRate;
         }
         return 0;
     }
 
-    private boolean isFirstAccrual(Employee employee, LeavePolicy leavePolicy) {
+    private boolean isFirstAccrual(Employee employee, YearMonth processingMonth) {
         LocalDate hireDate = employee.getOrganizationalInfo().getEmploymentDetails().getDateOfJoining();
-        LocalDate today = LocalDate.now();
-        return hireDate.getMonth() == today.minusMonths(1).getMonth() && hireDate.getYear() == today.getYear();
-    }
-
-    private LocalDate getAccrualDate(LocalDate today, EarnedGrantConfig earnedGrant) {
-        if (earnedGrant.getAccrualCadence() == AccrualCadence.MONTHLY) {
-            if (earnedGrant.getPosting() == PostingType.POST_AT_END) {
-                return today.withDayOfMonth(today.lengthOfMonth());
-            } else { // POST_AT_START
-                return today.withDayOfMonth(1);
-            }
-        }
-        // If no specific cadence is defined, default to the last day of the month
-        return today.withDayOfMonth(today.lengthOfMonth());
+        return YearMonth.from(hireDate).equals(processingMonth);
     }
 }

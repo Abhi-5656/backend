@@ -5,6 +5,7 @@ import com.wfm.experts.setup.wfm.leavepolicy.engine.context.LeavePolicyExecution
 import com.wfm.experts.setup.wfm.leavepolicy.entity.FixedGrantConfig;
 import com.wfm.experts.setup.wfm.leavepolicy.entity.GrantsConfig;
 import com.wfm.experts.setup.wfm.leavepolicy.entity.LeavePolicy;
+import com.wfm.experts.setup.wfm.leavepolicy.enums.GrantFrequency;
 import com.wfm.experts.setup.wfm.leavepolicy.rule.LeavePolicyRule;
 import org.springframework.stereotype.Component;
 
@@ -23,7 +24,7 @@ public class RepeatedlyLeaveGrantRule implements LeavePolicyRule {
         LeavePolicy leavePolicy = context.getLeavePolicy();
         return leavePolicy.getGrantsConfig() != null &&
                 leavePolicy.getGrantsConfig().getFixedGrant() != null &&
-                leavePolicy.getGrantsConfig().getFixedGrant().getFrequency() != null;
+                leavePolicy.getGrantsConfig().getFixedGrant().getFrequency() == GrantFrequency.REPEATEDLY;
     }
 
     @Override

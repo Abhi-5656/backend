@@ -483,6 +483,8 @@ package com.wfm.experts.modules.wfm.features.timesheet.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wfm.experts.modules.wfm.employee.assignment.holidayprofile.service.HolidayProfileAssignmentService;
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.entity.LeaveProfileAssignment;
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.repository.LeaveProfileAssignmentRepository;
 import com.wfm.experts.modules.wfm.employee.assignment.paypolicy.entity.PayPolicyAssignment;
 import com.wfm.experts.modules.wfm.employee.assignment.paypolicy.repository.PayPolicyAssignmentRepository;
 import com.wfm.experts.modules.wfm.features.roster.entity.EmployeeShift;
@@ -493,6 +495,11 @@ import com.wfm.experts.modules.wfm.features.timesheet.enums.PunchType;
 import com.wfm.experts.modules.wfm.features.timesheet.repository.PunchEventRepository;
 import com.wfm.experts.modules.wfm.features.timesheet.repository.TimesheetRepository;
 import com.wfm.experts.modules.wfm.features.timesheet.service.TimesheetCalculationService;
+import com.wfm.experts.setup.wfm.leavepolicy.entity.LeavePolicy;
+import com.wfm.experts.setup.wfm.leavepolicy.entity.LeaveProfile;
+import com.wfm.experts.setup.wfm.leavepolicy.entity.LeaveProfilePolicy;
+import com.wfm.experts.setup.wfm.leavepolicy.enums.GrantType;
+import com.wfm.experts.setup.wfm.leavepolicy.repository.LeaveProfileRepository;
 import com.wfm.experts.setup.wfm.leavepolicy.service.LeaveAccrualService;
 import com.wfm.experts.setup.wfm.paypolicy.dto.PayPolicyRuleResultDTO;
 import com.wfm.experts.setup.wfm.paypolicy.engine.context.PayPolicyExecutionContext;
@@ -511,6 +518,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -526,6 +534,9 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
     private final ObjectMapper objectMapper;
     private final HolidayProfileAssignmentService holidayProfileAssignmentService;
     private final LeaveAccrualService leaveAccrualService;
+    private final LeaveProfileAssignmentRepository leaveProfileAssignmentRepository;
+    private final LeaveProfileRepository leaveProfileRepository;
+
 
     @Override
     @Transactional
@@ -573,7 +584,24 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
 
         saveOrUpdateTimesheet(employeeId, date, grossTotalWorkMinutes, finalRegularMinutes, totalExcessForDto, ruleResults, finalStatus);
 
-        leaveAccrualService.accrueLeaveForMonth(YearMonth.from(date));
+        Optional<LeaveProfileAssignment> assignmentOpt = leaveProfileAssignmentRepository.findByEmployeeId(employeeId)
+                .stream()
+                .filter(a -> a.getEffectiveDate().isBefore(date.plusDays(1)) && (a.getExpirationDate() == null || a.getExpirationDate().isAfter(date.minusDays(1))))
+                .findFirst();
+
+        if (assignmentOpt.isPresent()) {
+            Optional<LeaveProfile> profileOpt = leaveProfileRepository.findById(assignmentOpt.get().getLeaveProfileId());
+            if (profileOpt.isPresent()) {
+                LeaveProfile profile = profileOpt.get();
+                boolean hasEarnedLeave = profile.getLeaveProfilePolicies().stream()
+                        .map(LeaveProfilePolicy::getLeavePolicy)
+                        .anyMatch(lp -> lp.getGrantsConfig() != null && lp.getGrantsConfig().getGrantType() == GrantType.EARNED);
+
+                if (hasEarnedLeave) {
+                    leaveAccrualService.accrueEarnedGrant(YearMonth.from(date));
+                }
+            }
+        }
     }
 
     private PayPolicyExecutionContext buildAndExecuteRules(String employeeId, LocalDate date, WorkSession workSession, PayPolicy policy, EmployeeShift currentShift) {

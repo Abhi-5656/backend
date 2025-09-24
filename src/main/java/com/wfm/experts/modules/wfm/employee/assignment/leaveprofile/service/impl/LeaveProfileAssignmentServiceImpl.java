@@ -68,6 +68,7 @@ public class LeaveProfileAssignmentServiceImpl implements LeaveProfileAssignment
                             .employee(employee)
                             .leavePolicy(leavePolicy)
                             .facts(new HashMap<>())
+                            .processingMonth(month) // <-- THE FIX IS HERE
                             .build();
                     totalProratedBalance += ruleExecutor.execute(context);
                 }

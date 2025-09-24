@@ -1,4 +1,3 @@
-// Create a new file: harshwfm/wfm-backend/src/main/java/com/wfm/experts/setup/wfm/leavepolicy/engine/context/LeavePolicyExecutionContext.java
 package com.wfm.experts.setup.wfm.leavepolicy.engine.context;
 
 import com.wfm.experts.setup.wfm.leavepolicy.entity.LeavePolicy;
@@ -7,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.Map;
 
 @Data
@@ -16,4 +16,5 @@ public class LeavePolicyExecutionContext {
     private LeavePolicy leavePolicy;
     private LocalDate leaveRequestDate;
     private Map<String, Object> facts;
+    private YearMonth processingMonth; // <-- ADD THIS LINE
 }

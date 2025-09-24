@@ -9,6 +9,7 @@ import com.wfm.experts.setup.wfm.leavepolicy.engine.context.LeavePolicyExecution
 import com.wfm.experts.setup.wfm.leavepolicy.engine.executor.LeavePolicyRuleExecutor;
 import com.wfm.experts.setup.wfm.leavepolicy.entity.LeavePolicy;
 import com.wfm.experts.setup.wfm.leavepolicy.entity.LeaveProfile;
+import com.wfm.experts.setup.wfm.leavepolicy.enums.GrantType;
 import com.wfm.experts.setup.wfm.leavepolicy.repository.LeaveProfileRepository;
 import com.wfm.experts.tenant.common.employees.entity.Employee;
 import com.wfm.experts.tenant.common.employees.repository.EmployeeRepository;
@@ -33,7 +34,7 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
 
     @Override
     @Transactional
-    public void accrueLeaveForMonth(YearMonth month) {
+    public void accrueRepeatedGrant(YearMonth month) {
         List<Employee> employees = employeeRepository.findAll();
         for (Employee employee : employees) {
             leaveProfileAssignmentRepository.findByEmployeeId(employee.getEmployeeId())
@@ -44,12 +45,51 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
                         if (leaveProfile != null) {
                             List<LeavePolicy> policies = getLeavePoliciesFromProfile(leaveProfile);
                             for (LeavePolicy leavePolicy : policies) {
-                                // Check if the policy is of type "Repeatedly"
-                                if (leavePolicy.getGrantsConfig() != null && leavePolicy.getGrantsConfig().getFixedGrant() != null) {
+                                if (leavePolicy.getGrantsConfig() != null && leavePolicy.getGrantsConfig().getGrantType() == GrantType.FIXED) {
                                     LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
                                             .employee(employee)
                                             .leavePolicy(leavePolicy)
                                             .facts(new HashMap<>())
+                                            .processingMonth(month) // <-- ADD THIS LINE
+                                            .build();
+
+                                    double earnedLeave = ruleExecutor.execute(context);
+
+                                    LeaveBalance leaveBalance = leaveBalanceRepository.findByEmployee_EmployeeIdAndLeavePolicy_Id(employee.getEmployeeId(), leavePolicy.getId())
+                                            .orElse(LeaveBalance.builder()
+                                                    .employee(employee)
+                                                    .leavePolicy(leavePolicy)
+                                                    .balance(0)
+                                                    .build());
+
+                                    leaveBalance.setBalance(leaveBalance.getBalance() + earnedLeave);
+                                    leaveBalanceRepository.save(leaveBalance);
+                                }
+                            }
+                        }
+                    });
+        }
+    }
+
+    @Override
+    @Transactional
+    public void accrueEarnedGrant(YearMonth month) {
+        List<Employee> employees = employeeRepository.findAll();
+        for (Employee employee : employees) {
+            leaveProfileAssignmentRepository.findByEmployeeId(employee.getEmployeeId())
+                    .stream()
+                    .findFirst()
+                    .ifPresent(assignment -> {
+                        LeaveProfile leaveProfile = leaveProfileRepository.findById(assignment.getLeaveProfileId()).orElse(null);
+                        if (leaveProfile != null) {
+                            List<LeavePolicy> policies = getLeavePoliciesFromProfile(leaveProfile);
+                            for (LeavePolicy leavePolicy : policies) {
+                                if (leavePolicy.getGrantsConfig() != null && leavePolicy.getGrantsConfig().getGrantType() == GrantType.EARNED) {
+                                    LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
+                                            .employee(employee)
+                                            .leavePolicy(leavePolicy)
+                                            .facts(new HashMap<>())
+                                            .processingMonth(month) // <-- ADD THIS LINE
                                             .build();
 
                                     double earnedLeave = ruleExecutor.execute(context);

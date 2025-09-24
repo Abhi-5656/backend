@@ -6,6 +6,7 @@ import com.wfm.experts.setup.wfm.leavepolicy.entity.FixedGrantConfig;
 import com.wfm.experts.setup.wfm.leavepolicy.entity.GrantsConfig;
 import com.wfm.experts.setup.wfm.leavepolicy.entity.LeavePolicy;
 import com.wfm.experts.setup.wfm.leavepolicy.enums.CalculationDateType;
+import com.wfm.experts.setup.wfm.leavepolicy.enums.GrantType;
 import com.wfm.experts.setup.wfm.leavepolicy.rule.LeavePolicyRule;
 import com.wfm.experts.tenant.common.employees.entity.Employee;
 import org.springframework.stereotype.Component;
@@ -26,15 +27,17 @@ public class ProrataLeaveBalanceRule implements LeavePolicyRule {
         LeavePolicy leavePolicy = context.getLeavePolicy();
         Employee employee = context.getEmployee();
 
-        if (leavePolicy.getCalculationDateConfig() != null &&
-                leavePolicy.getCalculationDateConfig().getCalculationType() == CalculationDateType.CUSTOM_DATE) {
+        if (leavePolicy.getGrantsConfig() != null && leavePolicy.getGrantsConfig().getGrantType() == GrantType.FIXED) {
+            if (leavePolicy.getCalculationDateConfig() != null &&
+                    leavePolicy.getCalculationDateConfig().getCalculationType() == CalculationDateType.CUSTOM_DATE) {
 
-            LocalDate hireDate = employee.getOrganizationalInfo().getEmploymentDetails().getDateOfJoining();
-            LocalDate customGrantDate = leavePolicy.getCalculationDateConfig().getCustomDate();
+                LocalDate hireDate = employee.getOrganizationalInfo().getEmploymentDetails().getDateOfJoining();
+                LocalDate customGrantDate = leavePolicy.getCalculationDateConfig().getCustomDate();
 
-            LocalDate grantDateInHiringYear = customGrantDate.withYear(hireDate.getYear());
+                LocalDate grantDateInHiringYear = customGrantDate.withYear(hireDate.getYear());
 
-            return hireDate.isAfter(grantDateInHiringYear);
+                return hireDate.isAfter(grantDateInHiringYear);
+            }
         }
         return false;
     }
