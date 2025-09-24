@@ -1,6 +1,7 @@
 package com.wfm.experts.setup.wfm.leavepolicy.rule.impl;
 
 import com.wfm.experts.modules.wfm.features.timesheet.entity.Timesheet;
+import com.wfm.experts.modules.wfm.features.timesheet.repository.PunchEventRepository;
 import com.wfm.experts.modules.wfm.features.timesheet.repository.TimesheetRepository;
 import com.wfm.experts.setup.wfm.leavepolicy.dto.LeavePolicyRuleResultDTO;
 import com.wfm.experts.setup.wfm.leavepolicy.engine.context.LeavePolicyExecutionContext;
@@ -13,6 +14,7 @@ import com.wfm.experts.tenant.common.employees.entity.Employee;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
@@ -20,9 +22,12 @@ import java.util.List;
 public class EarnedLeaveBalanceRule implements LeavePolicyRule {
 
     private final TimesheetRepository timesheetRepository;
+    private final PunchEventRepository punchEventRepository;
 
-    public EarnedLeaveBalanceRule(TimesheetRepository timesheetRepository) {
+
+    public EarnedLeaveBalanceRule(TimesheetRepository timesheetRepository, PunchEventRepository punchEventRepository) {
         this.timesheetRepository = timesheetRepository;
+        this.punchEventRepository = punchEventRepository;
     }
 
     @Override
@@ -33,6 +38,7 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
     @Override
     public boolean evaluate(LeavePolicyExecutionContext context) {
         LeavePolicy leavePolicy = context.getLeavePolicy();
+        // This rule only applies to "Earned" leave grants
         return leavePolicy.getGrantsConfig() != null &&
                 leavePolicy.getGrantsConfig().getEarnedGrant() != null;
     }
@@ -42,18 +48,36 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
         Employee employee = context.getEmployee();
         EarnedGrantConfig earnedGrant = context.getLeavePolicy().getGrantsConfig().getEarnedGrant();
         double balance = 0;
-        String message = "No accrual for today.";
+        String message = "Leave not yet accrued for this period.";
 
         LocalDate today = LocalDate.now();
         LocalDate accrualDate = getAccrualDate(today, earnedGrant);
 
+        // Only run the accrual on the designated accrual day of the month
         if (today.isEqual(accrualDate)) {
-            if (isFirstAccrual(employee, context.getLeavePolicy()) && earnedGrant.getProrationConfig() != null && earnedGrant.getProrationConfig().isEnabled()) {
-                balance = calculateProratedFirstGrant(employee, earnedGrant);
-                message = "Prorated first grant applied.";
+
+            YearMonth monthToAccrue = YearMonth.from(today.minusMonths(1));
+            LocalDate startOfMonth = monthToAccrue.atDay(1);
+            LocalDate endOfMonth = monthToAccrue.atEndOfMonth();
+
+            // Fetch all punches for the employee within the entire month
+            long punchCount = punchEventRepository.countByEmployeeIdAndEventTimeBetween(
+                    employee.getEmployeeId(),
+                    startOfMonth.atStartOfDay(),
+                    endOfMonth.atTime(23, 59, 59)
+            );
+
+            // *** YOUR VALIDATION LOGIC ***
+            if (punchCount >= 30) {
+                if (isFirstAccrual(employee, context.getLeavePolicy()) && earnedGrant.getProrationConfig() != null && earnedGrant.getProrationConfig().isEnabled()) {
+                    balance = calculateProratedFirstGrant(employee, earnedGrant);
+                    message = "Prorated first grant applied based on punch validation.";
+                } else {
+                    balance = calculateRegularAccrual(employee, earnedGrant, monthToAccrue);
+                    message = "Monthly earned leave accrued after punch validation.";
+                }
             } else {
-                balance = calculateRegularAccrual(employee, earnedGrant);
-                message = "Regular monthly leave accrued.";
+                message = "Leave not accrued. Punch count of " + punchCount + " is below the threshold of 30.";
             }
         }
 
@@ -72,14 +96,12 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
         return (totalLeaves / 12.0) * monthsRemaining;
     }
 
-    private double calculateRegularAccrual(Employee employee, EarnedGrantConfig earnedGrant) {
-        LocalDate today = LocalDate.now();
-        LocalDate lastMonth = today.minusMonths(1);
-        LocalDate startOfLastMonth = lastMonth.withDayOfMonth(1);
-        LocalDate endOfLastMonth = lastMonth.withDayOfMonth(lastMonth.lengthOfMonth());
+    private double calculateRegularAccrual(Employee employee, EarnedGrantConfig earnedGrant, YearMonth monthToAccrue) {
+        LocalDate startOfMonth = monthToAccrue.atDay(1);
+        LocalDate endOfMonth = monthToAccrue.atEndOfMonth();
 
         List<Timesheet> timesheets = timesheetRepository.findByEmployeeIdAndWorkDateBetween(
-                employee.getEmployeeId(), startOfLastMonth, endOfLastMonth
+                employee.getEmployeeId(), startOfMonth, endOfMonth
         );
 
         long daysWorked = timesheets.stream()
@@ -89,15 +111,14 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
                 .count();
 
         if (earnedGrant.getMaxDaysPerYear() != null && earnedGrant.getMaxDaysPerYear() > 0) {
-            double dailyAccrualRate = (double) earnedGrant.getMaxDaysPerYear() / 264; // Assuming 22 working days/month
+            // A common practice is to assume a standard number of working days in a year
+            double dailyAccrualRate = (double) earnedGrant.getMaxDaysPerYear() / 264; // e.g., 22 working days/month * 12
             return daysWorked * dailyAccrualRate;
         }
         return 0;
     }
 
     private boolean isFirstAccrual(Employee employee, LeavePolicy leavePolicy) {
-        // This is a simplified check. A more robust implementation would check
-        // for existing leave balances for this policy.
         LocalDate hireDate = employee.getOrganizationalInfo().getEmploymentDetails().getDateOfJoining();
         LocalDate today = LocalDate.now();
         return hireDate.getMonth() == today.minusMonths(1).getMonth() && hireDate.getYear() == today.getYear();
@@ -111,6 +132,7 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
                 return today.withDayOfMonth(1);
             }
         }
-        return today; // Default to today if cadence is not monthly
+        // If no specific cadence is defined, default to the last day of the month
+        return today.withDayOfMonth(today.lengthOfMonth());
     }
 }

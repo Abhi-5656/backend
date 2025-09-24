@@ -19,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -56,18 +57,25 @@ public class LeaveProfileAssignmentServiceImpl implements LeaveProfileAssignment
                     .build();
             assignments.add(assignment);
 
-            for (LeavePolicy leavePolicy : getLeavePoliciesFromProfile(leaveProfile)) {
-                LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
-                        .employee(employee)
-                        .leavePolicy(leavePolicy)
-                        .facts(new HashMap<>())
-                        .build();
+            // Prorated Accrual Logic
+            YearMonth startMonth = YearMonth.from(dto.getEffectiveDate());
+            YearMonth currentMonth = YearMonth.now();
 
-                double initialBalance = ruleExecutor.execute(context);
+            for (LeavePolicy leavePolicy : getLeavePoliciesFromProfile(leaveProfile)) {
+                double totalProratedBalance = 0;
+                for (YearMonth month = startMonth; month.isBefore(currentMonth); month = month.plusMonths(1)) {
+                    LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
+                            .employee(employee)
+                            .leavePolicy(leavePolicy)
+                            .facts(new HashMap<>())
+                            .build();
+                    totalProratedBalance += ruleExecutor.execute(context);
+                }
+
                 LeaveBalance leaveBalance = LeaveBalance.builder()
                         .employee(employee)
                         .leavePolicy(leavePolicy)
-                        .balance(initialBalance)
+                        .balance(totalProratedBalance)
                         .build();
                 leaveBalanceRepository.save(leaveBalance);
             }

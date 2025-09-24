@@ -44,7 +44,8 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
                         if (leaveProfile != null) {
                             List<LeavePolicy> policies = getLeavePoliciesFromProfile(leaveProfile);
                             for (LeavePolicy leavePolicy : policies) {
-                                if (leavePolicy.getGrantsConfig() != null && leavePolicy.getGrantsConfig().getEarnedGrant() != null) {
+                                // Check if the policy is of type "Repeatedly"
+                                if (leavePolicy.getGrantsConfig() != null && leavePolicy.getGrantsConfig().getFixedGrant() != null) {
                                     LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
                                             .employee(employee)
                                             .leavePolicy(leavePolicy)
