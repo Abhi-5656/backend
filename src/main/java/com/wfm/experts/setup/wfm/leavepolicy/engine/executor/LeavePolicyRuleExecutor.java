@@ -1,3 +1,4 @@
+// src/main/java/com/wfm/experts/setup/wfm/leavepolicy/engine/executor/LeavePolicyRuleExecutor.java
 package com.wfm.experts.setup.wfm.leavepolicy.engine.executor;
 
 import com.wfm.experts.setup.wfm.leavepolicy.engine.context.LeavePolicyExecutionContext;
@@ -19,15 +20,19 @@ public class LeavePolicyRuleExecutor {
     }
 
     public double execute(LeavePolicyExecutionContext context) {
+        double totalBalance = 0;
         for (LeavePolicyRule rule : ruleProvider.getRules()) {
             logger.info("Evaluating rule: {}", rule.getName());
             if (rule.evaluate(context)) {
                 logger.info("Executing rule: {}", rule.getName());
-                return rule.execute(context).getBalance();
+                totalBalance += rule.execute(context).getBalance();
+            } else {
+                logger.info("Rule '{}' did not meet the criteria, skipping.", rule.getName());
             }
-            logger.info("Rule '{}' did not meet the criteria, skipping.", rule.getName());
         }
-        logger.warn("No leave policy rule was executed for employee {}. Defaulting to 0.", context.getEmployee().getEmployeeId());
-        return 0;
+        if (totalBalance == 0) {
+            logger.warn("No leave policy rule was executed for employee {}. Defaulting to 0.", context.getEmployee().getEmployeeId());
+        }
+        return totalBalance;
     }
 }

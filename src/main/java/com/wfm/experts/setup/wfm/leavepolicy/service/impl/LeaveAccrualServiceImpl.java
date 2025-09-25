@@ -41,6 +41,11 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
                     .stream()
                     .findFirst()
                     .ifPresent(assignment -> {
+                        // Ensure we do not accrue for months before the assignment is effective.
+                        if (month.isBefore(YearMonth.from(assignment.getEffectiveDate()))) {
+                            return; // Skip this employee for this month
+                        }
+
                         LeaveProfile leaveProfile = leaveProfileRepository.findById(assignment.getLeaveProfileId()).orElse(null);
                         if (leaveProfile != null) {
                             List<LeavePolicy> policies = getLeavePoliciesFromProfile(leaveProfile);
@@ -50,7 +55,7 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
                                             .employee(employee)
                                             .leavePolicy(leavePolicy)
                                             .facts(new HashMap<>())
-                                            .processingMonth(month) // <-- ADD THIS LINE
+                                            .processingMonth(month)
                                             .build();
 
                                     double earnedLeave = ruleExecutor.execute(context);
@@ -80,6 +85,10 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
                     .stream()
                     .findFirst()
                     .ifPresent(assignment -> {
+                        // Ensure we do not accrue for months before the assignment is effective.
+                        if (month.isBefore(YearMonth.from(assignment.getEffectiveDate()))) {
+                            return; // Skip this employee for this month
+                        }
                         LeaveProfile leaveProfile = leaveProfileRepository.findById(assignment.getLeaveProfileId()).orElse(null);
                         if (leaveProfile != null) {
                             List<LeavePolicy> policies = getLeavePoliciesFromProfile(leaveProfile);
@@ -89,7 +98,7 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
                                             .employee(employee)
                                             .leavePolicy(leavePolicy)
                                             .facts(new HashMap<>())
-                                            .processingMonth(month) // <-- ADD THIS LINE
+                                            .processingMonth(month)
                                             .build();
 
                                     double earnedLeave = ruleExecutor.execute(context);
@@ -108,6 +117,56 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
                         }
                     });
         }
+    }
+
+    @Override
+    @Transactional
+    public void recalculateTotalLeaveBalance(String employeeId) {
+        Employee employee = employeeRepository.findByEmployeeId(employeeId)
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
+
+        leaveProfileAssignmentRepository.findByEmployeeId(employee.getEmployeeId())
+                .stream()
+                .findFirst()
+                .ifPresent(assignment -> {
+                    LeaveProfile leaveProfile = leaveProfileRepository.findById(assignment.getLeaveProfileId()).orElse(null);
+                    if (leaveProfile != null) {
+                        for (LeavePolicy leavePolicy : getLeavePoliciesFromProfile(leaveProfile)) {
+                            if (leavePolicy.getGrantsConfig() != null &&
+                                    (leavePolicy.getGrantsConfig().getGrantType() == GrantType.EARNED ||
+                                            leavePolicy.getGrantsConfig().getGrantType() == GrantType.FIXED)) {
+
+                                double totalBalance = 0;
+                                YearMonth startMonth = YearMonth.from(assignment.getEffectiveDate());
+                                YearMonth endMonth = YearMonth.now();
+
+                                // Do not process future months
+                                if (startMonth.isAfter(endMonth)) {
+                                    continue;
+                                }
+
+                                for (YearMonth month = startMonth; !month.isAfter(endMonth); month = month.plusMonths(1)) {
+                                    LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
+                                            .employee(employee)
+                                            .leavePolicy(leavePolicy)
+                                            .facts(new HashMap<>())
+                                            .processingMonth(month)
+                                            .build();
+                                    totalBalance += ruleExecutor.execute(context);
+                                }
+
+                                LeaveBalance leaveBalance = leaveBalanceRepository.findByEmployee_EmployeeIdAndLeavePolicy_Id(employee.getEmployeeId(), leavePolicy.getId())
+                                        .orElse(LeaveBalance.builder()
+                                                .employee(employee)
+                                                .leavePolicy(leavePolicy)
+                                                .build());
+
+                                leaveBalance.setBalance(totalBalance);
+                                leaveBalanceRepository.save(leaveBalance);
+                            }
+                        }
+                    }
+                });
     }
 
     private List<LeavePolicy> getLeavePoliciesFromProfile(LeaveProfile leaveProfile) {

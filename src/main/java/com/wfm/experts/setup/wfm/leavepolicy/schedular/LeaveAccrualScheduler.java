@@ -61,6 +61,7 @@ public class LeaveAccrualScheduler {
                 try {
                     TenantContext.setTenant(subscription.getTenantId());
                     leaveAccrualService.accrueRepeatedGrant(YearMonth.now());
+                    leaveAccrualService.accrueEarnedGrant(YearMonth.now());
                 } finally {
                     TenantContext.clear();
                 }

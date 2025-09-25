@@ -1,3 +1,4 @@
+// src/main/java/com/wfm/experts/setup/wfm/leavepolicy/service/LeaveAccrualService.java
 package com.wfm.experts.setup.wfm.leavepolicy.service;
 
 import java.time.YearMonth;
@@ -18,4 +19,11 @@ public interface LeaveAccrualService {
      * @param month The month for which to run the accrual.
      */
     void accrueEarnedGrant(YearMonth month);
+
+    /**
+     * Recalculates the entire leave balance for an employee from the effective date of their leave profile assignment.
+     *
+     * @param employeeId The ID of the employee whose balance needs to be recalculated.
+     */
+    void recalculateTotalLeaveBalance(String employeeId);
 }

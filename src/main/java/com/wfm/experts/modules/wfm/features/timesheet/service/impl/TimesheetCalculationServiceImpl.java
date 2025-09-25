@@ -495,10 +495,6 @@ import com.wfm.experts.modules.wfm.features.timesheet.enums.PunchType;
 import com.wfm.experts.modules.wfm.features.timesheet.repository.PunchEventRepository;
 import com.wfm.experts.modules.wfm.features.timesheet.repository.TimesheetRepository;
 import com.wfm.experts.modules.wfm.features.timesheet.service.TimesheetCalculationService;
-import com.wfm.experts.setup.wfm.leavepolicy.entity.LeavePolicy;
-import com.wfm.experts.setup.wfm.leavepolicy.entity.LeaveProfile;
-import com.wfm.experts.setup.wfm.leavepolicy.entity.LeaveProfilePolicy;
-import com.wfm.experts.setup.wfm.leavepolicy.enums.GrantType;
 import com.wfm.experts.setup.wfm.leavepolicy.repository.LeaveProfileRepository;
 import com.wfm.experts.setup.wfm.leavepolicy.service.LeaveAccrualService;
 import com.wfm.experts.setup.wfm.paypolicy.dto.PayPolicyRuleResultDTO;
@@ -518,7 +514,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -584,23 +579,11 @@ public class TimesheetCalculationServiceImpl implements TimesheetCalculationServ
 
         saveOrUpdateTimesheet(employeeId, date, grossTotalWorkMinutes, finalRegularMinutes, totalExcessForDto, ruleResults, finalStatus);
 
-        Optional<LeaveProfileAssignment> assignmentOpt = leaveProfileAssignmentRepository.findByEmployeeId(employeeId)
-                .stream()
-                .filter(a -> a.getEffectiveDate().isBefore(date.plusDays(1)) && (a.getExpirationDate() == null || a.getExpirationDate().isAfter(date.minusDays(1))))
-                .findFirst();
+        YearMonth punchMonth = YearMonth.from(date);
+        YearMonth currentMonth = YearMonth.now();
 
-        if (assignmentOpt.isPresent()) {
-            Optional<LeaveProfile> profileOpt = leaveProfileRepository.findById(assignmentOpt.get().getLeaveProfileId());
-            if (profileOpt.isPresent()) {
-                LeaveProfile profile = profileOpt.get();
-                boolean hasEarnedLeave = profile.getLeaveProfilePolicies().stream()
-                        .map(LeaveProfilePolicy::getLeavePolicy)
-                        .anyMatch(lp -> lp.getGrantsConfig() != null && lp.getGrantsConfig().getGrantType() == GrantType.EARNED);
-
-                if (hasEarnedLeave) {
-                    leaveAccrualService.accrueEarnedGrant(YearMonth.from(date));
-                }
-            }
+        if (punchMonth.isBefore(currentMonth)) {
+            leaveAccrualService.recalculateTotalLeaveBalance(employeeId);
         }
     }
 
