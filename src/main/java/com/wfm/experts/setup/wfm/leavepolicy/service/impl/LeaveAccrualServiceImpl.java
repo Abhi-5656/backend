@@ -9,6 +9,7 @@ import com.wfm.experts.setup.wfm.leavepolicy.engine.context.LeavePolicyExecution
 import com.wfm.experts.setup.wfm.leavepolicy.engine.executor.LeavePolicyRuleExecutor;
 import com.wfm.experts.setup.wfm.leavepolicy.entity.LeavePolicy;
 import com.wfm.experts.setup.wfm.leavepolicy.entity.LeaveProfile;
+import com.wfm.experts.setup.wfm.leavepolicy.enums.GrantFrequency;
 import com.wfm.experts.setup.wfm.leavepolicy.enums.GrantType;
 import com.wfm.experts.setup.wfm.leavepolicy.repository.LeaveProfileRepository;
 import com.wfm.experts.tenant.common.employees.entity.Employee;
@@ -132,34 +133,49 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
                     LeaveProfile leaveProfile = leaveProfileRepository.findById(assignment.getLeaveProfileId()).orElse(null);
                     if (leaveProfile != null) {
                         for (LeavePolicy leavePolicy : getLeavePoliciesFromProfile(leaveProfile)) {
-                            if (leavePolicy.getGrantsConfig() != null &&
-                                    (leavePolicy.getGrantsConfig().getGrantType() == GrantType.EARNED ||
-                                            leavePolicy.getGrantsConfig().getGrantType() == GrantType.FIXED)) {
-
+                            if (leavePolicy.getGrantsConfig() != null) {
                                 double totalBalance = 0;
-                                YearMonth startMonth = YearMonth.from(assignment.getEffectiveDate());
-                                YearMonth endMonth;
-
                                 if (leavePolicy.getGrantsConfig().getGrantType() == GrantType.EARNED) {
-                                    endMonth = YearMonth.now();
-                                } else {
-                                    endMonth = YearMonth.now().minusMonths(1);
-                                }
+                                    YearMonth startMonth = YearMonth.from(assignment.getEffectiveDate());
+                                    YearMonth endMonth = YearMonth.now();
 
+                                    if (!startMonth.isAfter(endMonth)) {
+                                        for (YearMonth month = startMonth; !month.isAfter(endMonth); month = month.plusMonths(1)) {
+                                            LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
+                                                    .employee(employee)
+                                                    .leavePolicy(leavePolicy)
+                                                    .facts(new HashMap<>())
+                                                    .processingMonth(month)
+                                                    .build();
+                                            totalBalance += ruleExecutor.execute(context);
+                                        }
+                                    }
+                                } else if (leavePolicy.getGrantsConfig().getGrantType() == GrantType.FIXED) {
+                                    if (leavePolicy.getGrantsConfig().getFixedGrant() != null &&
+                                            leavePolicy.getGrantsConfig().getFixedGrant().getFrequency() == GrantFrequency.REPEATEDLY) {
+                                        YearMonth startMonth = YearMonth.from(assignment.getEffectiveDate());
+                                        YearMonth endMonth = YearMonth.now().minusMonths(1);
 
-                                // Do not process future months
-                                if (startMonth.isAfter(endMonth)) {
-                                    continue;
-                                }
-
-                                for (YearMonth month = startMonth; !month.isAfter(endMonth); month = month.plusMonths(1)) {
-                                    LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
-                                            .employee(employee)
-                                            .leavePolicy(leavePolicy)
-                                            .facts(new HashMap<>())
-                                            .processingMonth(month)
-                                            .build();
-                                    totalBalance += ruleExecutor.execute(context);
+                                        if (!startMonth.isAfter(endMonth)) {
+                                            for (YearMonth month = startMonth; !month.isAfter(endMonth); month = month.plusMonths(1)) {
+                                                LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
+                                                        .employee(employee)
+                                                        .leavePolicy(leavePolicy)
+                                                        .facts(new HashMap<>())
+                                                        .processingMonth(month)
+                                                        .build();
+                                                totalBalance += ruleExecutor.execute(context);
+                                            }
+                                        }
+                                    } else { // This handles ONE_TIME fixed grants correctly.
+                                        LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
+                                                .employee(employee)
+                                                .leavePolicy(leavePolicy)
+                                                .facts(new HashMap<>())
+                                                .processingMonth(YearMonth.from(assignment.getEffectiveDate()))
+                                                .build();
+                                        totalBalance += ruleExecutor.execute(context);
+                                    }
                                 }
 
                                 LeaveBalance leaveBalance = leaveBalanceRepository.findByEmployee_EmployeeIdAndLeavePolicy_Id(employee.getEmployeeId(), leavePolicy.getId())
