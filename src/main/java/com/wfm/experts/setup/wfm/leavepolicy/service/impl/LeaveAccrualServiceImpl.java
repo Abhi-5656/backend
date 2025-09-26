@@ -138,7 +138,14 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
 
                                 double totalBalance = 0;
                                 YearMonth startMonth = YearMonth.from(assignment.getEffectiveDate());
-                                YearMonth endMonth = YearMonth.now();
+                                YearMonth endMonth;
+
+                                if (leavePolicy.getGrantsConfig().getGrantType() == GrantType.EARNED) {
+                                    endMonth = YearMonth.now();
+                                } else {
+                                    endMonth = YearMonth.now().minusMonths(1);
+                                }
+
 
                                 // Do not process future months
                                 if (startMonth.isAfter(endMonth)) {

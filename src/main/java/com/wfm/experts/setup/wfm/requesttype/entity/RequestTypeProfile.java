@@ -29,10 +29,4 @@ public class RequestTypeProfile {
     )
     private Set<RequestType> requestTypes = new HashSet<>();
 
-    /** ✅ New fields */
-    @Column(name = "effective_date", nullable = false)
-    private LocalDate effectiveDate;
-
-    @Column(name = "expiration_date")
-    private LocalDate expirationDate;
 }

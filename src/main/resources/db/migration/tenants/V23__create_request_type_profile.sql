@@ -3,9 +3,7 @@
 -- Creates the main table to store request type profiles.
 CREATE TABLE request_type_profile (
                                       id BIGSERIAL PRIMARY KEY,
-                                      profile_name VARCHAR(255) NOT NULL UNIQUE,
-                                      effective_date DATE NOT NULL,
-                                      expiration_date DATE
+                                      profile_name VARCHAR(255) NOT NULL UNIQUE
 );
 
 -- Creates the join table for the many-to-many relationship

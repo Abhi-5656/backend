@@ -17,7 +17,7 @@ public class RequestTypeProfileDTO {
 
     @NotEmpty(message = "At least one request type must be selected.")
     private List<Long> requestTypeIds;
-
-    private LocalDate effectiveDate;
-    private LocalDate expirationDate;
+//
+//    private LocalDate effectiveDate;
+//    private LocalDate expirationDate;
 }
