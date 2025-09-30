@@ -9,7 +9,9 @@ import com.wfm.experts.setup.wfm.leavepolicy.engine.context.LeavePolicyExecution
 import com.wfm.experts.setup.wfm.leavepolicy.engine.executor.LeavePolicyRuleExecutor;
 import com.wfm.experts.setup.wfm.leavepolicy.entity.LeavePolicy;
 import com.wfm.experts.setup.wfm.leavepolicy.entity.LeaveProfile;
+import com.wfm.experts.setup.wfm.leavepolicy.entity.FixedGrantConfig;
 import com.wfm.experts.setup.wfm.leavepolicy.enums.GrantFrequency;
+import com.wfm.experts.setup.wfm.leavepolicy.enums.GrantPeriod;
 import com.wfm.experts.setup.wfm.leavepolicy.enums.GrantType;
 import com.wfm.experts.setup.wfm.leavepolicy.repository.LeaveProfileRepository;
 import com.wfm.experts.tenant.common.employees.entity.Employee;
@@ -18,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.HashMap;
 import java.util.List;
@@ -151,22 +154,42 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
                                         }
                                     }
                                 } else if (leavePolicy.getGrantsConfig().getGrantType() == GrantType.FIXED) {
-                                    if (leavePolicy.getGrantsConfig().getFixedGrant() != null &&
-                                            leavePolicy.getGrantsConfig().getFixedGrant().getFrequency() == GrantFrequency.REPEATEDLY) {
-                                        YearMonth startMonth = YearMonth.from(assignment.getEffectiveDate());
-                                        YearMonth endMonth = YearMonth.now().minusMonths(1);
+                                    FixedGrantConfig fixedGrant = leavePolicy.getGrantsConfig().getFixedGrant();
+                                    if (fixedGrant != null && fixedGrant.getFrequency() == GrantFrequency.REPEATEDLY) {
 
-                                        if (!startMonth.isAfter(endMonth)) {
-                                            for (YearMonth month = startMonth; !month.isAfter(endMonth); month = month.plusMonths(1)) {
+                                        GrantPeriod grantPeriod = fixedGrant.getRepeatedlyDetails().getGrantPeriod();
+
+                                        if (grantPeriod == GrantPeriod.YEARLY) {
+                                            // Loop through years for yearly grants
+                                            int startYear = assignment.getEffectiveDate().getYear();
+                                            int endYear = LocalDate.now().getYear();
+                                            for (int year = startYear; year <= endYear; year++) {
                                                 LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
                                                         .employee(employee)
                                                         .leavePolicy(leavePolicy)
                                                         .facts(new HashMap<>())
-                                                        .processingMonth(month)
+                                                        .processingMonth(YearMonth.of(year, 1)) // Use any month of the year
                                                         .build();
                                                 totalBalance += ruleExecutor.execute(context);
                                             }
+                                        } else { // Handles MONTHLY and PAY_PERIOD
+                                            // Original monthly loop is correct for these cases
+                                            YearMonth startMonth = YearMonth.from(assignment.getEffectiveDate());
+                                            YearMonth endMonth = YearMonth.now().minusMonths(1);
+
+                                            if (!startMonth.isAfter(endMonth)) {
+                                                for (YearMonth month = startMonth; !month.isAfter(endMonth); month = month.plusMonths(1)) {
+                                                    LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
+                                                            .employee(employee)
+                                                            .leavePolicy(leavePolicy)
+                                                            .facts(new HashMap<>())
+                                                            .processingMonth(month)
+                                                            .build();
+                                                    totalBalance += ruleExecutor.execute(context);
+                                                }
+                                            }
                                         }
+
                                     } else { // This handles ONE_TIME fixed grants correctly.
                                         LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
                                                 .employee(employee)
