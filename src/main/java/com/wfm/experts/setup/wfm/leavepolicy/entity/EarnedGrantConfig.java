@@ -1,6 +1,7 @@
+// Save as: src/main/java/com/wfm/experts/setup/wfm/leavepolicy/entity/EarnedGrantConfig.java
 package com.wfm.experts.setup.wfm.leavepolicy.entity;
 
-import com.wfm.experts.setup.wfm.leavepolicy.enums.AccrualCadence;
+import com.wfm.experts.setup.wfm.leavepolicy.enums.GrantPeriod;
 import com.wfm.experts.setup.wfm.leavepolicy.enums.PostingType;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -16,11 +17,13 @@ public class EarnedGrantConfig {
     private Long id;
 
     private Integer maxDaysPerYear;
+    private Integer maxDaysPerMonth; // Added field
+    private Integer maxDaysPerPayPeriod; // Added field
     private Double ratePerPeriod;
     private Integer maxConsecutiveDays;
 
     @Enumerated(EnumType.STRING)
-    private AccrualCadence accrualCadence;
+    private GrantPeriod grantPeriod; // Added field
 
     @Enumerated(EnumType.STRING)
     private PostingType posting;

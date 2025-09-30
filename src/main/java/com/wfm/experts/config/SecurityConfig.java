@@ -209,6 +209,7 @@ public class SecurityConfig {
                 "http://localhost:4200",
                 "http://192.168.1.4:4200", // ✅ Added IP-based frontend access
                 "http://192.168.0.210:4200",
+                "http://192.168.0.211:4200",
                 "http://192.168.1.100:4200",
                 "http://d3hs9u8alp2av.cloudfront.net",
                 "https://d3hs9u8alp2av.cloudfront.net",// ✅ Add your CloudFront domain here

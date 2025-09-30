@@ -35,10 +35,10 @@ public class LeavePolicyDto {
     @Size(max = 20, message = "Leave code must be less than 20 characters.")
     private String leaveCode;
 
-    @NotNull(message = "Effective date is required.")
-    private LocalDate effectiveDate;
-
-    private LocalDate expirationDate;
+//    @NotNull(message = "Effective date is required.")
+//    private LocalDate effectiveDate;
+//
+//    private LocalDate expirationDate;
 
     @NotNull(message = "Leave type is required.")
     private LeaveType leaveType;

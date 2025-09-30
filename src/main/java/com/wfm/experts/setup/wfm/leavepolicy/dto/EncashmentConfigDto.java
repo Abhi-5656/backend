@@ -1,3 +1,4 @@
+// Save as: src/main/java/com/wfm/experts/setup/wfm/leavepolicy/dto/EncashmentConfigDto.java
 package com.wfm.experts.setup.wfm.leavepolicy.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;

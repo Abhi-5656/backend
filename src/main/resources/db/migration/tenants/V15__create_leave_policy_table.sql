@@ -1,8 +1,9 @@
 -- Flyway migration script for creating the entire leave policy schema
 
--- Section 1: Create the most granular configuration tables first.
--- These tables have no dependencies on other tables in this schema.
+-- Drop existing tables if they exist to start fresh for this migration
+DROP TABLE IF EXISTS leave_policy_applicability, leave_policy, lp_limits_config, lp_grants_config, lp_attachments_config, lp_calculation_date_config, lp_eligibility_config, lp_encashment_config, lp_carry_forward_config, lp_earned_grant_config, lp_fixed_grant_config, lp_repeatedly_grant_details, lp_one_time_grant_details, lp_proration_config, lp_allowed_files CASCADE;
 
+-- Section 1: Create the most granular configuration tables first.
 CREATE TABLE lp_proration_config (
                                      id BIGSERIAL PRIMARY KEY,
                                      is_enabled BOOLEAN NOT NULL DEFAULT FALSE,
@@ -22,6 +23,9 @@ CREATE TABLE lp_repeatedly_grant_details (
                                              id BIGSERIAL PRIMARY KEY,
                                              max_days_per_year INT,
                                              max_days_per_month INT,
+                                             max_days_per_pay_period INT,
+                                             grant_period VARCHAR(255),
+                                             posting VARCHAR(255),
                                              min_advance_notice_in_days INT,
                                              min_worked_before_grant_in_days INT,
                                              proration_config_id BIGINT UNIQUE REFERENCES lp_proration_config(id)
@@ -30,9 +34,11 @@ CREATE TABLE lp_repeatedly_grant_details (
 CREATE TABLE lp_earned_grant_config (
                                         id BIGSERIAL PRIMARY KEY,
                                         max_days_per_year INT,
+                                        max_days_per_month INT,
+                                        max_days_per_pay_period INT,
                                         rate_per_period DOUBLE PRECISION,
                                         max_consecutive_days INT,
-                                        accrual_cadence VARCHAR(255),
+                                        grant_period VARCHAR(255),
                                         posting VARCHAR(255),
                                         min_advance_notice_in_days INT,
                                         proration_config_id BIGINT UNIQUE REFERENCES lp_proration_config(id)
@@ -63,13 +69,12 @@ CREATE TABLE lp_calculation_date_config (
 );
 
 CREATE TABLE lp_attachments_config (
-                                       id BIGSERIAL PRIMARY KEY,
-                                       is_enabled BOOLEAN NOT NULL DEFAULT FALSE
+                                       id BIGSERIAL PRIMARY KEY
 );
 
 -- This is a join table for the ElementCollection in AttachmentsConfig
 CREATE TABLE lp_allowed_files (
-                                  attachments_config_id BIGINT NOT NULL REFERENCES lp_attachments_config(id),
+                                  attachments_config_id BIGINT NOT NULL REFERENCES lp_attachments_config(id) ON DELETE CASCADE,
                                   file_type VARCHAR(255)
 );
 
@@ -107,8 +112,8 @@ CREATE TABLE leave_policy (
                               id BIGSERIAL PRIMARY KEY,
                               policy_name VARCHAR(100) NOT NULL UNIQUE,
                               leave_code VARCHAR(20) UNIQUE,
-                              effective_date DATE NOT NULL,
-                              expiration_date DATE,
+--                               effective_date DATE NOT NULL,
+--                               expiration_date DATE,
                               leave_type VARCHAR(255) NOT NULL,
                               leave_color VARCHAR(255) NOT NULL,
                               calculation_date_config_id BIGINT UNIQUE REFERENCES lp_calculation_date_config(id),
@@ -121,6 +126,6 @@ CREATE TABLE leave_policy (
 -- Section 4: Create the final join table for the ElementCollection in LeavePolicy.
 
 CREATE TABLE leave_policy_applicability (
-                                            policy_id BIGINT NOT NULL REFERENCES leave_policy(id),
+                                            policy_id BIGINT NOT NULL REFERENCES leave_policy(id) ON DELETE CASCADE,
                                             applicability VARCHAR(255) NOT NULL
 );

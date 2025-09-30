@@ -24,10 +24,10 @@ public class LeavePolicy {
     @Column(unique = true)
     private String leaveCode;
 
-    @Column(nullable = false)
-    private LocalDate effectiveDate;
-
-    private LocalDate expirationDate;
+//    @Column(nullable = false)
+//    private LocalDate effectiveDate;
+//
+//    private LocalDate expirationDate;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
