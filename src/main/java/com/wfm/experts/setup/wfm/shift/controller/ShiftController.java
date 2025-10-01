@@ -62,31 +62,31 @@ public class ShiftController extends WfmSetupController {
     private final ShiftService shiftService;
 
     @PostMapping
-    @PreAuthorize("hasAuthority('wfm:setup:shift:create')")
+//    @PreAuthorize("hasAuthority('wfm:setup:shift:create')")
     public ResponseEntity<ShiftDTO> createShift(@RequestBody ShiftDTO dto) {
         return ResponseEntity.ok(shiftService.createShift(dto));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('wfm:setup:shift:update')")
+//    @PreAuthorize("hasAuthority('wfm:setup:shift:update')")
     public ResponseEntity<ShiftDTO> updateShift(@PathVariable Long id, @RequestBody ShiftDTO dto) {
         return ResponseEntity.ok(shiftService.updateShift(id, dto));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('wfm:setup:shift:read')")
+//    @PreAuthorize("hasAuthority('wfm:setup:shift:read')")
     public ResponseEntity<ShiftDTO> getShift(@PathVariable Long id) {
         return ResponseEntity.ok(shiftService.getShift(id));
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('wfm:setup:shift:read')")
+//    @PreAuthorize("hasAuthority('wfm:setup:shift:read')")
     public ResponseEntity<List<ShiftDTO>> getAllShifts() {
         return ResponseEntity.ok(shiftService.getAllShifts());
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('wfm:setup:shift:delete')")
+//    @PreAuthorize("hasAuthority('wfm:setup:shift:delete')")
     public ResponseEntity<Void> deleteShift(@PathVariable Long id) {
         shiftService.deleteShift(id);
         return ResponseEntity.noContent().build();
