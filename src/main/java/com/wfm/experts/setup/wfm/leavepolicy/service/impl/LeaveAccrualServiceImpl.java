@@ -1,4 +1,3 @@
-// src/main/java/com/wfm/experts/setup/wfm/leavepolicy/service/impl/LeaveAccrualServiceImpl.java
 package com.wfm.experts.setup.wfm.leavepolicy.service.impl;
 
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.entity.LeaveBalance;
@@ -27,6 +26,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -134,11 +134,6 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
         Employee employee = employeeRepository.findByEmployeeId(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
-        Optional<LocalDate> latestTimesheetDateOpt = timesheetRepository.findByEmployeeIdAndWorkDateBetween(employeeId, LocalDate.now().minusYears(10), LocalDate.now().plusYears(10))
-                .stream()
-                .map(Timesheet::getWorkDate)
-                .max(LocalDate::compareTo);
-
         leaveProfileAssignmentRepository.findByEmployeeId(employee.getEmployeeId())
                 .stream()
                 .findFirst()
@@ -149,16 +144,21 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
                             if (leavePolicy.getGrantsConfig() != null) {
                                 double totalBalance = 0;
                                 if (leavePolicy.getGrantsConfig().getGrantType() == GrantType.EARNED) {
-                                    YearMonth startMonth = YearMonth.from(assignment.getEffectiveDate());
-                                    YearMonth endMonth = latestTimesheetDateOpt.map(YearMonth::from).orElse(YearMonth.now());
+                                    LocalDate startDate = assignment.getEffectiveDate();
+                                    LocalDate endDate = LocalDate.now();
 
-                                    if (!startMonth.isAfter(endMonth)) {
-                                        for (YearMonth month = startMonth; !month.isAfter(endMonth); month = month.plusMonths(1)) {
+                                    List<Timesheet> timesheets = timesheetRepository.findByEmployeeIdAndWorkDateBetween(employeeId, startDate, endDate);
+                                    Map<LocalDate, Timesheet> timesheetMap = timesheets.stream()
+                                            .collect(Collectors.toMap(Timesheet::getWorkDate, ts -> ts));
+
+                                    for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+                                        Timesheet timesheet = timesheetMap.get(date);
+                                        if (timesheet != null && timesheet.getRegularHoursMinutes() != null && timesheet.getRegularHoursMinutes() > 0) {
                                             LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
                                                     .employee(employee)
                                                     .leavePolicy(leavePolicy)
                                                     .facts(new HashMap<>())
-                                                    .processingMonth(month)
+                                                    .processingMonth(YearMonth.from(date))
                                                     .build();
                                             totalBalance += ruleExecutor.execute(context);
                                         }

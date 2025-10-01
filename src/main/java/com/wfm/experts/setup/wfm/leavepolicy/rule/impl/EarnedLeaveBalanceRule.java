@@ -54,22 +54,26 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
         LocalDate endOfMonth = monthToAccrue.atEndOfMonth();
         int daysInMonth = monthToAccrue.lengthOfMonth();
 
-        long punchCount = punchEventRepository.countByEmployeeIdAndEventTimeBetween(
-                employee.getEmployeeId(),
-                startOfMonth.atStartOfDay(),
-                endOfMonth.atTime(23, 59, 59)
+        List<Timesheet> timesheets = timesheetRepository.findByEmployeeIdAndWorkDateBetween(
+                employee.getEmployeeId(), startOfMonth, endOfMonth
         );
 
-        if (punchCount >= daysInMonth) {
+        long daysWorked = timesheets.stream()
+                .filter(ts -> ts.getRegularHoursMinutes() != null && ts.getRegularHoursMinutes() > 0)
+                .map(Timesheet::getWorkDate)
+                .distinct()
+                .count();
+
+        if (daysWorked >= daysInMonth) {
             if (isFirstAccrual(employee, context.getProcessingMonth()) && earnedGrant.getProrationConfig() != null && earnedGrant.getProrationConfig().isEnabled()) {
                 balance = calculateProratedFirstGrant(employee, earnedGrant);
                 message = "Prorated first grant applied based on punch validation.";
             } else {
-                balance = calculateRegularAccrual(employee, earnedGrant, monthToAccrue);
+                balance = calculateRegularAccrual(employee, earnedGrant, monthToAccrue, daysWorked);
                 message = "Monthly earned leave accrued after punch validation.";
             }
         } else {
-            message = "Leave not accrued. Punch count of " + punchCount + " is below the threshold of " + daysInMonth + ".";
+            message = "Leave not accrued. Days worked " + daysWorked + " is below the threshold of " + daysInMonth + ".";
         }
 
         return LeavePolicyRuleResultDTO.builder()
@@ -99,20 +103,7 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
         return (monthlyGrant / daysInMonth) * daysWorked;
     }
 
-    private double calculateRegularAccrual(Employee employee, EarnedGrantConfig earnedGrant, YearMonth monthToAccrue) {
-        LocalDate startOfMonth = monthToAccrue.atDay(1);
-        LocalDate endOfMonth = monthToAccrue.atEndOfMonth();
-
-        List<Timesheet> timesheets = timesheetRepository.findByEmployeeIdAndWorkDateBetween(
-                employee.getEmployeeId(), startOfMonth, endOfMonth
-        );
-
-        long daysWorked = timesheets.stream()
-                .filter(ts -> ts.getRegularHoursMinutes() != null && ts.getRegularHoursMinutes() > 0)
-                .map(Timesheet::getWorkDate)
-                .distinct()
-                .count();
-
+    private double calculateRegularAccrual(Employee employee, EarnedGrantConfig earnedGrant, YearMonth monthToAccrue, long daysWorked) {
         double dailyAccrualRate = 0;
         if (earnedGrant.getGrantPeriod() == GrantPeriod.MONTHLY && earnedGrant.getMaxDaysPerMonth() != null) {
             dailyAccrualRate = (double) earnedGrant.getMaxDaysPerMonth() / monthToAccrue.lengthOfMonth();

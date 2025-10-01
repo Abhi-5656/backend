@@ -1,4 +1,4 @@
-package com.wfm.experts.notificationengine.config;
+package com.wfm.experts.config;
 
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
@@ -30,8 +30,14 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.queue.push}")
     private String pushQueueName;
 
-    @Value("${rabbitmq.queue.in_app}") // New Queue for IN_APP
+    @Value("${rabbitmq.queue.in_app}")
     private String inAppQueueName;
+
+    @Value("${rabbitmq.queue.punch_processing}")
+    private String punchProcessingQueueName;
+
+    @Value("${rabbitmq.queue.leave_balance_recalculation}")
+    private String leaveBalanceRecalculationQueueName;
 
     @Value("${rabbitmq.queue.dlq.email}")
     private String emailDlqName;
@@ -39,8 +45,14 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.queue.dlq.push}")
     private String pushDlqName;
 
-    @Value("${rabbitmq.queue.dlq.in_app}") // New DLQ for IN_APP
+    @Value("${rabbitmq.queue.dlq.in_app}")
     private String inAppDlqName;
+
+    @Value("${rabbitmq.queue.dlq.punch_processing}")
+    private String punchProcessingDlqName;
+
+    @Value("${rabbitmq.queue.dlq.leave_balance_recalculation}")
+    private String leaveBalanceRecalculationDlqName;
 
 
     // --- Routing Keys ---
@@ -50,8 +62,14 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.routingkey.push}")
     private String pushRoutingKey;
 
-    @Value("${rabbitmq.routingkey.in_app}") // New Binding Key for IN_APP
+    @Value("${rabbitmq.routingkey.in_app}")
     private String inAppRoutingKey;
+
+    @Value("${rabbitmq.routingkey.punch_processing}")
+    private String punchProcessingRoutingKey;
+
+    @Value("${rabbitmq.routingkey.leave_balance_recalculation}")
+    private String leaveBalanceRecalculationRoutingKey;
 
 
     // Routing keys for DLQs
@@ -61,8 +79,14 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.routingkey.dlq.push}")
     private String pushDlqRoutingKey;
 
-    @Value("${rabbitmq.routingkey.dlq.in_app}") // New DLQ Routing Key for IN_APP
+    @Value("${rabbitmq.routingkey.dlq.in_app}")
     private String inAppDlqRoutingKey;
+
+    @Value("${rabbitmq.routingkey.dlq.punch_processing}")
+    private String punchProcessingDlqRoutingKey;
+
+    @Value("${rabbitmq.routingkey.dlq.leave_balance_recalculation}")
+    private String leaveBalanceRecalculationDlqRoutingKey;
 
 
     // === Exchanges ===
@@ -97,12 +121,30 @@ public class RabbitMQConfig {
                 .build();
     }
 
-    @Bean // New Queue for In-App
+    @Bean
     public Queue inAppQueue() {
         logger.info("Creating In-App Queue: {} with DLX: {} and DLQ routing key: {}", inAppQueueName, deadLetterExchangeName, inAppDlqRoutingKey);
         return QueueBuilder.durable(inAppQueueName)
                 .withArgument("x-dead-letter-exchange", deadLetterExchangeName)
                 .withArgument("x-dead-letter-routing-key", inAppDlqRoutingKey)
+                .build();
+    }
+
+    @Bean
+    public Queue punchProcessingQueue() {
+        logger.info("Creating Punch Processing Queue: {} with DLX: {} and DLQ routing key: {}", punchProcessingQueueName, deadLetterExchangeName, punchProcessingDlqRoutingKey);
+        return QueueBuilder.durable(punchProcessingQueueName)
+                .withArgument("x-dead-letter-exchange", deadLetterExchangeName)
+                .withArgument("x-dead-letter-routing-key", punchProcessingDlqRoutingKey)
+                .build();
+    }
+
+    @Bean
+    public Queue leaveBalanceRecalculationQueue() {
+        logger.info("Creating Leave Balance Recalculation Queue: {} with DLX: {} and DLQ routing key: {}", leaveBalanceRecalculationQueueName, deadLetterExchangeName, leaveBalanceRecalculationDlqRoutingKey);
+        return QueueBuilder.durable(leaveBalanceRecalculationQueueName)
+                .withArgument("x-dead-letter-exchange", deadLetterExchangeName)
+                .withArgument("x-dead-letter-routing-key", leaveBalanceRecalculationDlqRoutingKey)
                 .build();
     }
 
@@ -119,10 +161,22 @@ public class RabbitMQConfig {
         return QueueBuilder.durable(pushDlqName).build();
     }
 
-    @Bean // New DLQ for In-App
+    @Bean
     public Queue inAppDlq() {
         logger.info("Creating In-App DLQ: {}", inAppDlqName);
         return QueueBuilder.durable(inAppDlqName).build();
+    }
+
+    @Bean
+    public Queue punchProcessingDlq() {
+        logger.info("Creating Punch Processing DLQ: {}", punchProcessingDlqName);
+        return QueueBuilder.durable(punchProcessingDlqName).build();
+    }
+
+    @Bean
+    public Queue leaveBalanceRecalculationDlq() {
+        logger.info("Creating Leave Balance Recalculation DLQ: {}", leaveBalanceRecalculationDlqName);
+        return QueueBuilder.durable(leaveBalanceRecalculationDlqName).build();
     }
 
 
@@ -139,10 +193,22 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(pushQueue).to(notificationExchange).with(pushRoutingKey);
     }
 
-    @Bean // New Binding for In-App Queue
+    @Bean
     public Binding inAppBinding(TopicExchange notificationExchange, Queue inAppQueue) {
         logger.info("Binding In-App Queue {} to Exchange {} with RoutingKey {}", inAppQueue.getName(), notificationExchange.getName(), inAppRoutingKey);
         return BindingBuilder.bind(inAppQueue).to(notificationExchange).with(inAppRoutingKey);
+    }
+
+    @Bean
+    public Binding punchProcessingBinding(TopicExchange notificationExchange, Queue punchProcessingQueue) {
+        logger.info("Binding Punch Processing Queue {} to Exchange {} with RoutingKey {}", punchProcessingQueue.getName(), notificationExchange.getName(), punchProcessingRoutingKey);
+        return BindingBuilder.bind(punchProcessingQueue).to(notificationExchange).with(punchProcessingRoutingKey);
+    }
+
+    @Bean
+    public Binding leaveBalanceRecalculationBinding(TopicExchange notificationExchange, Queue leaveBalanceRecalculationQueue) {
+        logger.info("Binding Leave Balance Recalculation Queue {} to Exchange {} with RoutingKey {}", leaveBalanceRecalculationQueue.getName(), notificationExchange.getName(), leaveBalanceRecalculationRoutingKey);
+        return BindingBuilder.bind(leaveBalanceRecalculationQueue).to(notificationExchange).with(leaveBalanceRecalculationRoutingKey);
     }
 
 
@@ -159,10 +225,22 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(pushDlq).to(deadLetterExchange).with(pushDlqRoutingKey);
     }
 
-    @Bean // New Binding for In-App DLQ
+    @Bean
     public Binding inAppDlqBinding(DirectExchange deadLetterExchange, Queue inAppDlq) {
         logger.info("Binding In-App DLQ {} to DLX {} with RoutingKey {}", inAppDlq.getName(), deadLetterExchange.getName(), inAppDlqRoutingKey);
         return BindingBuilder.bind(inAppDlq).to(deadLetterExchange).with(inAppDlqRoutingKey);
+    }
+
+    @Bean
+    public Binding punchProcessingDlqBinding(DirectExchange deadLetterExchange, Queue punchProcessingDlq) {
+        logger.info("Binding Punch Processing DLQ {} to DLX {} with RoutingKey {}", punchProcessingDlq.getName(), deadLetterExchange.getName(), punchProcessingDlqRoutingKey);
+        return BindingBuilder.bind(punchProcessingDlq).to(deadLetterExchange).with(punchProcessingDlqRoutingKey);
+    }
+
+    @Bean
+    public Binding leaveBalanceRecalculationDlqBinding(DirectExchange deadLetterExchange, Queue leaveBalanceRecalculationDlq) {
+        logger.info("Binding Leave Balance Recalculation DLQ {} to DLX {} with RoutingKey {}", leaveBalanceRecalculationDlq.getName(), deadLetterExchange.getName(), leaveBalanceRecalculationDlqRoutingKey);
+        return BindingBuilder.bind(leaveBalanceRecalculationDlq).to(deadLetterExchange).with(leaveBalanceRecalculationDlqRoutingKey);
     }
 
     // === RabbitTemplate Configuration (remains the same) ===
