@@ -1,8 +1,11 @@
+// src/main/java/com/wfm/experts/setup/wfm/leavepolicy/service/impl/LeaveAccrualServiceImpl.java
 package com.wfm.experts.setup.wfm.leavepolicy.service.impl;
 
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.entity.LeaveBalance;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.repository.LeaveBalanceRepository;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.repository.LeaveProfileAssignmentRepository;
+import com.wfm.experts.modules.wfm.features.timesheet.entity.Timesheet;
+import com.wfm.experts.modules.wfm.features.timesheet.repository.TimesheetRepository;
 import com.wfm.experts.setup.wfm.leavepolicy.entity.LeaveProfilePolicy;
 import com.wfm.experts.setup.wfm.leavepolicy.service.LeaveAccrualService;
 import com.wfm.experts.setup.wfm.leavepolicy.engine.context.LeavePolicyExecutionContext;
@@ -24,6 +27,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -35,6 +39,7 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
     private final LeaveProfileRepository leaveProfileRepository;
     private final LeaveBalanceRepository leaveBalanceRepository;
     private final LeavePolicyRuleExecutor ruleExecutor;
+    private final TimesheetRepository timesheetRepository;
 
     @Override
     @Transactional
@@ -129,6 +134,11 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
         Employee employee = employeeRepository.findByEmployeeId(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
+        Optional<LocalDate> latestTimesheetDateOpt = timesheetRepository.findByEmployeeIdAndWorkDateBetween(employeeId, LocalDate.now().minusYears(10), LocalDate.now().plusYears(10))
+                .stream()
+                .map(Timesheet::getWorkDate)
+                .max(LocalDate::compareTo);
+
         leaveProfileAssignmentRepository.findByEmployeeId(employee.getEmployeeId())
                 .stream()
                 .findFirst()
@@ -140,7 +150,7 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
                                 double totalBalance = 0;
                                 if (leavePolicy.getGrantsConfig().getGrantType() == GrantType.EARNED) {
                                     YearMonth startMonth = YearMonth.from(assignment.getEffectiveDate());
-                                    YearMonth endMonth = YearMonth.now();
+                                    YearMonth endMonth = latestTimesheetDateOpt.map(YearMonth::from).orElse(YearMonth.now());
 
                                     if (!startMonth.isAfter(endMonth)) {
                                         for (YearMonth month = startMonth; !month.isAfter(endMonth); month = month.plusMonths(1)) {

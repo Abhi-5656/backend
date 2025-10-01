@@ -1,7 +1,9 @@
+// src/main/java/com/wfm/experts/setup/wfm/leavepolicy/dto/EarnedGrantConfigDto.java
 package com.wfm.experts.setup.wfm.leavepolicy.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.wfm.experts.setup.wfm.leavepolicy.enums.AccrualCadence;
+import com.wfm.experts.setup.wfm.leavepolicy.enums.GrantPeriod;
 import com.wfm.experts.setup.wfm.leavepolicy.enums.PostingType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,8 +17,11 @@ import lombok.NoArgsConstructor;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class EarnedGrantConfigDto {
     private Integer maxDaysPerYear;
+    private Integer maxDaysPerMonth; // Added field
+    private Integer maxDaysPerPayPeriod; // Added field
     private Double ratePerPeriod;
     private Integer maxConsecutiveDays;
+    private GrantPeriod grantPeriod; // Added field
     private AccrualCadence accrualCadence;
     private PostingType posting;
     private Integer minAdvanceNoticeInDays;
