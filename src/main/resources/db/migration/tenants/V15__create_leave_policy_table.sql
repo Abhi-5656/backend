@@ -21,9 +21,9 @@ CREATE TABLE lp_one_time_grant_details (
 
 CREATE TABLE lp_repeatedly_grant_details (
                                              id BIGSERIAL PRIMARY KEY,
-                                             max_days_per_year INT,
-                                             max_days_per_month INT,
-                                             max_days_per_pay_period INT,
+                                             max_days_per_year NUMERIC(10, 2),
+                                             max_days_per_month NUMERIC(10, 2),
+                                             max_days_per_pay_period NUMERIC(10, 2),
                                              grant_period VARCHAR(255),
                                              posting VARCHAR(255),
                                              min_advance_notice_in_days INT,
@@ -33,9 +33,9 @@ CREATE TABLE lp_repeatedly_grant_details (
 
 CREATE TABLE lp_earned_grant_config (
                                         id BIGSERIAL PRIMARY KEY,
-                                        max_days_per_year INT,
-                                        max_days_per_month INT,
-                                        max_days_per_pay_period INT,
+                                        max_days_per_year NUMERIC(10, 2),
+                                        max_days_per_month NUMERIC(10, 2),
+                                        max_days_per_pay_period NUMERIC(10, 2),
                                         rate_per_period DOUBLE PRECISION,
                                         max_consecutive_days INT,
                                         grant_period VARCHAR(255),

@@ -1,4 +1,4 @@
-// Save as: src/main/java/com/wfm/experts/setup/wfm/leavepolicy/entity/EarnedGrantConfig.java
+// src/main/java/com/wfm/experts/setup/wfm/leavepolicy/entity/EarnedGrantConfig.java
 package com.wfm.experts.setup.wfm.leavepolicy.entity;
 
 import com.wfm.experts.setup.wfm.leavepolicy.enums.GrantPeriod;
@@ -16,9 +16,9 @@ public class EarnedGrantConfig {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Integer maxDaysPerYear;
-    private Integer maxDaysPerMonth; // Added field
-    private Integer maxDaysPerPayPeriod; // Added field
+    private Double maxDaysPerYear;
+    private Double maxDaysPerMonth; // Added field
+    private Double maxDaysPerPayPeriod; // Added field
     private Double ratePerPeriod;
     private Integer maxConsecutiveDays;
 

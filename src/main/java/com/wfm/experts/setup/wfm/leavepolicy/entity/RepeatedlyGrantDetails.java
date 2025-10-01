@@ -1,4 +1,4 @@
-// Save as: src/main/java/com/wfm/experts/setup/wfm/leavepolicy/entity/RepeatedlyGrantDetails.java
+// src/main/java/com/wfm/experts/setup/wfm/leavepolicy/entity/RepeatedlyGrantDetails.java
 package com.wfm.experts.setup.wfm.leavepolicy.entity;
 
 import com.wfm.experts.setup.wfm.leavepolicy.enums.GrantPeriod;
@@ -16,9 +16,9 @@ public class RepeatedlyGrantDetails {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Integer maxDaysPerYear;
-    private Integer maxDaysPerMonth;
-    private Integer maxDaysPerPayPeriod; // Added field
+    private Double maxDaysPerYear;
+    private Double maxDaysPerMonth;
+    private Double maxDaysPerPayPeriod; // Added field
 
     @Enumerated(EnumType.STRING)
     private GrantPeriod grantPeriod; // Added field

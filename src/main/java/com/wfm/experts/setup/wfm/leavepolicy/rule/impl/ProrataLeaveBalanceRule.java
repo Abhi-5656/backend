@@ -128,7 +128,7 @@ public class ProrataLeaveBalanceRule implements LeavePolicyRule {
         double balance = 0;
         String message = "Prorata calculation did not apply.";
 
-        Integer totalLeaves = leavePolicy.getGrantsConfig().getFixedGrant().getRepeatedlyDetails().getMaxDaysPerYear();
+        Double totalLeaves = leavePolicy.getGrantsConfig().getFixedGrant().getRepeatedlyDetails().getMaxDaysPerYear();
 
         if (totalLeaves != null && totalLeaves > 0) {
             LocalDate hireDate = employee.getOrganizationalInfo().getEmploymentDetails().getDateOfJoining();
@@ -137,7 +137,7 @@ public class ProrataLeaveBalanceRule implements LeavePolicyRule {
             long monthsToGrant = 12 - hireDate.getMonthValue() + 1;
 
             // Calculate the prorated balance
-            balance = (double) totalLeaves / 12.0 * monthsToGrant;
+            balance = totalLeaves / 12.0 * monthsToGrant;
             message = "Prorata balance calculated for " + monthsToGrant + " months in the hiring year.";
         }
 

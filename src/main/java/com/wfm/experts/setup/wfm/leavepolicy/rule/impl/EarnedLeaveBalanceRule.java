@@ -52,6 +52,7 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
         YearMonth monthToAccrue = context.getProcessingMonth();
         LocalDate startOfMonth = monthToAccrue.atDay(1);
         LocalDate endOfMonth = monthToAccrue.atEndOfMonth();
+        int daysInMonth = monthToAccrue.lengthOfMonth();
 
         long punchCount = punchEventRepository.countByEmployeeIdAndEventTimeBetween(
                 employee.getEmployeeId(),
@@ -59,7 +60,7 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
                 endOfMonth.atTime(23, 59, 59)
         );
 
-        if (punchCount >= 30) {
+        if (punchCount >= daysInMonth) {
             if (isFirstAccrual(employee, context.getProcessingMonth()) && earnedGrant.getProrationConfig() != null && earnedGrant.getProrationConfig().isEnabled()) {
                 balance = calculateProratedFirstGrant(employee, earnedGrant);
                 message = "Prorated first grant applied based on punch validation.";
@@ -68,7 +69,7 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
                 message = "Monthly earned leave accrued after punch validation.";
             }
         } else {
-            message = "Leave not accrued. Punch count of " + punchCount + " is below the threshold of 30.";
+            message = "Leave not accrued. Punch count of " + punchCount + " is below the threshold of " + daysInMonth + ".";
         }
 
         return LeavePolicyRuleResultDTO.builder()

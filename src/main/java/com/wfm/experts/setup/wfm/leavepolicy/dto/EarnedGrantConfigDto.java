@@ -16,9 +16,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class EarnedGrantConfigDto {
-    private Integer maxDaysPerYear;
-    private Integer maxDaysPerMonth; // Added field
-    private Integer maxDaysPerPayPeriod; // Added field
+    private Double maxDaysPerYear;
+    private Double maxDaysPerMonth; // Added field
+    private Double maxDaysPerPayPeriod; // Added field
     private Double ratePerPeriod;
     private Integer maxConsecutiveDays;
     private GrantPeriod grantPeriod; // Added field
