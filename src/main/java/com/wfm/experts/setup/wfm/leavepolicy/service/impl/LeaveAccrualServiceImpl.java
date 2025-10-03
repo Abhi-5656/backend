@@ -5,17 +5,17 @@ import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.repository.L
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.repository.LeaveProfileAssignmentRepository;
 import com.wfm.experts.modules.wfm.features.timesheet.entity.Timesheet;
 import com.wfm.experts.modules.wfm.features.timesheet.repository.TimesheetRepository;
-import com.wfm.experts.setup.wfm.leavepolicy.entity.LeaveProfilePolicy;
-import com.wfm.experts.setup.wfm.leavepolicy.service.LeaveAccrualService;
 import com.wfm.experts.setup.wfm.leavepolicy.engine.context.LeavePolicyExecutionContext;
 import com.wfm.experts.setup.wfm.leavepolicy.engine.executor.LeavePolicyRuleExecutor;
+import com.wfm.experts.setup.wfm.leavepolicy.entity.FixedGrantConfig;
 import com.wfm.experts.setup.wfm.leavepolicy.entity.LeavePolicy;
 import com.wfm.experts.setup.wfm.leavepolicy.entity.LeaveProfile;
-import com.wfm.experts.setup.wfm.leavepolicy.entity.FixedGrantConfig;
+import com.wfm.experts.setup.wfm.leavepolicy.entity.LeaveProfilePolicy;
 import com.wfm.experts.setup.wfm.leavepolicy.enums.GrantFrequency;
 import com.wfm.experts.setup.wfm.leavepolicy.enums.GrantPeriod;
 import com.wfm.experts.setup.wfm.leavepolicy.enums.GrantType;
 import com.wfm.experts.setup.wfm.leavepolicy.repository.LeaveProfileRepository;
+import com.wfm.experts.setup.wfm.leavepolicy.service.LeaveAccrualService;
 import com.wfm.experts.tenant.common.employees.entity.Employee;
 import com.wfm.experts.tenant.common.employees.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +27,6 @@ import java.time.YearMonth;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -146,22 +145,17 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
                                 if (leavePolicy.getGrantsConfig().getGrantType() == GrantType.EARNED) {
                                     LocalDate startDate = assignment.getEffectiveDate();
                                     LocalDate endDate = LocalDate.now();
+                                    YearMonth startMonth = YearMonth.from(startDate);
+                                    YearMonth endMonth = YearMonth.from(endDate);
 
-                                    List<Timesheet> timesheets = timesheetRepository.findByEmployeeIdAndWorkDateBetween(employeeId, startDate, endDate);
-                                    Map<LocalDate, Timesheet> timesheetMap = timesheets.stream()
-                                            .collect(Collectors.toMap(Timesheet::getWorkDate, ts -> ts));
-
-                                    for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
-                                        Timesheet timesheet = timesheetMap.get(date);
-                                        if (timesheet != null && timesheet.getRegularHoursMinutes() != null && timesheet.getRegularHoursMinutes() > 0) {
-                                            LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
-                                                    .employee(employee)
-                                                    .leavePolicy(leavePolicy)
-                                                    .facts(new HashMap<>())
-                                                    .processingMonth(YearMonth.from(date))
-                                                    .build();
-                                            totalBalance += ruleExecutor.execute(context);
-                                        }
+                                    for (YearMonth month = startMonth; !month.isAfter(endMonth); month = month.plusMonths(1)) {
+                                        LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
+                                                .employee(employee)
+                                                .leavePolicy(leavePolicy)
+                                                .facts(new HashMap<>())
+                                                .processingMonth(month)
+                                                .build();
+                                        totalBalance += ruleExecutor.execute(context);
                                     }
                                 } else if (leavePolicy.getGrantsConfig().getGrantType() == GrantType.FIXED) {
                                     FixedGrantConfig fixedGrant = leavePolicy.getGrantsConfig().getFixedGrant();

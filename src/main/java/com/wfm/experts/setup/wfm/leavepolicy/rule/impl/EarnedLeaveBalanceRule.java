@@ -69,7 +69,7 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
                 balance = calculateProratedFirstGrant(employee, earnedGrant);
                 message = "Prorated first grant applied based on punch validation.";
             } else {
-                balance = calculateRegularAccrual(employee, earnedGrant, monthToAccrue, daysWorked);
+                balance = getGrantAmount(earnedGrant);
                 message = "Monthly earned leave accrued after punch validation.";
             }
         } else {
@@ -83,6 +83,18 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
                 .balance(balance)
                 .build();
     }
+
+    private double getGrantAmount(EarnedGrantConfig earnedGrant) {
+        if (earnedGrant.getGrantPeriod() == GrantPeriod.MONTHLY && earnedGrant.getMaxDaysPerMonth() != null) {
+            return earnedGrant.getMaxDaysPerMonth();
+        } else if (earnedGrant.getGrantPeriod() == GrantPeriod.YEARLY && earnedGrant.getMaxDaysPerYear() != null) {
+            return earnedGrant.getMaxDaysPerYear() / 12.0;
+        } else if (earnedGrant.getGrantPeriod() == GrantPeriod.PAY_PERIOD && earnedGrant.getMaxDaysPerPayPeriod() != null) {
+            return earnedGrant.getMaxDaysPerPayPeriod();
+        }
+        return 0;
+    }
+
 
     private double calculateProratedFirstGrant(Employee employee, EarnedGrantConfig earnedGrant) {
         LocalDate hireDate = employee.getOrganizationalInfo().getEmploymentDetails().getDateOfJoining();
@@ -101,20 +113,6 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
 
 
         return (monthlyGrant / daysInMonth) * daysWorked;
-    }
-
-    private double calculateRegularAccrual(Employee employee, EarnedGrantConfig earnedGrant, YearMonth monthToAccrue, long daysWorked) {
-        double dailyAccrualRate = 0;
-        if (earnedGrant.getGrantPeriod() == GrantPeriod.MONTHLY && earnedGrant.getMaxDaysPerMonth() != null) {
-            dailyAccrualRate = (double) earnedGrant.getMaxDaysPerMonth() / monthToAccrue.lengthOfMonth();
-        } else if (earnedGrant.getGrantPeriod() == GrantPeriod.YEARLY && earnedGrant.getMaxDaysPerYear() != null) {
-            dailyAccrualRate = (double) earnedGrant.getMaxDaysPerYear() / 365; // A simple yearly proration by day
-        } else if (earnedGrant.getGrantPeriod() == GrantPeriod.PAY_PERIOD && earnedGrant.getMaxDaysPerPayPeriod() != null) {
-            // Assuming 15 days in a pay period for daily rate calculation. Adjust if needed.
-            dailyAccrualRate = (double) earnedGrant.getMaxDaysPerPayPeriod() / 15;
-        }
-
-        return daysWorked * dailyAccrualRate;
     }
 
 

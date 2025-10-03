@@ -23,5 +23,15 @@ public enum AttendanceStatus {
     /**
      * Indicates that at least one punch exists, but a corresponding IN or OUT punch is missing.
      */
-    PENDING
+    PENDING,
+
+    /**
+     * Indicates the employee is on approved leave.
+     */
+    ON_LEAVE,
+
+    /**
+     * Indicates the day is a holiday.
+     */
+    HOLIDAY
 }
