@@ -582,7 +582,7 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
 
                     timesheet.setEmployeeId(leaveRequest.getEmployee().getEmployeeId());
                     timesheet.setWorkDate(date);
-                    timesheet.setStatus("ON_LEAVE");
+                    timesheet.setStatus(leaveRequest.getLeavePolicy().getPolicyName());
                     timesheetRepository.save(timesheet);
                 }
 
