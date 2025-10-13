@@ -43,4 +43,37 @@ public class TenantIdUtil {
                 .replaceAll("_+", "_")           // ✅ Ensure no multiple consecutive `_`
                 .toLowerCase();
     }
+
+    /**
+     * Converts a kebab/slug tenant id to Title Case words.
+     * e.g. "nextgen-solutions-inc" -> "Nextgen Solutions Inc"
+     *      "wfm-experts_india   pvt-ltd" -> "Wfm Experts India Pvt Ltd"
+     *
+     * @param tenantId the tenant id (kebab/slug)
+     * @return Title Cased company name approximation
+     */
+    public static String tenantIdToCompanyName(String tenantId) {
+        if (tenantId == null || tenantId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Tenant id cannot be empty when converting to company name.");
+        }
+
+        // Normalize and split on -, _, or whitespace (handles multiple separators)
+        String[] parts = tenantId
+                .trim()
+                .toLowerCase(Locale.ROOT)
+                .split("[-_\\s]+");
+
+        StringBuilder sb = new StringBuilder();
+        for (String part : parts) {
+            if (part.isEmpty()) continue;
+            // Capitalize first letter, keep the rest as-is (already lowercased)
+            sb.append(Character.toUpperCase(part.charAt(0)));
+            if (part.length() > 1) {
+                sb.append(part.substring(1));
+            }
+            sb.append(' ');
+        }
+        return sb.toString().trim();
+    }
+
 }

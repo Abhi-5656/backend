@@ -123,4 +123,11 @@ public interface LeaveRequestNotificationService {
      * @param leaveRequest The cancelled leave request.
      */
     void sendLeaveRequestCancellationNotifications(LeaveRequest leaveRequest);
+
+    /**
+     * Sends notifications for an auto-approved leave request.
+     *
+     * @param leaveRequest The auto-approved leave request.
+     */
+    void sendAutoApprovalNotifications(LeaveRequest leaveRequest);
 }

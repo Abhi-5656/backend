@@ -1,6 +1,9 @@
 server:
   port: 8080
 
+frontend:
+  base-url: "http://localhost:4200"
+
 spring:
   application:
     name: wfm-backend
