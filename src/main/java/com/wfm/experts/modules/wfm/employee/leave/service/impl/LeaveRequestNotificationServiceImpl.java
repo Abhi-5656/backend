@@ -326,6 +326,8 @@
 //    }
 //}
 
+//
+
 package com.wfm.experts.modules.wfm.employee.leave.service.impl;
 
 import com.wfm.experts.modules.wfm.employee.leave.entity.LeaveRequest;
@@ -368,6 +370,41 @@ public class LeaveRequestNotificationServiceImpl implements LeaveRequestNotifica
                 leaveRequest,
                 "Your leave request has been submitted successfully."
         );
+    }
+
+    @Override
+    public void sendAutoApprovalNotifications(LeaveRequest leaveRequest) {
+        Employee employee = leaveRequest.getEmployee();
+        Employee manager = employee.getReportingManager();
+
+        // --- Notify the Employee ---
+        // 1. Submission Notification
+        sendStandardNotification(
+                "leave_request_submitted_employee_in_app",
+                "leave_request_submitted_employee",
+                employee,
+                leaveRequest,
+                "Your leave request has been submitted successfully."
+        );
+        // 2. Auto-Approval Notification
+        sendStandardNotification(
+                "leave_request_auto_approved_employee_in_app",
+                "leave_request_auto_approved_employee",
+                employee,
+                leaveRequest,
+                "Your leave request has been automatically approved."
+        );
+
+        // --- Notify the Manager ---
+        if (manager != null) {
+            sendStandardNotification(
+                    "leave_request_auto_approved_manager_in_app",
+                    "leave_request_auto_approved_manager",
+                    manager,
+                    leaveRequest,
+                    "A leave request from " + employee.getPersonalInfo().getFullName() + " has been auto-approved."
+            );
+        }
     }
 
     @Override

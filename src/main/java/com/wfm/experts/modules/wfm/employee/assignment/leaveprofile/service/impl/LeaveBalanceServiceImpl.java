@@ -1,10 +1,14 @@
 package com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.service.impl;
 
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.dto.LeaveBalanceDTO;
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.dto.LeaveBalanceResetDTO;
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.dto.LeaveBalanceUpdateDTO;
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.dto.LeavePolicyBalanceDTO;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.entity.LeaveBalance;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.mapper.LeaveBalanceMapper;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.repository.LeaveBalanceRepository;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.service.LeaveBalanceService;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -24,5 +28,21 @@ public class LeaveBalanceServiceImpl implements LeaveBalanceService {
         return leaveBalances.stream()
                 .map(leaveBalanceMapper::toDto)
                 .collect(Collectors.toList());
+    }
+
+
+
+    @Override
+    @Transactional
+    public void updateLeaveBalances(LeaveBalanceUpdateDTO updateDTO) {
+        for (String employeeId : updateDTO.getEmployeeIds()) {
+            for (LeavePolicyBalanceDTO policyBalance : updateDTO.getLeavePolicies()) {
+                leaveBalanceRepository.updateBalanceByEmployeeIdAndLeavePolicyId(
+                        employeeId,
+                        policyBalance.getId(),
+                        policyBalance.getBalance()
+                );
+            }
+        }
     }
 }

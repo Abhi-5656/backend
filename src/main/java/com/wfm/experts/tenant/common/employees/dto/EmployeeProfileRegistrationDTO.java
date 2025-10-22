@@ -1,6 +1,7 @@
 package com.wfm.experts.tenant.common.employees.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,7 +19,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class EmployeeProfileRegistrationDTO {
-
+//    @JsonIgnore
     private Long id;
 
     @NotBlank(message = "Employee ID cannot be blank.")
