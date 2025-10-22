@@ -1,5 +1,6 @@
 package com.wfm.experts.setup.wfm.leavepolicy.entity;
 
+import com.wfm.experts.setup.wfm.leavepolicy.enums.ProrationCutoffUnit; // Import new enum
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -14,7 +15,12 @@ public class ProrationConfig {
     private Long id;
 
     private boolean isEnabled;
-    private Integer cutoffDay;
+
+    @Enumerated(EnumType.STRING) // Add enum mapping
+    private ProrationCutoffUnit cutoffUnit; // Add new field
+
+    private Integer cutoffValue; // Rename field (was cutoffDay)
+
     private Integer grantPercentageBeforeCutoff;
     private Integer grantPercentageAfterCutoff;
 }

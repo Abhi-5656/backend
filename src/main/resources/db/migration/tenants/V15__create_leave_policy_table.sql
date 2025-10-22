@@ -7,7 +7,8 @@ DROP TABLE IF EXISTS leave_policy_applicability, leave_policy, lp_limits_config,
 CREATE TABLE lp_proration_config (
                                      id BIGSERIAL PRIMARY KEY,
                                      is_enabled BOOLEAN NOT NULL DEFAULT FALSE,
-                                     cutoff_day INT,
+                                     cutoff_unit VARCHAR(255), -- ADDED
+                                     cutoff_value INT, -- RENAMED (was cutoff_day)
                                      grant_percentage_before_cutoff INT,
                                      grant_percentage_after_cutoff INT
 );
