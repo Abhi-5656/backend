@@ -2,6 +2,7 @@
 package com.wfm.experts.setup.wfm.leavepolicy.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.wfm.experts.setup.wfm.leavepolicy.enums.ProrationCutoffUnit; // Import new enum
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,6 +15,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ProrationConfigDto {
+    @JsonProperty("isEnabled")
     private boolean isEnabled;
     private ProrationCutoffUnit cutoffUnit; // Add new field
     private Integer cutoffValue; // Rename field (was cutoffDay)
