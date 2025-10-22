@@ -14,9 +14,9 @@ import org.mapstruct.Mapping;
         LeavePolicyMapper.class
 })
 public interface RequestTypeMapper {
-    @Mapping(target = "leavePolicy", ignore = true)
+    @Mapping(source = "leavePolicy", target = "leavePolicy")
     RequestType toEntity(RequestTypeDTO dto);
 
-    @Mapping(source = "leavePolicy.id", target = "leavePolicyId")
+    @Mapping(source = "leavePolicy", target = "leavePolicy")
     RequestTypeDTO toDto(RequestType entity);
 }

@@ -55,14 +55,8 @@ public class RequestTypeServiceImpl implements RequestTypeService {
     @Transactional
     public RequestTypeDTO create(RequestTypeDTO requestTypeDTO) {
         RequestType requestType = requestTypeMapper.toEntity(requestTypeDTO);
-
-        if (requestTypeDTO.getLeavePolicyId() != null) {
-            LeavePolicy leavePolicy = leavePolicyRepository.findById(requestTypeDTO.getLeavePolicyId())
-                    .orElseThrow(() -> new NotFoundException("LeavePolicy not found with id: " + requestTypeDTO.getLeavePolicyId()));
-            requestType.setLeavePolicy(leavePolicy);
-        }
-
-        return requestTypeMapper.toDto(requestTypeRepository.save(requestType));
+        RequestType savedRequestType = requestTypeRepository.save(requestType);
+        return requestTypeMapper.toDto(savedRequestType);
     }
 
     @Override
@@ -71,19 +65,12 @@ public class RequestTypeServiceImpl implements RequestTypeService {
         RequestType existingRequestType = requestTypeRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("RequestType not found with id: " + id));
 
-        // Use the mapper to update the entity, but ignore the ID from the DTO
+        // Map all fields from DTO, the mapper will handle the nested LeavePolicy
         RequestType updatedRequestType = requestTypeMapper.toEntity(requestTypeDTO);
-        updatedRequestType.setId(existingRequestType.getId());
+        updatedRequestType.setId(existingRequestType.getId()); // Ensure the ID is not changed
 
-        if (requestTypeDTO.getLeavePolicyId() != null) {
-            LeavePolicy leavePolicy = leavePolicyRepository.findById(requestTypeDTO.getLeavePolicyId())
-                    .orElseThrow(() -> new NotFoundException("LeavePolicy not found with id: " + requestTypeDTO.getLeavePolicyId()));
-            updatedRequestType.setLeavePolicy(leavePolicy);
-        } else {
-            updatedRequestType.setLeavePolicy(null);
-        }
-
-        return requestTypeMapper.toDto(requestTypeRepository.save(updatedRequestType));
+        RequestType savedRequestType = requestTypeRepository.save(updatedRequestType);
+        return requestTypeMapper.toDto(savedRequestType);
     }
 
     @Override
