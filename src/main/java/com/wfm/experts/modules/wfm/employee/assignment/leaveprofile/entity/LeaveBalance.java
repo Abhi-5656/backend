@@ -1,4 +1,4 @@
-// Create a new file: harshwfm/wfm-backend/src/main/java/com/wfm/experts/modules/wfm/employee/assignment/leaveprofile/entity/LeaveBalance.java
+// harshwfm/wfm-backend/HarshWfm-wfm-backend-573b561b9a0299c8388f2f15252dbc2875a7884a/src/main/java/com/wfm/experts/modules/wfm/employee/assignment/leaveprofile/entity/LeaveBalance.java
 package com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.entity;
 
 import com.wfm.experts.setup.wfm.leavepolicy.entity.LeavePolicy;
@@ -8,6 +8,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDate; // Import LocalDate
 
 @Entity
 @Table(name = "employee_leave_balances")
@@ -31,4 +33,10 @@ public class LeaveBalance {
     private LeavePolicy leavePolicy;
 
     private double balance;
+
+    @Column(name = "effective_date", nullable = false) // Add effective_date field
+    private LocalDate effectiveDate;
+
+    @Column(name = "expiration_date") // Add expiration_date field (nullable)
+    private LocalDate expirationDate;
 }
