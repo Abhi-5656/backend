@@ -1,3 +1,5 @@
+// REPLACE THIS FILE:
+// harshwfm/wfm-backend/HarshWfm-wfm-backend-31884e543d72e5c850158a6e3a92542f90eeca8e/src/main/java/com/wfm/experts/setup/wfm/leavepolicy/service/impl/LeaveAccrualServiceImpl.java
 package com.wfm.experts.setup.wfm.leavepolicy.service.impl;
 
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.entity.LeaveBalance;
@@ -140,93 +142,92 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
         }
     }
 
+    /**
+     * This is the fully corrected recalculation logic.
+     */
     @Override
     @Transactional
     public void recalculateTotalLeaveBalance(String employeeId) {
         Employee employee = employeeRepository.findByEmployeeId(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
+        // Find the employee's active leave assignment
         leaveProfileAssignmentRepository.findByEmployeeId(employee.getEmployeeId())
                 .stream()
+                // Find the one that is currently active
+                .filter(a -> a.isActive() && a.getEffectiveDate().isBefore(LocalDate.now().plusDays(1)) &&
+                        (a.getExpirationDate() == null || a.getExpirationDate().isAfter(LocalDate.now().minusDays(1))))
                 .findFirst()
                 .ifPresent(assignment -> {
                     LeaveProfile leaveProfile = leaveProfileRepository.findById(assignment.getLeaveProfileId()).orElse(null);
-                    if (leaveProfile != null) {
-                        for (LeavePolicy leavePolicy : getLeavePoliciesFromProfile(leaveProfile)) {
+                    if (leaveProfile == null) {
+                        return;
+                    }
 
-                            // --- THIS IS THE CRITICAL LOGIC ---
-                            // 1. Check for an existing balance record
-                            Optional<LeaveBalance> existingBalanceOpt = leaveBalanceRepository.findByEmployee_EmployeeIdAndLeavePolicy_Id(employee.getEmployeeId(), leavePolicy.getId());
-                            LocalDate today = LocalDate.now();
-                            boolean isActiveManualOverride = false;
+                    for (LeavePolicy leavePolicy : getLeavePoliciesFromProfile(leaveProfile)) {
 
-                            LocalDate calculationStartDate = assignment.getEffectiveDate(); // Default: start from assignment
-                            double baseBalance = 0; // Default: start from 0
+                        LocalDate today = LocalDate.now();
+                        Optional<LeaveBalance> existingBalanceOpt = leaveBalanceRepository.findByEmployee_EmployeeIdAndLeavePolicy_Id(employee.getEmployeeId(), leavePolicy.getId());
 
-                            if (existingBalanceOpt.isPresent()) {
-                                LeaveBalance existingBalance = existingBalanceOpt.get();
-                                LocalDate expiration = existingBalance.getExpirationDate();
+                        // 1. Determine base balance and calculation start
+                        double finalBalance = 0;
+                        // Default start is the assignment effective date
+                        YearMonth calculationStartMonth = YearMonth.from(assignment.getEffectiveDate());
+                        boolean manualOverrideActive = false;
 
-                                // An active manual override has an expiration date set in the future.
-                                if (expiration != null && (expiration.isAfter(today) || expiration.isEqual(today))) {
-                                    isActiveManualOverride = true;
-                                    // This is our "stake in the ground"
-                                    calculationStartDate = existingBalance.getEffectiveDate();
-                                    baseBalance = existingBalance.getBalance(); // baseBalance is set to 2.0
-                                }
-                                // If expiration is null or in the past, it's NOT an active override.
-                                // We proceed with recalculation from the assignment date.
+                        if (existingBalanceOpt.isPresent()) {
+                            LeaveBalance existingBalance = existingBalanceOpt.get();
+                            LocalDate expiration = existingBalance.getExpirationDate();
+
+                            // Check if a manual override is active (has a future expiration date)
+                            if (expiration != null && (expiration.isAfter(today) || expiration.isEqual(today))) {
+                                manualOverrideActive = true;
+                                // The manual balance is our starting point
+                                finalBalance = existingBalance.getBalance(); // This is the manual balance (e.g., 2.5)
+                                // We will start accruing *new* leave from the month *after* the override's effective date
+                                calculationStartMonth = YearMonth.from(existingBalance.getEffectiveDate()).plusMonths(1);
                             }
-                            // --- END OF CRITICAL LOGIC ---
+                        }
 
+                        // 2. Run calculation logic (if any)
+                        if (leavePolicy.getGrantsConfig() != null) {
 
-                            if (leavePolicy.getGrantsConfig() != null) {
-                                double calculatedBalance = 0; // This will hold the *newly* calculated amount (1.25)
+                            // Only run accrual calculations for EARNED type.
+                            // For FIXED type, the manual override is absolute (finalBalance is already set)
+                            if (leavePolicy.getGrantsConfig().getGrantType() == GrantType.EARNED) {
 
-                                if (leavePolicy.getGrantsConfig().getGrantType() == GrantType.EARNED) {
+                                YearMonth endMonth = YearMonth.from(today);
 
-                                    YearMonth startMonth;
-                                    if (isActiveManualOverride) {
-                                        // MANUAL OVERRIDE PATH
-                                        // We start calculating *new* leave from the month *of* the manual balance's effective date.
-                                        startMonth = YearMonth.from(calculationStartDate);
-                                    } else {
-                                        // STANDARD PATH
-                                        // Start from the beginning of the assignment.
-                                        startMonth = YearMonth.from(calculationStartDate);
+                                // Loop from the correct start month (either assignment or post-override)
+                                if (!calculationStartMonth.isAfter(endMonth)) {
+                                    for (YearMonth month = calculationStartMonth; !month.isAfter(endMonth); month = month.plusMonths(1)) {
+
+                                        LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
+                                                .employee(employee)
+                                                .leavePolicy(leavePolicy)
+                                                .facts(new HashMap<>())
+                                                .processingMonth(month)
+                                                .build();
+
+                                        // The rule (e.g., EarnedLeaveBalanceRule) will run.
+                                        // If Nov punches are full, it returns 1.25. If Dec punches are not, it returns 0.
+                                        finalBalance += ruleExecutor.execute(context);
                                     }
+                                }
 
-                                    // --- Common Calculation Logic ---
-                                    LocalDate endDate = LocalDate.now();
-                                    YearMonth endMonth = YearMonth.from(endDate); // Recalculate up to/including the current month
-
-                                    if (!startMonth.isAfter(endMonth)) {
-                                        for (YearMonth month = startMonth; !month.isAfter(endMonth); month = month.plusMonths(1)) {
-                                            LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
-                                                    .employee(employee)
-                                                    .leavePolicy(leavePolicy)
-                                                    .facts(new HashMap<>())
-                                                    .processingMonth(month)
-                                                    .build();
-                                            // ruleExecutor.execute(context) will call EarnedLeaveBalanceRule
-                                            calculatedBalance += ruleExecutor.execute(context); // This will be 1.25
-                                        }
-                                    }
-
-                                } else if (leavePolicy.getGrantsConfig().getGrantType() == GrantType.FIXED) {
-
-                                    if (isActiveManualOverride) {
-                                        // For FIXED grants, a manual override is absolute. We do not add to it.
-                                        continue; // Skip this policy
-                                    }
-
-                                    // --- Standard FIXED Recalculation (if not manual override) ---
+                            } else if (leavePolicy.getGrantsConfig().getGrantType() == GrantType.FIXED) {
+                                // If a manual override is active for a FIXED policy, we don't add anything.
+                                // finalBalance is already set to the manual value.
+                                if (manualOverrideActive) {
+                                    // Do nothing, finalBalance is already the manual value.
+                                } else {
+                                    // (Logic for calculating FIXED grants from scratch)
                                     FixedGrantConfig fixedGrant = leavePolicy.getGrantsConfig().getFixedGrant();
                                     if (fixedGrant != null && fixedGrant.getFrequency() == GrantFrequency.REPEATEDLY) {
                                         GrantPeriod grantPeriod = fixedGrant.getRepeatedlyDetails().getGrantPeriod();
                                         if (grantPeriod == GrantPeriod.YEARLY) {
-                                            int startYear = assignment.getEffectiveDate().getYear();
-                                            int endYear = LocalDate.now().getYear();
+                                            int startYear = calculationStartMonth.getYear();
+                                            int endYear = today.getYear();
                                             for (int year = startYear; year <= endYear; year++) {
                                                 LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
                                                         .employee(employee)
@@ -234,56 +235,53 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
                                                         .facts(new HashMap<>())
                                                         .processingMonth(YearMonth.of(year, 1))
                                                         .build();
-                                                calculatedBalance += ruleExecutor.execute(context);
+                                                finalBalance += ruleExecutor.execute(context);
                                             }
-                                        } else {
-                                            YearMonth startMonth = YearMonth.from(assignment.getEffectiveDate());
-                                            YearMonth endMonth = YearMonth.now().minusMonths(1);
-                                            if (!startMonth.isAfter(endMonth)) {
-                                                for (YearMonth month = startMonth; !month.isAfter(endMonth); month = month.plusMonths(1)) {
+                                        } else { // Monthly or PayPeriod (simplified to monthly for now)
+                                            YearMonth endMonth = YearMonth.now().minusMonths(1); // Accrue up to *last* month
+                                            if (!calculationStartMonth.isAfter(endMonth)) {
+                                                for (YearMonth month = calculationStartMonth; !month.isAfter(endMonth); month = month.plusMonths(1)) {
                                                     LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
                                                             .employee(employee)
                                                             .leavePolicy(leavePolicy)
                                                             .facts(new HashMap<>())
                                                             .processingMonth(month)
                                                             .build();
-                                                    calculatedBalance += ruleExecutor.execute(context);
+                                                    finalBalance += ruleExecutor.execute(context);
                                                 }
                                             }
                                         }
-                                    } else {
+                                    } else { // One-Time grant
                                         LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
                                                 .employee(employee)
                                                 .leavePolicy(leavePolicy)
                                                 .facts(new HashMap<>())
-                                                .processingMonth(YearMonth.from(assignment.getEffectiveDate()))
+                                                .processingMonth(calculationStartMonth)
                                                 .build();
-                                        calculatedBalance += ruleExecutor.execute(context);
+                                        finalBalance += ruleExecutor.execute(context);
                                     }
                                 }
-
-                                // --- Save Logic ---
-                                LeaveBalance leaveBalance = existingBalanceOpt
-                                        .orElse(LeaveBalance.builder()
-                                                .employee(employee)
-                                                .leavePolicy(leavePolicy)
-                                                .build());
-
-                                // The new total balance is the base (0 or manual) + new calculations
-                                leaveBalance.setBalance(baseBalance + calculatedBalance); // This will be 2.0 + 1.25
-
-                                if (isActiveManualOverride) {
-                                    // If it was a manual override, we keep its dates
-                                    leaveBalance.setEffectiveDate(existingBalanceOpt.get().getEffectiveDate());
-                                    leaveBalance.setExpirationDate(existingBalanceOpt.get().getExpirationDate());
-                                } else {
-                                    // It's a system-calculated balance, so it should align with the assignment
-                                    leaveBalance.setEffectiveDate(assignment.getEffectiveDate());
-                                    leaveBalance.setExpirationDate(assignment.getExpirationDate());
-                                }
-
-                                leaveBalanceRepository.save(leaveBalance);
                             }
+
+                            // 3. Save the final calculated balance
+                            LeaveBalance leaveBalance = existingBalanceOpt
+                                    .orElse(LeaveBalance.builder()
+                                            .employee(employee)
+                                            .leavePolicy(leavePolicy)
+                                            .build());
+
+                            leaveBalance.setBalance(finalBalance);
+
+                            // If it was a manual override, keep its dates. Otherwise, use assignment dates.
+                            if (manualOverrideActive) {
+                                leaveBalance.setEffectiveDate(existingBalanceOpt.get().getEffectiveDate());
+                                leaveBalance.setExpirationDate(existingBalanceOpt.get().getExpirationDate());
+                            } else {
+                                leaveBalance.setEffectiveDate(assignment.getEffectiveDate());
+                                leaveBalance.setExpirationDate(assignment.getExpirationDate());
+                            }
+
+                            leaveBalanceRepository.save(leaveBalance);
                         }
                     }
                 });
