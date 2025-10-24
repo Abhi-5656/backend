@@ -1,6 +1,7 @@
 // src/main/java/com/wfm/experts/setup/wfm/leavepolicy/rule/impl/EarnedLeaveBalanceRule.java
 package com.wfm.experts.setup.wfm.leavepolicy.rule.impl;
 
+import com.wfm.experts.modules.wfm.features.timesheet.entity.PunchEvent; // <-- IMPORTED
 import com.wfm.experts.modules.wfm.features.timesheet.entity.Timesheet;
 import com.wfm.experts.modules.wfm.features.timesheet.repository.PunchEventRepository;
 import com.wfm.experts.modules.wfm.features.timesheet.repository.TimesheetRepository;
@@ -21,7 +22,7 @@ import java.util.List;
 public class EarnedLeaveBalanceRule implements LeavePolicyRule {
 
     private final TimesheetRepository timesheetRepository;
-    private final PunchEventRepository punchEventRepository;
+    private final PunchEventRepository punchEventRepository; // <-- USED THIS
 
 
     public EarnedLeaveBalanceRule(TimesheetRepository timesheetRepository, PunchEventRepository punchEventRepository) {
@@ -52,28 +53,35 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
         YearMonth monthToAccrue = context.getProcessingMonth();
         LocalDate startOfMonth = monthToAccrue.atDay(1);
         LocalDate endOfMonth = monthToAccrue.atEndOfMonth();
+
+        // Get the total number of days in the specific month (e.g., 30 for November)
         int daysInMonth = monthToAccrue.lengthOfMonth();
 
-        List<Timesheet> timesheets = timesheetRepository.findByEmployeeIdAndWorkDateBetween(
-                employee.getEmployeeId(), startOfMonth, endOfMonth
+        // Query PunchEvent (raw data) instead of Timesheet (processed data)
+        List<PunchEvent> punches = punchEventRepository.findByEmployeeIdAndEventTimeBetween(
+                employee.getEmployeeId(),
+                startOfMonth.atStartOfDay(),
+                endOfMonth.atTime(23, 59, 59)
         );
 
-        long daysWorked = timesheets.stream()
-                .filter(ts -> ts.getRegularHoursMinutes() != null && ts.getRegularHoursMinutes() > 0)
-                .map(Timesheet::getWorkDate)
+        // Count the number of distinct days that have at least one punch
+        long daysWorked = punches.stream()
+                .map(punch -> punch.getEventTime().toLocalDate())
                 .distinct()
                 .count();
 
+        // Check if days worked is equal to the total days in that specific month
         if (daysWorked >= daysInMonth) {
+
             if (isFirstAccrual(employee, context.getProcessingMonth()) && earnedGrant.getProrationConfig() != null && earnedGrant.getProrationConfig().isEnabled()) {
                 balance = calculateProratedFirstGrant(employee, earnedGrant);
-                message = "Prorated first grant applied based on punch validation.";
+                message = "Prorated first grant applied. Worked " + daysWorked + "/" + daysInMonth + " days.";
             } else {
                 balance = getGrantAmount(earnedGrant);
-                message = "Monthly earned leave accrued after punch validation.";
+                message = "Monthly earned leave accrued. Worked " + daysWorked + "/" + daysInMonth + " days.";
             }
         } else {
-            message = "Leave not accrued. Days worked " + daysWorked + " is below the threshold of " + daysInMonth + ".";
+            message = "Leave not accrued. Days worked (" + daysWorked + ") is below the threshold of " + daysInMonth + " days.";
         }
 
         return LeavePolicyRuleResultDTO.builder()
@@ -85,8 +93,9 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
     }
 
     private double getGrantAmount(EarnedGrantConfig earnedGrant) {
+        // This logic correctly reads your 1.25
         if (earnedGrant.getGrantPeriod() == GrantPeriod.MONTHLY && earnedGrant.getMaxDaysPerMonth() != null) {
-            return earnedGrant.getMaxDaysPerMonth();
+            return earnedGrant.getMaxDaysPerMonth(); // This will be 1.25
         } else if (earnedGrant.getGrantPeriod() == GrantPeriod.YEARLY && earnedGrant.getMaxDaysPerYear() != null) {
             return earnedGrant.getMaxDaysPerYear() / 12.0;
         } else if (earnedGrant.getGrantPeriod() == GrantPeriod.PAY_PERIOD && earnedGrant.getMaxDaysPerPayPeriod() != null) {
@@ -107,7 +116,6 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
         } else if (earnedGrant.getGrantPeriod() == GrantPeriod.YEARLY && earnedGrant.getMaxDaysPerYear() != null) {
             monthlyGrant = earnedGrant.getMaxDaysPerYear() / 12.0;
         } else if (earnedGrant.getGrantPeriod() == GrantPeriod.PAY_PERIOD && earnedGrant.getMaxDaysPerPayPeriod() != null) {
-            // This assumes 2 pay periods per month for proration. Adjust if your logic is different.
             monthlyGrant = earnedGrant.getMaxDaysPerPayPeriod() * 2;
         }
 
