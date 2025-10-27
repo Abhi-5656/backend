@@ -39,4 +39,12 @@ public class LeaveBalance {
 
     @Column(name = "expiration_date") // Add expiration_date field (nullable)
     private LocalDate expirationDate;
+
+    /**
+     * NEW FIELD
+     * Tracks the last date (e.g., end of month) that an automated accrual was
+     * successfully processed for this balance.
+     */
+    @Column(name = "last_accrual_date")
+    private LocalDate lastAccrualDate;
 }

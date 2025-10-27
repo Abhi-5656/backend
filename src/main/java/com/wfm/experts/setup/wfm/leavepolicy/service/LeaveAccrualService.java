@@ -26,4 +26,14 @@ public interface LeaveAccrualService {
      * @param employeeId The ID of the employee whose balance needs to be recalculated.
      */
     void recalculateTotalLeaveBalance(String employeeId);
+
+    /**
+     * NEW METHOD
+     * Calculates and ADDS the earned grant for a single employee for a specific month.
+     * This is triggered by the punch processing consumer to meet your requirement.
+     *
+     * @param employeeId The ID of the employee.
+     * @param month The month to process.
+     */
+    void incrementEarnedGrantForMonth(String employeeId, YearMonth month);
 }

@@ -1,4 +1,3 @@
--- harshwfm/wfm-backend/HarshWfm-wfm-backend-573b561b9a0299c8388f2f15252dbc2875a7884a/src/main/resources/db/migration/tenants/V22__create_leave_balance_table.sql
 -- V22__create_leave_balance_table.sql
 
 CREATE TABLE employee_leave_balances (
@@ -8,6 +7,7 @@ CREATE TABLE employee_leave_balances (
                                          balance NUMERIC(10, 2) NOT NULL,
                                          effective_date DATE NOT NULL,
                                          expiration_date DATE,
+                                         last_accrual_date DATE, -- <-- ADDED THIS LINE
 
                                          CONSTRAINT fk_leave_balance_employee
                                              FOREIGN KEY (employee_id) REFERENCES employees(employee_id)
