@@ -322,13 +322,17 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
                 .orElseThrow(() -> new RuntimeException("Leave balance not found for this policy"));
 
 
-        if (leaveBalance.getBalance() < leaveRequestDTO.getLeaveDays()) {
+        // --- UPDATED LOGIC ---
+        // Check against the current_balance
+        if (leaveBalance.getCurrentBalance() < leaveRequestDTO.getLeaveDays()) {
             throw new RuntimeException("Insufficient leave balance");
         }
 
-        // Deduct balance immediately upon application
-        leaveBalance.setBalance(leaveBalance.getBalance() - leaveRequestDTO.getLeaveDays());
+        // Deduct from current_balance and add to used_balance
+        leaveBalance.setCurrentBalance(leaveBalance.getCurrentBalance() - leaveRequestDTO.getLeaveDays());
+        leaveBalance.setUsedBalance(leaveBalance.getUsedBalance() + leaveRequestDTO.getLeaveDays());
         leaveBalanceRepository.save(leaveBalance);
+        // --- END OF UPDATE ---
 
         LeaveRequest leaveRequest = leaveRequestMapper.toEntity(leaveRequestDTO);
         leaveRequest.setEmployee(employee);
@@ -437,7 +441,11 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
         if (!approved) {
             leaveRequest.setStatus(LeaveStatus.REJECTED);
             leaveRequestRepository.save(leaveRequest);
+
+            // --- UPDATED LOGIC ---
             restoreLeaveBalance(leaveRequest);
+            // --- END OF UPDATE ---
+
             notificationService.sendLeaveRequestRejectionNotifications(leaveRequest, approval.getApprover());
             return new LeaveRequestActionResponseDTO(leaveRequest.getId(), "REJECTED", "Leave request has been rejected.");
 
@@ -491,7 +499,11 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
 
         leaveRequest.setStatus(LeaveStatus.CANCELLED);
         leaveRequestRepository.save(leaveRequest);
+
+        // --- UPDATED LOGIC ---
         restoreLeaveBalance(leaveRequest);
+        // --- END OF UPDATE ---
+
         notificationService.sendLeaveRequestCancellationNotifications(leaveRequest);
 
         // 1. Update the payload status for all associated pending approvals to CANCELLED for history
@@ -510,11 +522,15 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
         return new LeaveRequestActionResponseDTO(leaveRequestId, "CANCELLED", "Leave request has been cancelled.");
     }
 
+    // --- THIS METHOD IS NOW UPDATED ---
     private void restoreLeaveBalance(LeaveRequest leaveRequest) {
         LeaveBalance leaveBalance = leaveBalanceRepository.findByEmployee_EmployeeIdAndLeavePolicy_Id(
                         leaveRequest.getEmployee().getEmployeeId(), leaveRequest.getLeavePolicy().getId())
                 .orElseThrow(() -> new RuntimeException("Leave balance not found for restoration"));
-        leaveBalance.setBalance(leaveBalance.getBalance() + leaveRequest.getLeaveDays());
+
+        // Add balance back to current_balance and remove from used_balance
+        leaveBalance.setCurrentBalance(leaveBalance.getCurrentBalance() + leaveRequest.getLeaveDays());
+        leaveBalance.setUsedBalance(leaveBalance.getUsedBalance() - leaveRequest.getLeaveDays());
         leaveBalanceRepository.save(leaveBalance);
     }
 

@@ -16,7 +16,7 @@ public interface LeaveBalanceRepository extends JpaRepository<LeaveBalance, Long
     List<LeaveBalance> findByEmployee_EmployeeId(String employeeId);
     Optional<LeaveBalance> findByEmployee_EmployeeIdAndLeavePolicy_Id(String employeeId, Long leavePolicyId);
 
-    @Modifying
-    @Query("UPDATE LeaveBalance lb SET lb.balance = :balance WHERE lb.employee.employeeId = :employeeId AND lb.leavePolicy.id = :leavePolicyId")
-    void updateBalanceByEmployeeIdAndLeavePolicyId(@Param("employeeId") String employeeId, @Param("leavePolicyId") Long leavePolicyId, @Param("balance") double balance);
+//    @Modifying
+//    @Query("UPDATE LeaveBalance lb SET lb.balance = :balance WHERE lb.employee.employeeId = :employeeId AND lb.leavePolicy.id = :leavePolicyId")
+//    void updateBalanceByEmployeeIdAndLeavePolicyId(@Param("employeeId") String employeeId, @Param("leavePolicyId") Long leavePolicyId, @Param("balance") double balance);
 }

@@ -61,17 +61,42 @@ public class LeaveBalanceServiceImpl implements LeaveBalanceService {
                 ).orElse(LeaveBalance.builder()
                         .employee(employee)
                         .leavePolicy(leavePolicy)
+                        .currentBalance(0)  // <-- NEW: Initialize
+                        .totalGranted(0)    // <-- NEW: Initialize
+                        .usedBalance(0)     // <-- NEW: Initialize
+                        .status("ACTIVE")   // <-- NEW: Initialize
                         .build());
 
-                // Set the manual values
-                leaveBalance.setBalance(policyBalance.getBalance());
+                // --- UPDATED LOGIC for Manual Override ---
+
+                double newCurrentBalance = policyBalance.getBalance();
+                double oldCurrentBalance = leaveBalance.getCurrentBalance();
+
+                // Calculate the adjustment delta (the amount the admin is adding or removing)
+                double adjustmentDelta = newCurrentBalance - oldCurrentBalance;
+
+                // Apply the new balance
+                leaveBalance.setCurrentBalance(newCurrentBalance);
+
+                // Adjust total_granted by the same delta. This keeps the math consistent:
+                // (newTotalGranted) - (usedBalance) = (newCurrentBalance)
+                // (oldTotalGranted + delta) - (usedBalance) = (oldCurrentBalance + delta)
+                leaveBalance.setTotalGranted(leaveBalance.getTotalGranted() + adjustmentDelta);
+
+                // Set status to manual override to stop future accruals
+                leaveBalance.setStatus("MANUAL_OVERRIDE");
 
                 // Set the manual effective and expiration dates from the DTO
                 // If effectiveDate is null, default to today. ExpirationDate can be null.
                 leaveBalance.setEffectiveDate(policyBalance.getEffectiveDate() != null ? policyBalance.getEffectiveDate() : LocalDate.now());
                 leaveBalance.setExpirationDate(policyBalance.getExpirationDate());
 
+                // Nullify accrual dates as they are not relevant for a manual balance
+                leaveBalance.setLastAccrualDate(null);
+                leaveBalance.setNextAccrualDate(null);
+
                 leaveBalanceRepository.save(leaveBalance);
+                // --- END OF UPDATE ---
             }
         }
     }

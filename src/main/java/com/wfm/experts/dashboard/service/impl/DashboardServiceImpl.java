@@ -137,6 +137,7 @@ public class DashboardServiceImpl implements DashboardService {
                 .build();
     }
 
+    // --- THIS IS THE UPDATED METHOD ---
     private List<LeaveBalanceSummaryDTO> getLeaveBalanceSummaries(String employeeId) {
         Optional<LeaveProfileAssignment> assignment = leaveProfileAssignmentRepository.findByEmployeeId(employeeId).stream().findFirst();
         if (assignment.isEmpty()) {
@@ -151,23 +152,36 @@ public class DashboardServiceImpl implements DashboardService {
         List<LeavePolicy> policies = leaveProfile.getLeaveProfilePolicies().stream()
                 .map(p -> p.getLeavePolicy()).collect(Collectors.toList());
 
+        // Get the list of DTOs from the service. These DTOs now contain the new fields.
         List<LeaveBalanceDTO> balances = leaveBalanceService.getLeaveBalances(employeeId);
-        Map<String, Double> balanceMap = balances.stream()
-                .collect(Collectors.toMap(LeaveBalanceDTO::getLeavePolicyName, LeaveBalanceDTO::getBalance));
+
+        // Create a Map for easy lookup by policy name.
+        Map<String, LeaveBalanceDTO> balanceMap = balances.stream()
+                .collect(Collectors.toMap(LeaveBalanceDTO::getLeavePolicyName, dto -> dto));
 
         return policies.stream().map(policy -> {
-            double total = 0;
-            if (policy.getGrantsConfig() != null && policy.getGrantsConfig().getFixedGrant() != null && policy.getGrantsConfig().getFixedGrant().getOneTimeDetails() != null) {
-                total = policy.getGrantsConfig().getFixedGrant().getOneTimeDetails().getMaxDays();
+
+            // Find the matching balance DTO from the map
+            LeaveBalanceDTO matchingBalanceDto = balanceMap.get(policy.getPolicyName());
+
+            double currentBalance = 0;
+            double totalGranted = 0;
+
+            // If a matching balance DTO is found, use its values
+            if (matchingBalanceDto != null) {
+                currentBalance = matchingBalanceDto.getCurrentBalance();
+                totalGranted = matchingBalanceDto.getTotalGranted();
             }
+
             return LeaveBalanceSummaryDTO.builder()
                     .leavePolicyId(policy.getId())
                     .leaveName(policy.getPolicyName())
-                    .balance(balanceMap.getOrDefault(policy.getPolicyName(), 0.0))
-                    .total(total)
+                    .balance(currentBalance) // Use the new field
+                    .total(totalGranted)     // Use the new field
                     .build();
         }).collect(Collectors.toList());
     }
+    // --- END OF UPDATED METHOD ---
 
     private AnomalyDTO checkForAnomaly(List<TimesheetDTO> timesheets) {
         for (TimesheetDTO ts : timesheets) {

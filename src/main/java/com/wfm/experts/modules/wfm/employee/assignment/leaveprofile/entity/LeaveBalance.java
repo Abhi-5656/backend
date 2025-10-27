@@ -9,7 +9,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate; // Import LocalDate
+import java.time.LocalDate;
+import java.time.LocalDateTime; // <-- IMPORT
 
 @Entity
 @Table(name = "employee_leave_balances")
@@ -24,7 +25,6 @@ public class LeaveBalance {
     private Long id;
 
     @ManyToOne
-//    @JoinColumn(name = "employee_id")
     @JoinColumn(name = "employee_id", referencedColumnName = "employee_id")
     private Employee employee;
 
@@ -32,19 +32,45 @@ public class LeaveBalance {
     @JoinColumn(name = "leave_policy_id")
     private LeavePolicy leavePolicy;
 
-    private double balance;
+    @Column(name = "current_balance") // Renamed
+    private double currentBalance;
 
-    @Column(name = "effective_date", nullable = false) // Add effective_date field
+    @Column(name = "total_granted") // New
+    private double totalGranted;
+
+    @Column(name = "used_balance") // New
+    private double usedBalance;
+
+    @Column(name = "last_accrual_date") // New
+    private LocalDate lastAccrualDate;
+
+    @Column(name = "next_accrual_date") // New
+    private LocalDate nextAccrualDate;
+
+    @Column(name = "status") // New
+    private String status;
+
+    @Column(name = "effective_date", nullable = false)
     private LocalDate effectiveDate;
 
-    @Column(name = "expiration_date") // Add expiration_date field (nullable)
+    @Column(name = "expiration_date")
     private LocalDate expirationDate;
 
-    /**
-     * NEW FIELD
-     * Tracks the last date (e.g., end of month) that an automated accrual was
-     * successfully processed for this balance.
-     */
-    @Column(name = "last_accrual_date")
-    private LocalDate lastAccrualDate;
+    // --- NEW TIMESTAMP FIELDS ---
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
 }
