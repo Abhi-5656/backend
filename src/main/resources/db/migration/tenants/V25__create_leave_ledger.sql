@@ -2,23 +2,14 @@
 -- Creates the new table for storing every leave transaction (grant, use, adjustment).
 
 -- 1. Create an ENUM type for the transaction types
-CREATE TYPE leave_transaction_type AS ENUM (
-    'ACCRUAL',                 -- Scheduled grant (e.g., monthly, yearly)
-    'ACCRUAL_RECALCULATION',   -- A grant from a full recalculation
-    'MANUAL_ADJUSTMENT',       -- Admin override
-    'USAGE_APPLIED',           -- Leave request was approved and used
-    'USAGE_REVERSAL_REJECTED', -- Leave request was rejected, balance returned
-    'USAGE_REVERSAL_CANCELLED',-- Leave request was cancelled, balance returned
-    'EXPIRATION',              -- Balance expired (negative transaction)
-    'CARRYOVER_GRANT'          -- Balance carried over (positive transaction)
-);
+-- (REMOVED: The 'CREATE TYPE leave_transaction_type ...' block is now gone)
 
 -- 2. Create the new leave ledger table
 CREATE TABLE employee_leave_ledger (
                                        id BIGSERIAL PRIMARY KEY,
                                        employee_id VARCHAR(50) NOT NULL,
                                        leave_policy_id BIGINT NOT NULL,
-                                       transaction_type leave_transaction_type NOT NULL,
+                                       transaction_type VARCHAR(50) NOT NULL, -- CHANGED from 'leave_transaction_type' to 'VARCHAR(50)'
                                        amount NUMERIC(10, 2) NOT NULL, -- Positive for grant, negative for usage
                                        transaction_date DATE NOT NULL DEFAULT CURRENT_DATE,
                                        notes TEXT,

@@ -9,8 +9,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.JdbcType;
-import org.hibernate.dialect.PostgreSQLEnumJdbcType;
+// REMOVED: org.hibernate.annotations.JdbcType;
+// REMOVED: org.hibernate.dialect.PostgreSQLEnumJdbcType;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -35,9 +35,9 @@ public class LeaveBalanceLedger {
     @JoinColumn(name = "leave_policy_id")
     private LeavePolicy leavePolicy;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "transaction_type", nullable = false, columnDefinition = "leave_transaction_type")
-    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Enumerated(EnumType.STRING) // This tells Hibernate to store "MANUAL_ADJUSTMENT" as a string
+    @Column(name = "transaction_type", nullable = false) // Removed the 'columnDefinition'
+    // REMOVED: @JdbcType(PostgreSQLEnumJdbcType.class)
     private LeaveTransactionType transactionType;
 
     @Column(nullable = false)

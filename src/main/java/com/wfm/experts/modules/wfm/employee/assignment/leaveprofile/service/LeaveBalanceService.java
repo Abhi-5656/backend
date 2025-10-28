@@ -12,5 +12,6 @@ public interface LeaveBalanceService {
 
 //    void resetLeaveBalances(LeaveBalanceResetDTO resetDTO);
 
-    void updateLeaveBalances(LeaveBalanceUpdateDTO updateDTO);
+//    void updateLeaveBalances(LeaveBalanceUpdateDTO updateDTO);
+   void updateLeaveBalances(List<LeaveBalanceUpdateDTO> updateDTOs);
 }

@@ -24,8 +24,8 @@ public class LeaveBalanceController {
     }
 
     @PostMapping("/update")
-    public ResponseEntity<Void> updateLeaveBalances(@RequestBody LeaveBalanceUpdateDTO updateDTO) {
-        leaveBalanceService.updateLeaveBalances(updateDTO);
+    public ResponseEntity<Void> updateLeaveBalances(@RequestBody List<LeaveBalanceUpdateDTO> updateDTOs) {
+        leaveBalanceService.updateLeaveBalances(updateDTOs);
         return ResponseEntity.ok().build();
     }
 }

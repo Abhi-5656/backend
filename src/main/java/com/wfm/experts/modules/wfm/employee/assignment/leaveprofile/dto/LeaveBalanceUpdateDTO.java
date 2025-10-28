@@ -5,6 +5,6 @@ import lombok.Data;
 
 @Data
 public class LeaveBalanceUpdateDTO {
-    private List<String> employeeIds;
+    private String employeeId; // Changed from List<String> to String
     private List<LeavePolicyBalanceDTO> leavePolicies;
 }
