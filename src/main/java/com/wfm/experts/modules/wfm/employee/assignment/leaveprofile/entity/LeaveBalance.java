@@ -1,8 +1,8 @@
-// harshwfm/wfm-backend/HarshWfm-wfm-backend-573b561b9a0299c8388f2f15252dbc2875a7884a/src/main/java/com/wfm/experts/modules/wfm/employee/assignment/leaveprofile/entity/LeaveBalance.java
 package com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.entity;
 
 import com.wfm.experts.setup.wfm.leavepolicy.entity.LeavePolicy;
 import com.wfm.experts.tenant.common.employees.entity.Employee;
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.entity.LeaveProfileAssignment; // <-- IMPORT THIS
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,7 +10,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime; // <-- IMPORT
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "employee_leave_balances")
@@ -32,22 +32,22 @@ public class LeaveBalance {
     @JoinColumn(name = "leave_policy_id")
     private LeavePolicy leavePolicy;
 
-    @Column(name = "current_balance") // Renamed
+    @Column(name = "current_balance")
     private double currentBalance;
 
-    @Column(name = "total_granted") // New
+    @Column(name = "total_granted")
     private double totalGranted;
 
-    @Column(name = "used_balance") // New
+    @Column(name = "used_balance")
     private double usedBalance;
 
-    @Column(name = "last_accrual_date") // New
+    @Column(name = "last_accrual_date")
     private LocalDate lastAccrualDate;
 
-    @Column(name = "next_accrual_date") // New
+    @Column(name = "next_accrual_date")
     private LocalDate nextAccrualDate;
 
-    @Column(name = "status") // New
+    @Column(name = "status")
     private String status;
 
     @Column(name = "effective_date", nullable = false)
@@ -56,7 +56,15 @@ public class LeaveBalance {
     @Column(name = "expiration_date")
     private LocalDate expirationDate;
 
-    // --- NEW TIMESTAMP FIELDS ---
+    // --- ADD THIS FIELD ---
+    /**
+     * Links this balance summary to the specific profile assignment that created it.
+     */
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assignment_id")
+    private LeaveProfileAssignment assignment;
+    // --- END OF ADDITION ---
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

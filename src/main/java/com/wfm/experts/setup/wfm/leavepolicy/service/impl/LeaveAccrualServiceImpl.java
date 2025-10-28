@@ -1,365 +1,15 @@
-//// REVISED FILE:
-//// src/main/java/com/wfm/experts/setup/wfm/leavepolicy/service/impl/LeaveAccrualServiceImpl.java
-//package com.wfm.experts.setup.wfm.leavepolicy.service.impl;
-//
-//import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.entity.LeaveBalance;
-//import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.repository.LeaveBalanceRepository;
-//import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.repository.LeaveProfileAssignmentRepository;
-//// import com.wfm.experts.modules.wfm.features.timesheet.entity.Timesheet; // <-- This line was removed
-//import com.wfm.experts.modules.wfm.features.timesheet.repository.TimesheetRepository;
-//import com.wfm.experts.setup.wfm.leavepolicy.engine.context.LeavePolicyExecutionContext;
-//import com.wfm.experts.setup.wfm.leavepolicy.engine.executor.LeavePolicyRuleExecutor;
-//import com.wfm.experts.setup.wfm.leavepolicy.entity.FixedGrantConfig;
-//import com.wfm.experts.setup.wfm.leavepolicy.entity.LeavePolicy;
-//import com.wfm.experts.setup.wfm.leavepolicy.entity.LeaveProfile;
-//import com.wfm.experts.setup.wfm.leavepolicy.entity.LeaveProfilePolicy;
-//import com.wfm.experts.setup.wfm.leavepolicy.enums.GrantFrequency;
-//import com.wfm.experts.setup.wfm.leavepolicy.enums.GrantPeriod;
-//import com.wfm.experts.setup.wfm.leavepolicy.enums.GrantType;
-//import com.wfm.experts.setup.wfm.leavepolicy.repository.LeaveProfileRepository;
-//import com.wfm.experts.setup.wfm.leavepolicy.service.LeaveAccrualService;
-//import com.wfm.experts.tenant.common.employees.entity.Employee;
-//import com.wfm.experts.tenant.common.employees.repository.EmployeeRepository;
-//import lombok.RequiredArgsConstructor;
-//import org.springframework.stereotype.Service;
-//import org.springframework.transaction.annotation.Transactional;
-//
-//import java.time.LocalDate;
-//import java.time.YearMonth;
-//import java.util.HashMap;
-//import java.util.List;
-//import java.util.Map;
-//import java.util.Optional;
-//import java.util.stream.Collectors;
-//
-//@Service
-//@RequiredArgsConstructor
-//public class LeaveAccrualServiceImpl implements LeaveAccrualService {
-//
-//    private final EmployeeRepository employeeRepository;
-//    private final LeaveProfileAssignmentRepository leaveProfileAssignmentRepository;
-//    private final LeaveProfileRepository leaveProfileRepository;
-//    private final LeaveBalanceRepository leaveBalanceRepository;
-//    private final LeavePolicyRuleExecutor ruleExecutor;
-//    private final TimesheetRepository timesheetRepository;
-//
-//    @Override
-//    @Transactional
-//    public void accrueRepeatedGrant(YearMonth month) {
-//        // This method remains unchanged.
-//        List<Employee> employees = employeeRepository.findAll();
-//        for (Employee employee : employees) {
-//            leaveProfileAssignmentRepository.findByEmployeeId(employee.getEmployeeId())
-//                    .stream()
-//                    .findFirst()
-//                    .ifPresent(assignment -> {
-//                        // ... (rest of the logic is correct)
-//                        if (month.isBefore(YearMonth.from(assignment.getEffectiveDate()))) {
-//                            return;
-//                        }
-//
-//                        LeaveProfile leaveProfile = leaveProfileRepository.findById(assignment.getLeaveProfileId()).orElse(null);
-//                        if (leaveProfile != null) {
-//                            List<LeavePolicy> policies = getLeavePoliciesFromProfile(leaveProfile);
-//                            for (LeavePolicy leavePolicy : policies) {
-//                                if (leavePolicy.getGrantsConfig() != null && leavePolicy.getGrantsConfig().getGrantType() == GrantType.FIXED) {
-//                                    LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
-//                                            .employee(employee)
-//                                            .leavePolicy(leavePolicy)
-//                                            .facts(new HashMap<>())
-//                                            .processingMonth(month)
-//                                            .build();
-//
-//                                    double earnedLeave = ruleExecutor.execute(context);
-//
-//                                    LeaveBalance leaveBalance = leaveBalanceRepository.findByEmployee_EmployeeIdAndLeavePolicy_Id(employee.getEmployeeId(), leavePolicy.getId())
-//                                            .orElse(LeaveBalance.builder()
-//                                                    .employee(employee)
-//                                                    .leavePolicy(leavePolicy)
-//                                                    .balance(0)
-//                                                    .effectiveDate(assignment.getEffectiveDate())
-//                                                    .expirationDate(assignment.getExpirationDate())
-//                                                    .build());
-//
-//                                    leaveBalance.setEffectiveDate(assignment.getEffectiveDate());
-//                                    leaveBalance.setExpirationDate(assignment.getExpirationDate());
-//                                    leaveBalance.setBalance(leaveBalance.getBalance() + earnedLeave);
-//                                    leaveBalanceRepository.save(leaveBalance);
-//                                }
-//                            }
-//                        }
-//                    });
-//        }
-//    }
-//
-//    @Override
-//    @Transactional
-//    public void accrueEarnedGrant(YearMonth month) {
-//        // This method remains unchanged.
-//        List<Employee> employees = employeeRepository.findAll();
-//        for (Employee employee : employees) {
-//            leaveProfileAssignmentRepository.findByEmployeeId(employee.getEmployeeId())
-//                    .stream()
-//                    .findFirst()
-//                    .ifPresent(assignment -> {
-//                        // ... (rest of the logic is correct)
-//                        if (month.isBefore(YearMonth.from(assignment.getEffectiveDate()))) {
-//                            return;
-//                        }
-//                        LeaveProfile leaveProfile = leaveProfileRepository.findById(assignment.getLeaveProfileId()).orElse(null);
-//                        if (leaveProfile != null) {
-//                            List<LeavePolicy> policies = getLeavePoliciesFromProfile(leaveProfile);
-//                            for (LeavePolicy leavePolicy : policies) {
-//                                if (leavePolicy.getGrantsConfig() != null && leavePolicy.getGrantsConfig().getGrantType() == GrantType.EARNED) {
-//                                    LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
-//                                            .employee(employee)
-//                                            .leavePolicy(leavePolicy)
-//                                            .facts(new HashMap<>())
-//                                            .processingMonth(month)
-//                                            .build();
-//
-//                                    double earnedLeave = ruleExecutor.execute(context);
-//
-//                                    LeaveBalance leaveBalance = leaveBalanceRepository.findByEmployee_EmployeeIdAndLeavePolicy_Id(employee.getEmployeeId(), leavePolicy.getId())
-//                                            .orElse(LeaveBalance.builder()
-//                                                    .employee(employee)
-//                                                    .leavePolicy(leavePolicy)
-//                                                    .balance(0)
-//                                                    .effectiveDate(assignment.getEffectiveDate())
-//                                                    .expirationDate(assignment.getExpirationDate())
-//                                                    .build());
-//
-//                                    leaveBalance.setEffectiveDate(assignment.getEffectiveDate());
-//                                    leaveBalance.setExpirationDate(assignment.getExpirationDate());
-//                                    leaveBalance.setBalance(leaveBalance.getBalance() + earnedLeave);
-//                                    leaveBalanceRepository.save(leaveBalance);
-//                                }
-//                            }
-//                        }
-//                    });
-//        }
-//    }
-//
-//    /**
-//     * This is the "destructive" true-up method. It should ONLY be called
-//     * when you need to fix an employee's balance from scratch.
-//     * Your punch listener SHOULD NOT call this.
-//     */
-//    @Override
-//    @Transactional
-//    public void recalculateTotalLeaveBalance(String employeeId) {
-//        Employee employee = employeeRepository.findByEmployeeId(employeeId)
-//                .orElseThrow(() -> new RuntimeException("Employee not found"));
-//
-//        leaveProfileAssignmentRepository.findByEmployeeId(employee.getEmployeeId())
-//                .stream()
-//                .filter(a -> a.isActive() && a.getEffectiveDate().isBefore(LocalDate.now().plusDays(1)) &&
-//                        (a.getExpirationDate() == null || a.getExpirationDate().isAfter(LocalDate.now().minusDays(1))))
-//                .findFirst()
-//                .ifPresent(assignment -> {
-//                    LeaveProfile leaveProfile = leaveProfileRepository.findById(assignment.getLeaveProfileId()).orElse(null);
-//                    if (leaveProfile == null) {
-//                        return;
-//                    }
-//
-//                    for (LeavePolicy leavePolicy : getLeavePoliciesFromProfile(leaveProfile)) {
-//
-//                        LocalDate today = LocalDate.now();
-//                        Optional<LeaveBalance> existingBalanceOpt = leaveBalanceRepository.findByEmployee_EmployeeIdAndLeavePolicy_Id(employee.getEmployeeId(), leavePolicy.getId());
-//
-//                        double finalBalance = 0;
-//                        YearMonth calculationStartMonth = YearMonth.from(assignment.getEffectiveDate());
-//                        LocalDate newEffectiveDate = assignment.getEffectiveDate();
-//                        LocalDate newExpirationDate = assignment.getExpirationDate();
-//                        boolean manualOverrideActive = false;
-//
-//                        if (existingBalanceOpt.isPresent()) {
-//                            LeaveBalance existingBalance = existingBalanceOpt.get();
-//                            LocalDate expiration = existingBalance.getExpirationDate();
-//
-//                            // Check if a manual override is active (has a future expiration date)
-//                            if (expiration != null && (expiration.isAfter(today) || expiration.isEqual(today))) {
-//                                manualOverrideActive = true;
-//                                finalBalance = existingBalance.getBalance(); // This is the manual balance (e.g., 2.5)
-//                                // We will start calculating *new* leave from the month *after* the override's effective date
-//                                calculationStartMonth = YearMonth.from(existingBalance.getEffectiveDate()).plusMonths(1);
-//                                newEffectiveDate = existingBalance.getEffectiveDate();
-//                                newExpirationDate = existingBalance.getExpirationDate();
-//                            }
-//                            // Check if a manual override has *expired*
-//                            else if (expiration != null && expiration.isBefore(today)) {
-//                                finalBalance = 0; // Reset balance to 0
-//                                // Start calculating from the month *after* the override expired
-//                                calculationStartMonth = YearMonth.from(expiration).plusMonths(1);
-//                            }
-//                        }
-//
-//                        // Run calculation loop ONLY for non-manual, or expired-manual
-//                        if (!manualOverrideActive && leavePolicy.getGrantsConfig() != null) {
-//                            if (leavePolicy.getGrantsConfig().getGrantType() == GrantType.EARNED) {
-//                                YearMonth endMonth = YearMonth.from(today);
-//                                if (!calculationStartMonth.isAfter(endMonth)) {
-//                                    for (YearMonth month = calculationStartMonth; !month.isAfter(endMonth); month = month.plusMonths(1)) {
-//                                        LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
-//                                                .employee(employee)
-//                                                .leavePolicy(leavePolicy)
-//                                                .facts(new HashMap<>())
-//                                                .processingMonth(month)
-//                                                .build();
-//                                        finalBalance += ruleExecutor.execute(context);
-//                                    }
-//                                }
-//                            } else if (leavePolicy.getGrantsConfig().getGrantType() == GrantType.FIXED) {
-//                                // ... (Your existing logic for recalculating fixed grants from scratch)
-//                                FixedGrantConfig fixedGrant = leavePolicy.getGrantsConfig().getFixedGrant();
-//                                if (fixedGrant != null && fixedGrant.getFrequency() == GrantFrequency.REPEATEDLY) {
-//                                    GrantPeriod grantPeriod = fixedGrant.getRepeatedlyDetails().getGrantPeriod();
-//                                    if (grantPeriod == GrantPeriod.YEARLY) {
-//                                        int startYear = calculationStartMonth.getYear();
-//                                        int endYear = today.getYear();
-//                                        for (int year = startYear; year <= endYear; year++) {
-//                                            LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
-//                                                    .employee(employee)
-//                                                    .leavePolicy(leavePolicy)
-//                                                    .facts(new HashMap<>())
-//                                                    .processingMonth(YearMonth.of(year, 1))
-//                                                    .build();
-//                                            finalBalance += ruleExecutor.execute(context);
-//                                        }
-//                                    } else {
-//                                        YearMonth endMonth = YearMonth.now().minusMonths(1);
-//                                        if (!calculationStartMonth.isAfter(endMonth)) {
-//                                            for (YearMonth month = calculationStartMonth; !month.isAfter(endMonth); month = month.plusMonths(1)) {
-//                                                LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
-//                                                        .employee(employee)
-//                                                        .leavePolicy(leavePolicy)
-//                                                        .facts(new HashMap<>())
-//                                                        .processingMonth(month)
-//                                                        .build();
-//                                                finalBalance += ruleExecutor.execute(context);
-//                                            }
-//                                        }
-//                                    }
-//                                } else { // One-Time grant
-//                                    LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
-//                                            .employee(employee)
-//                                            .leavePolicy(leavePolicy)
-//                                            .facts(new HashMap<>())
-//                                            .processingMonth(calculationStartMonth)
-//                                            .build();
-//                                    finalBalance += ruleExecutor.execute(context);
-//                                }
-//                            }
-//                        }
-//
-//                        // Save the final balance and dates
-//                        LeaveBalance leaveBalance = existingBalanceOpt
-//                                .orElse(LeaveBalance.builder()
-//                                        .employee(employee)
-//                                        .leavePolicy(leavePolicy)
-//                                        .build());
-//
-//                        leaveBalance.setBalance(finalBalance);
-//                        leaveBalance.setEffectiveDate(newEffectiveDate);
-//                        leaveBalance.setExpirationDate(newExpirationDate);
-//
-//                        leaveBalanceRepository.save(leaveBalance);
-//                    }
-//                });
-//    }
-//
-//
-//    /**
-//     * --- THIS IS THE NEW METHOD THAT SOLVES YOUR PROBLEM ---
-//     *
-//     * This method is "additive". It calculates earned leave for one month
-//     * and ADDS it to the existing balance (which could be manual).
-//     */
-//    @Override
-//    @Transactional
-//    public void incrementEarnedGrantForMonth(String employeeId, YearMonth month) {
-//        Employee employee = employeeRepository.findByEmployeeId(employeeId).orElse(null);
-//        if (employee == null) {
-//            return; // Employee not found
-//        }
-//
-//        leaveProfileAssignmentRepository.findByEmployeeId(employee.getEmployeeId())
-//                .stream()
-//                .filter(a -> a.isActive()) // Find the active assignment
-//                .findFirst()
-//                .ifPresent(assignment -> {
-//                    // Do not accrue for months before the assignment is effective
-//                    if (month.isBefore(YearMonth.from(assignment.getEffectiveDate()))) {
-//                        return;
-//                    }
-//
-//                    LeaveProfile leaveProfile = leaveProfileRepository.findById(assignment.getLeaveProfileId()).orElse(null);
-//                    if (leaveProfile == null) {
-//                        return;
-//                    }
-//
-//                    List<LeavePolicy> policies = getLeavePoliciesFromProfile(leaveProfile);
-//                    for (LeavePolicy leavePolicy : policies) {
-//                        // Only run for EARNED grant types
-//                        if (leavePolicy.getGrantsConfig() != null && leavePolicy.getGrantsConfig().getGrantType() == GrantType.EARNED) {
-//
-//                            LeavePolicyExecutionContext context = LeavePolicyExecutionContext.builder()
-//                                    .employee(employee)
-//                                    .leavePolicy(leavePolicy)
-//                                    .facts(new HashMap<>())
-//                                    .processingMonth(month)
-//                                    .build();
-//
-//                            // Run the rule (e.g., EarnedLeaveBalanceRule)
-//                            double earnedLeave = ruleExecutor.execute(context); // This will be 1.0
-//
-//                            if (earnedLeave > 0) {
-//                                // Find the existing balance record, or create a new one
-//                                LeaveBalance leaveBalance = leaveBalanceRepository.findByEmployee_EmployeeIdAndLeavePolicy_Id(employee.getEmployeeId(), leavePolicy.getId())
-//                                        .orElse(LeaveBalance.builder()
-//                                                .employee(employee)
-//                                                .leavePolicy(leavePolicy)
-//                                                .balance(0)
-//                                                .effectiveDate(assignment.getEffectiveDate())
-//                                                .expirationDate(assignment.getExpirationDate())
-//                                                .build());
-//
-//                                // **This is Requirement #2:** Add the new balance to the existing one.
-//                                // e.g., 2.5 (manual) + 1.0 (earned) = 3.5
-//                                leaveBalance.setBalance(leaveBalance.getBalance() + earnedLeave);
-//
-//                                // If the balance was manual (expirationDate != null), we *clear* the
-//                                // expiration date because it is now a *mix* of manual + calculated.
-//                                // This makes it a "calculated" balance from now on.
-//                                // **This is the key to Requirement #1.**
-//                                if (leaveBalance.getExpirationDate() != null) {
-//                                    leaveBalance.setEffectiveDate(assignment.getEffectiveDate()); // Re-align with assignment
-//                                    leaveBalance.setExpirationDate(null); // Clear expiration to mark as "calculated"
-//                                }
-//
-//                                leaveBalanceRepository.save(leaveBalance);
-//                            }
-//                        }
-//                    }
-//                });
-//    }
-//
-//    private List<LeavePolicy> getLeavePoliciesFromProfile(LeaveProfile leaveProfile) {
-//        return leaveProfile.getLeaveProfilePolicies().stream()
-//                .map(LeaveProfilePolicy::getLeavePolicy)
-//                .collect(Collectors.toList());
-//    }
-//}
-
-// FULL FILE:
-// harshwfm/wfm-backend/src/main/java/com/wfm/experts/setup/wfm/leavepolicy/service/impl/LeaveAccrualServiceImpl.java
+// REVISED FILE:
+// src/main/java/com/wfm/experts/setup/wfm/leavepolicy/service/impl/LeaveAccrualServiceImpl.java
 package com.wfm.experts.setup.wfm.leavepolicy.service.impl;
 
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.entity.LeaveBalance;
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.entity.LeaveBalanceLedger;
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.entity.LeaveProfileAssignment;
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.enums.LeaveTransactionType;
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.repository.LeaveBalanceLedgerRepository;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.repository.LeaveBalanceRepository;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.repository.LeaveProfileAssignmentRepository;
-// import com.wfm.experts.modules.wfm.features.timesheet.entity.Timesheet; // This import is not needed here
-import com.wfm.experts.modules.wfm.features.timesheet.repository.TimesheetRepository; // This is needed by EarnedLeaveBalanceRule
+import com.wfm.experts.modules.wfm.features.timesheet.repository.TimesheetRepository;
 import com.wfm.experts.setup.wfm.leavepolicy.engine.context.LeavePolicyExecutionContext;
 import com.wfm.experts.setup.wfm.leavepolicy.engine.executor.LeavePolicyRuleExecutor;
 import com.wfm.experts.setup.wfm.leavepolicy.entity.FixedGrantConfig;
@@ -369,34 +19,40 @@ import com.wfm.experts.setup.wfm.leavepolicy.entity.LeaveProfilePolicy;
 import com.wfm.experts.setup.wfm.leavepolicy.enums.GrantFrequency;
 import com.wfm.experts.setup.wfm.leavepolicy.enums.GrantPeriod;
 import com.wfm.experts.setup.wfm.leavepolicy.enums.GrantType;
+import com.wfm.experts.setup.wfm.leavepolicy.repository.LeavePolicyRepository;
 import com.wfm.experts.setup.wfm.leavepolicy.repository.LeaveProfileRepository;
 import com.wfm.experts.setup.wfm.leavepolicy.service.LeaveAccrualService;
 import com.wfm.experts.tenant.common.employees.entity.Employee;
 import com.wfm.experts.tenant.common.employees.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class LeaveAccrualServiceImpl implements LeaveAccrualService {
 
+    private static final Logger logger = LoggerFactory.getLogger(LeaveAccrualServiceImpl.class);
+
     private final EmployeeRepository employeeRepository;
     private final LeaveProfileAssignmentRepository leaveProfileAssignmentRepository;
     private final LeaveProfileRepository leaveProfileRepository;
-    private final LeaveBalanceRepository leaveBalanceRepository;
+    private final LeaveBalanceRepository leaveBalanceRepository; // The Summary table
+    private final LeaveBalanceLedgerRepository leaveBalanceLedgerRepository; // The Ledger table
     private final LeavePolicyRuleExecutor ruleExecutor;
+    private final LeavePolicyRepository leavePolicyRepository;
 
-    // This repository is injected but not used directly in this class.
-    // It is required by the `EarnedLeaveBalanceRule`, which is part of the `ruleExecutor`.
+    // This is injected because the ruleExecutor uses rules that depend on it.
     private final TimesheetRepository timesheetRepository;
 
     /**
@@ -421,20 +77,51 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
     }
 
     /**
-     * Helper to get or create a balance record
+     * Helper to get or create a balance *summary* record
      */
-    private LeaveBalance getOrCreateBalance(Employee employee, LeavePolicy policy, LocalDate effectiveDate, LocalDate expirationDate) {
+    private LeaveBalance getOrCreateBalanceMetadata(Employee employee, LeavePolicy policy, LeaveProfileAssignment assignment) {
         return leaveBalanceRepository.findByEmployee_EmployeeIdAndLeavePolicy_Id(employee.getEmployeeId(), policy.getId())
                 .orElse(LeaveBalance.builder()
                         .employee(employee)
                         .leavePolicy(policy)
-                        .currentBalance(0)
-                        .totalGranted(0)
-                        .usedBalance(0)
                         .status("ACTIVE")
-                        .effectiveDate(effectiveDate)
-                        .expirationDate(expirationDate)
+                        .effectiveDate(assignment.getEffectiveDate())
+                        .expirationDate(assignment.getExpirationDate())
+                        .assignment(assignment)
+                        .currentBalance(0.0) // Initialize all to 0
+                        .totalGranted(0.0)
+                        .usedBalance(0.0)
                         .build());
+    }
+
+    /**
+     * NEW (REQUIRED)
+     * Recalculates and saves the summary in employee_leave_balances
+     * by summing all transactions from employee_leave_ledger.
+     */
+    @Override
+    @Transactional
+    public void updateSummaryBalance(String employeeId, Long leavePolicyId) {
+        LeaveBalance leaveBalanceMetadata = leaveBalanceRepository.findByEmployee_EmployeeIdAndLeavePolicy_Id(employeeId, leavePolicyId)
+                .orElseThrow(() -> new IllegalStateException("LeaveBalance metadata row not found for employee " + employeeId + " and policy " + leavePolicyId));
+
+        // If manually overridden, the summary is "frozen" and should not be updated by automated processes.
+        if ("MANUAL_OVERRIDE".equalsIgnoreCase(leaveBalanceMetadata.getStatus())) {
+            logger.debug("Skipping summary update for {}/{} because it is manually overridden.", employeeId, leavePolicyId);
+            return;
+        }
+
+        // Calculate new summaries from the ledger
+        double newTotalGranted = leaveBalanceLedgerRepository.sumGrantsByEmployeeAndPolicy(employeeId, leavePolicyId);
+        double newUsedBalance = Math.abs(leaveBalanceLedgerRepository.sumUsageByEmployeeAndPolicy(employeeId, leavePolicyId));
+        double newCurrentBalance = newTotalGranted - newUsedBalance; // Or sumAmountByEmployeeAndPolicy
+
+        // Update the summary table
+        leaveBalanceMetadata.setTotalGranted(newTotalGranted);
+        leaveBalanceMetadata.setUsedBalance(newUsedBalance);
+        leaveBalanceMetadata.setCurrentBalance(newCurrentBalance);
+
+        leaveBalanceRepository.save(leaveBalanceMetadata);
     }
 
     // --- UPDATED SCHEDULER METHODS ---
@@ -445,47 +132,43 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
         List<Employee> employees = employeeRepository.findAll();
         for (Employee employee : employees) {
             leaveProfileAssignmentRepository.findByEmployeeId(employee.getEmployeeId())
-                    .stream()
-                    .filter(a -> a.isActive()) // Ensure we only use the active assignment
-                    .findFirst()
+                    .stream().filter(LeaveProfileAssignment::isActive).findFirst()
                     .ifPresent(assignment -> {
-                        // Ensure we do not accrue for months before the assignment is effective.
-                        if (month.isBefore(YearMonth.from(assignment.getEffectiveDate()))) {
-                            return; // Skip this employee for this month
-                        }
+                        if (month.isBefore(YearMonth.from(assignment.getEffectiveDate()))) return;
 
                         LeaveProfile leaveProfile = leaveProfileRepository.findById(assignment.getLeaveProfileId()).orElse(null);
-                        if (leaveProfile != null) {
-                            List<LeavePolicy> policies = getLeavePoliciesFromProfile(leaveProfile);
-                            for (LeavePolicy leavePolicy : policies) {
-                                // Only process FIXED grants (like yearly/monthly grants)
-                                if (leavePolicy.getGrantsConfig() != null && leavePolicy.getGrantsConfig().getGrantType() == GrantType.FIXED) {
+                        if (leaveProfile == null) return;
 
-                                    LeaveBalance leaveBalance = getOrCreateBalance(employee, leavePolicy, assignment.getEffectiveDate(), assignment.getExpirationDate());
+                        for (LeavePolicy leavePolicy : getLeavePoliciesFromProfile(leaveProfile)) {
+                            if (leavePolicy.getGrantsConfig() != null && leavePolicy.getGrantsConfig().getGrantType() == GrantType.FIXED) {
 
-                                    // If a manual override is active, the scheduler should NOT add balance.
-                                    if ("MANUAL_OVERRIDE".equalsIgnoreCase(leaveBalance.getStatus())) {
-                                        continue; // Skip this policy
-                                    }
+                                LeaveBalance leaveBalanceMetadata = getOrCreateBalanceMetadata(employee, leavePolicy, assignment);
 
-                                    // Idempotency Check: Has this month/year already been accrued?
-                                    LocalDate lastAccrual = leaveBalance.getLastAccrualDate();
-                                    if (lastAccrual != null && YearMonth.from(lastAccrual).equals(month)) {
-                                        continue; // Already processed this month
-                                    }
+                                if ("MANUAL_OVERRIDE".equalsIgnoreCase(leaveBalanceMetadata.getStatus())) continue;
 
-                                    LeavePolicyExecutionContext context = buildContext(employee, leavePolicy, month);
-                                    double earnedLeave = ruleExecutor.execute(context);
+                                LocalDate lastAccrual = leaveBalanceMetadata.getLastAccrualDate();
+                                if (lastAccrual != null && YearMonth.from(lastAccrual).equals(month)) continue;
 
-                                    if (earnedLeave > 0) {
-                                        // UPDATED LOGIC
-                                        leaveBalance.setTotalGranted(leaveBalance.getTotalGranted() + earnedLeave);
-                                        leaveBalance.setCurrentBalance(leaveBalance.getCurrentBalance() + earnedLeave);
-                                        leaveBalance.setLastAccrualDate(month.atDay(1)); // Mark as accrued
-                                        leaveBalance.setNextAccrualDate(month.plusMonths(1).atDay(1)); // TODO: Make this smarter
+                                LeavePolicyExecutionContext context = buildContext(employee, leavePolicy, month);
+                                double earnedLeave = ruleExecutor.execute(context);
 
-                                        leaveBalanceRepository.save(leaveBalance);
-                                    }
+                                if (earnedLeave > 0) {
+                                    LeaveBalanceLedger ledgerEntry = LeaveBalanceLedger.builder()
+                                            .employee(employee)
+                                            .leavePolicy(leavePolicy)
+                                            .transactionType(LeaveTransactionType.ACCRUAL)
+                                            .amount(earnedLeave)
+                                            .transactionDate(month.atDay(1))
+                                            .notes("Scheduled repeated grant for " + month)
+                                            .build();
+                                    leaveBalanceLedgerRepository.save(ledgerEntry);
+
+                                    leaveBalanceMetadata.setLastAccrualDate(month.atDay(1));
+                                    leaveBalanceMetadata.setNextAccrualDate(month.plusMonths(1).atDay(1)); // TODO: Make smarter
+                                    leaveBalanceRepository.save(leaveBalanceMetadata);
+
+                                    // Update the summary table
+                                    updateSummaryBalance(employee.getEmployeeId(), leavePolicy.getId());
                                 }
                             }
                         }
@@ -500,46 +183,41 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
         List<Employee> employees = employeeRepository.findAll();
         for (Employee employee : employees) {
             leaveProfileAssignmentRepository.findByEmployeeId(employee.getEmployeeId())
-                    .stream()
-                    .filter(a -> a.isActive()) // Ensure we only use the active assignment
-                    .findFirst()
+                    .stream().filter(LeaveProfileAssignment::isActive).findFirst()
                     .ifPresent(assignment -> {
-                        // Ensure we do not accrue for months before the assignment is effective.
-                        if (month.isBefore(YearMonth.from(assignment.getEffectiveDate()))) {
-                            return; // Skip this employee for this month
-                        }
+                        if (month.isBefore(YearMonth.from(assignment.getEffectiveDate()))) return;
 
                         LeaveProfile leaveProfile = leaveProfileRepository.findById(assignment.getLeaveProfileId()).orElse(null);
-                        if (leaveProfile != null) {
-                            List<LeavePolicy> policies = getLeavePoliciesFromProfile(leaveProfile);
-                            for (LeavePolicy leavePolicy : policies) {
-                                // Only process EARNED grants
-                                if (leavePolicy.getGrantsConfig() != null && leavePolicy.getGrantsConfig().getGrantType() == GrantType.EARNED) {
+                        if (leaveProfile == null) return;
 
-                                    LeaveBalance leaveBalance = getOrCreateBalance(employee, leavePolicy, assignment.getEffectiveDate(), assignment.getExpirationDate());
+                        for (LeavePolicy leavePolicy : getLeavePoliciesFromProfile(leaveProfile)) {
+                            if (leavePolicy.getGrantsConfig() != null && leavePolicy.getGrantsConfig().getGrantType() == GrantType.EARNED) {
 
-                                    if ("MANUAL_OVERRIDE".equalsIgnoreCase(leaveBalance.getStatus())) {
-                                        continue; // Skip this policy
-                                    }
+                                LeaveBalance leaveBalanceMetadata = getOrCreateBalanceMetadata(employee, leavePolicy, assignment);
+                                if ("MANUAL_OVERRIDE".equalsIgnoreCase(leaveBalanceMetadata.getStatus())) continue;
 
-                                    // Idempotency Check
-                                    LocalDate lastAccrual = leaveBalance.getLastAccrualDate();
-                                    if (lastAccrual != null && YearMonth.from(lastAccrual).equals(month)) {
-                                        continue; // Already processed this month
-                                    }
+                                LocalDate lastAccrual = leaveBalanceMetadata.getLastAccrualDate();
+                                if (lastAccrual != null && YearMonth.from(lastAccrual).equals(month)) continue;
 
-                                    LeavePolicyExecutionContext context = buildContext(employee, leavePolicy, month);
-                                    double earnedLeave = ruleExecutor.execute(context);
+                                LeavePolicyExecutionContext context = buildContext(employee, leavePolicy, month);
+                                double earnedLeave = ruleExecutor.execute(context);
 
-                                    if (earnedLeave > 0) {
-                                        // UPDATED LOGIC
-                                        leaveBalance.setTotalGranted(leaveBalance.getTotalGranted() + earnedLeave);
-                                        leaveBalance.setCurrentBalance(leaveBalance.getCurrentBalance() + earnedLeave);
-                                        leaveBalance.setLastAccrualDate(month.atEndOfMonth()); // Mark as accrued
-                                        leaveBalance.setNextAccrualDate(month.plusMonths(1).atDay(1));
+                                if (earnedLeave > 0) {
+                                    LeaveBalanceLedger ledgerEntry = LeaveBalanceLedger.builder()
+                                            .employee(employee)
+                                            .leavePolicy(leavePolicy)
+                                            .transactionType(LeaveTransactionType.ACCRUAL)
+                                            .amount(earnedLeave)
+                                            .transactionDate(month.atEndOfMonth())
+                                            .notes("Scheduled earned grant for " + month)
+                                            .build();
+                                    leaveBalanceLedgerRepository.save(ledgerEntry);
 
-                                        leaveBalanceRepository.save(leaveBalance);
-                                    }
+                                    leaveBalanceMetadata.setLastAccrualDate(month.atEndOfMonth());
+                                    leaveBalanceMetadata.setNextAccrualDate(month.plusMonths(1).atDay(1));
+                                    leaveBalanceRepository.save(leaveBalanceMetadata);
+
+                                    updateSummaryBalance(employee.getEmployeeId(), leavePolicy.getId());
                                 }
                             }
                         }
@@ -548,8 +226,8 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
     }
 
     /**
-     * This is the "destructive" true-up method. It is called by the RabbitMQ consumer
-     * every time a punch is processed, ensuring the balance is always accurate based on history.
+     * This is the "destructive" true-up method. It clears old accruals
+     * and rebuilds them, then updates the summary.
      */
     @Override
     @Transactional
@@ -557,189 +235,162 @@ public class LeaveAccrualServiceImpl implements LeaveAccrualService {
         Employee employee = employeeRepository.findByEmployeeId(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
-        // Find the employee's active leave assignment
         leaveProfileAssignmentRepository.findByEmployeeId(employee.getEmployeeId())
-                .stream()
-                .filter(a -> a.isActive() && a.getEffectiveDate().isBefore(LocalDate.now().plusDays(1)) &&
-                        (a.getExpirationDate() == null || a.getExpirationDate().isAfter(LocalDate.now().minusDays(1))))
-                .findFirst()
+                .stream().filter(LeaveProfileAssignment::isActive).findFirst()
                 .ifPresent(assignment -> {
                     LeaveProfile leaveProfile = leaveProfileRepository.findById(assignment.getLeaveProfileId()).orElse(null);
-                    if (leaveProfile == null) {
-                        return;
-                    }
+                    if (leaveProfile == null) return;
 
                     for (LeavePolicy leavePolicy : getLeavePoliciesFromProfile(leaveProfile)) {
 
                         LocalDate today = LocalDate.now();
-                        LeaveBalance leaveBalance = getOrCreateBalance(employee, leavePolicy, assignment.getEffectiveDate(), assignment.getExpirationDate());
+                        LeaveBalance leaveBalanceMetadata = getOrCreateBalanceMetadata(employee, leavePolicy, assignment);
 
-                        // PRESERVE USAGE - this is the most critical part
-                        double preservedUsedBalance = leaveBalance.getUsedBalance();
-
-                        // Check for active manual override
-                        if ("MANUAL_OVERRIDE".equalsIgnoreCase(leaveBalance.getStatus())) {
-                            if (leaveBalance.getExpirationDate() != null && leaveBalance.getExpirationDate().isBefore(today)) {
-                                // Override expired. Reset status and proceed with recalculation.
-                                leaveBalance.setStatus("ACTIVE");
+                        // If manually overridden, check for expiration
+                        if ("MANUAL_OVERRIDE".equalsIgnoreCase(leaveBalanceMetadata.getStatus())) {
+                            if (leaveBalanceMetadata.getExpirationDate() != null && leaveBalanceMetadata.getExpirationDate().isBefore(today)) {
+                                leaveBalanceMetadata.setStatus("ACTIVE"); // Override expired, proceed with recalc
                             } else {
-                                // Manual override is still active. DO NOT recalculate grants.
-                                // Just ensure dates are in sync.
-                                leaveBalance.setEffectiveDate(assignment.getEffectiveDate());
-                                leaveBalance.setExpirationDate(assignment.getExpirationDate());
-                                leaveBalanceRepository.save(leaveBalance);
-                                continue; // Skip to the next policy
+                                continue; // Manual override is active, skip recalculation
                             }
                         }
 
-                        // --- RECALCULATE ALL GRANTS FROM SCRATCH ---
-                        double newTotalGranted = 0;
+                        // --- RECALCULATION LOGIC ---
                         LocalDate newLastAccrual = null;
                         LocalDate newNextAccrual = null;
                         YearMonth calculationStartMonth = YearMonth.from(assignment.getEffectiveDate());
+                        YearMonth endMonth = YearMonth.from(today);
 
+                        // 1. Delete all old accrual/recalculation transactions
+                        List<LeaveTransactionType> grantTypes = Arrays.asList(LeaveTransactionType.ACCRUAL, LeaveTransactionType.ACCRUAL_RECALCULATION);
+                        leaveBalanceLedgerRepository.deleteByEmployee_EmployeeIdAndLeavePolicy_IdAndTransactionTypeIn(employeeId, leavePolicy.getId(), grantTypes);
+
+                        // 2. Re-run all grant rules from the beginning and create new ledger entries
                         if (leavePolicy.getGrantsConfig() != null) {
-
-                            YearMonth endMonth = YearMonth.from(today); // Calculate up to and including the current month
-
-                            // === EARNED GRANT LOGIC ===
                             if (leavePolicy.getGrantsConfig().getGrantType() == GrantType.EARNED) {
                                 if (!calculationStartMonth.isAfter(endMonth)) {
                                     for (YearMonth month = calculationStartMonth; !month.isAfter(endMonth); month = month.plusMonths(1)) {
                                         LeavePolicyExecutionContext context = buildContext(employee, leavePolicy, month);
                                         double grant = ruleExecutor.execute(context);
-                                        newTotalGranted += grant;
-                                        if (grant > 0) {
+                                        if(grant > 0) {
                                             newLastAccrual = month.atEndOfMonth();
+                                            leaveBalanceLedgerRepository.save(LeaveBalanceLedger.builder()
+                                                    .employee(employee).leavePolicy(leavePolicy)
+                                                    .transactionType(LeaveTransactionType.ACCRUAL_RECALCULATION)
+                                                    .amount(grant).transactionDate(month.atEndOfMonth())
+                                                    .notes("Recalculated earned grant for " + month).build());
                                         }
                                     }
                                 }
-                                // --- FIX: Use withDayOfMonth(1) ---
                                 newNextAccrual = today.plusMonths(1).withDayOfMonth(1);
-                            }
-                            // === FIXED GRANT LOGIC ===
-                            else if (leavePolicy.getGrantsConfig().getGrantType() == GrantType.FIXED) {
+
+                            } else if (leavePolicy.getGrantsConfig().getGrantType() == GrantType.FIXED) {
                                 FixedGrantConfig fixedGrant = leavePolicy.getGrantsConfig().getFixedGrant();
                                 if (fixedGrant != null && fixedGrant.getFrequency() == GrantFrequency.REPEATEDLY) {
                                     GrantPeriod grantPeriod = fixedGrant.getRepeatedlyDetails().getGrantPeriod();
                                     if (grantPeriod == GrantPeriod.YEARLY) {
-                                        int startYear = calculationStartMonth.getYear();
-                                        int endYear = today.getYear();
-                                        for (int year = startYear; year <= endYear; year++) {
+                                        for (int year = calculationStartMonth.getYear(); year <= endMonth.getYear(); year++) {
                                             LeavePolicyExecutionContext context = buildContext(employee, leavePolicy, YearMonth.of(year, 1));
                                             double grant = ruleExecutor.execute(context);
-                                            newTotalGranted += grant;
                                             if (grant > 0) {
                                                 newLastAccrual = LocalDate.of(year, 1, 1);
+                                                leaveBalanceLedgerRepository.save(LeaveBalanceLedger.builder()
+                                                        .employee(employee).leavePolicy(leavePolicy)
+                                                        .transactionType(LeaveTransactionType.ACCRUAL_RECALCULATION)
+                                                        .amount(grant).transactionDate(LocalDate.of(year, 1, 1))
+                                                        .notes("Recalculated yearly grant for " + year).build());
                                             }
                                         }
                                         newNextAccrual = today.plusYears(1).withDayOfYear(1);
-                                    } else { // Monthly or PayPeriod (simplified to monthly)
-                                        // Accrue up to *this* month
+                                    } else { // Monthly or PayPeriod
                                         if (!calculationStartMonth.isAfter(endMonth)) {
                                             for (YearMonth month = calculationStartMonth; !month.isAfter(endMonth); month = month.plusMonths(1)) {
                                                 LeavePolicyExecutionContext context = buildContext(employee, leavePolicy, month);
                                                 double grant = ruleExecutor.execute(context);
-                                                newTotalGranted += grant;
                                                 if(grant > 0) {
                                                     newLastAccrual = month.atDay(1);
+                                                    leaveBalanceLedgerRepository.save(LeaveBalanceLedger.builder()
+                                                            .employee(employee).leavePolicy(leavePolicy)
+                                                            .transactionType(LeaveTransactionType.ACCRUAL_RECALCULATION)
+                                                            .amount(grant).transactionDate(month.atDay(1))
+                                                            .notes("Recalculated monthly grant for " + month).build());
                                                 }
                                             }
                                         }
-                                        // --- FIX: Use withDayOfMonth(1) ---
                                         newNextAccrual = today.plusMonths(1).withDayOfMonth(1);
                                     }
-                                } else { // One-Time grant
+                                } else { // One-Time
                                     LeavePolicyExecutionContext context = buildContext(employee, leavePolicy, calculationStartMonth);
-                                    newTotalGranted = ruleExecutor.execute(context);
-                                    newLastAccrual = assignment.getEffectiveDate();
-                                    newNextAccrual = null; // No next accrual for one-time
+                                    double grant = ruleExecutor.execute(context);
+                                    if(grant > 0) {
+                                        newLastAccrual = assignment.getEffectiveDate();
+                                        leaveBalanceLedgerRepository.save(LeaveBalanceLedger.builder()
+                                                .employee(employee).leavePolicy(leavePolicy)
+                                                .transactionType(LeaveTransactionType.ACCRUAL_RECALCULATION)
+                                                .amount(grant).transactionDate(newLastAccrual)
+                                                .notes("Recalculated one-time grant").build());
+                                    }
                                 }
                             }
-                        } // end grant config check
+                        }
 
-                        // 3. Save the final calculated balance
-                        leaveBalance.setTotalGranted(newTotalGranted);
-                        leaveBalance.setUsedBalance(preservedUsedBalance); // Restore the preserved usage
-                        leaveBalance.setCurrentBalance(newTotalGranted - preservedUsedBalance); // Recalculate current
-                        leaveBalance.setLastAccrualDate(newLastAccrual);
-                        leaveBalance.setNextAccrualDate(newNextAccrual);
-                        leaveBalance.setStatus("ACTIVE");
-                        leaveBalance.setEffectiveDate(assignment.getEffectiveDate());
-                        leaveBalance.setExpirationDate(assignment.getExpirationDate());
+                        // 3. Update metadata
+                        leaveBalanceMetadata.setLastAccrualDate(newLastAccrual);
+                        leaveBalanceMetadata.setNextAccrualDate(newNextAccrual);
+                        leaveBalanceMetadata.setStatus("ACTIVE");
+                        leaveBalanceMetadata.setEffectiveDate(assignment.getEffectiveDate());
+                        leaveBalanceMetadata.setExpirationDate(assignment.getExpirationDate());
+                        leaveBalanceRepository.save(leaveBalanceMetadata);
 
-                        leaveBalanceRepository.save(leaveBalance);
+                        // 4. Update the summary table with the newly rebuilt totals
+                        updateSummaryBalance(employeeId, leavePolicy.getId());
                     }
                 });
     }
 
 
-    /**
-     * This method is "additive" and "idempotent".
-     * It is NOT used by the consumer, but could be used by a more granular scheduler.
-     * I have fixed its logic to be correct according to the new architecture.
-     */
     @Override
     @Transactional
     public void incrementEarnedGrantForMonth(String employeeId, YearMonth month) {
         Employee employee = employeeRepository.findByEmployeeId(employeeId).orElse(null);
-        if (employee == null) {
-            return; // Employee not found
-        }
+        if (employee == null) return;
 
         leaveProfileAssignmentRepository.findByEmployeeId(employee.getEmployeeId())
-                .stream()
-                .filter(a -> a.isActive()) // Find the active assignment
-                .findFirst()
+                .stream().filter(LeaveProfileAssignment::isActive).findFirst()
                 .ifPresent(assignment -> {
-                    // Do not accrue for months before the assignment is effective
-                    if (month.isBefore(YearMonth.from(assignment.getEffectiveDate()))) {
-                        return;
-                    }
+                    if (month.isBefore(YearMonth.from(assignment.getEffectiveDate()))) return;
 
                     LeaveProfile leaveProfile = leaveProfileRepository.findById(assignment.getLeaveProfileId()).orElse(null);
-                    if (leaveProfile == null) {
-                        return;
-                    }
+                    if (leaveProfile == null) return;
 
-                    List<LeavePolicy> policies = getLeavePoliciesFromProfile(leaveProfile);
-                    for (LeavePolicy leavePolicy : policies) {
-                        // Only run for EARNED grant types
+                    for (LeavePolicy leavePolicy : getLeavePoliciesFromProfile(leaveProfile)) {
                         if (leavePolicy.getGrantsConfig() != null && leavePolicy.getGrantsConfig().getGrantType() == GrantType.EARNED) {
 
-                            LeaveBalance leaveBalance = getOrCreateBalance(employee, leavePolicy, assignment.getEffectiveDate(), assignment.getExpirationDate());
+                            LeaveBalance leaveBalanceMetadata = getOrCreateBalanceMetadata(employee, leavePolicy, assignment);
+                            if ("MANUAL_OVERRIDE".equalsIgnoreCase(leaveBalanceMetadata.getStatus())) continue;
 
-                            // If manually overridden, skip.
-                            if ("MANUAL_OVERRIDE".equalsIgnoreCase(leaveBalance.getStatus())) {
-                                continue;
-                            }
-
-                            // --- IDEMPOTENCY CHECK ---
-                            LocalDate lastAccrual = leaveBalance.getLastAccrualDate();
-                            if (lastAccrual != null && YearMonth.from(lastAccrual).equals(month)) {
-                                // We have already processed an accrual for this month. Stop.
-                                continue;
-                            }
-                            // ------------------------------------
+                            LocalDate lastAccrual = leaveBalanceMetadata.getLastAccrualDate();
+                            if (lastAccrual != null && YearMonth.from(lastAccrual).equals(month)) continue;
 
                             LeavePolicyExecutionContext context = buildContext(employee, leavePolicy, month);
                             double earnedLeave = ruleExecutor.execute(context);
 
                             if (earnedLeave > 0) {
-                                // --- UPDATED LOGIC ---
-                                // Add to total_granted and current_balance
-                                leaveBalance.setTotalGranted(leaveBalance.getTotalGranted() + earnedLeave);
-                                leaveBalance.setCurrentBalance(leaveBalance.getCurrentBalance() + earnedLeave);
-                                leaveBalance.setLastAccrualDate(month.atEndOfMonth());
-                                leaveBalance.setNextAccrualDate(month.plusMonths(1).atDay(1)); // Simple assumption
+                                LeaveBalanceLedger ledgerEntry = LeaveBalanceLedger.builder()
+                                        .employee(employee)
+                                        .leavePolicy(leavePolicy)
+                                        .transactionType(LeaveTransactionType.ACCRUAL)
+                                        .amount(earnedLeave)
+                                        .transactionDate(month.atEndOfMonth())
+                                        .notes("Earned grant for " + month)
+                                        .build();
+                                leaveBalanceLedgerRepository.save(ledgerEntry);
 
-                                // Ensure dates align with the assignment.
-                                if(leaveBalance.getExpirationDate() == null) {
-                                    leaveBalance.setEffectiveDate(assignment.getEffectiveDate());
-                                    leaveBalance.setExpirationDate(assignment.getExpirationDate());
-                                }
+                                leaveBalanceMetadata.setLastAccrualDate(month.atEndOfMonth());
+                                leaveBalanceMetadata.setNextAccrualDate(month.plusMonths(1).atDay(1));
+                                leaveBalanceRepository.save(leaveBalanceMetadata);
 
-                                leaveBalanceRepository.save(leaveBalance);
+                                updateSummaryBalance(employee.getEmployeeId(), leavePolicy.getId());
                             }
                         }
                     }

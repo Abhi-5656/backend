@@ -1,4 +1,3 @@
-// harshwfm/wfm-backend/HarshWfm-wfm-backend-573b561b9a0299c8388f2f15252dbc2875a7884a/src/main/java/com/wfm/experts/modules/wfm/employee/assignment/leaveprofile/service/impl/LeaveBalanceServiceImpl.java
 package com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.service.impl;
 
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.dto.LeaveBalanceDTO;
@@ -6,7 +5,10 @@ import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.dto.LeaveBal
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.dto.LeaveBalanceUpdateDTO;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.dto.LeavePolicyBalanceDTO;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.entity.LeaveBalance;
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.entity.LeaveBalanceLedger;
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.enums.LeaveTransactionType;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.mapper.LeaveBalanceMapper;
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.repository.LeaveBalanceLedgerRepository;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.repository.LeaveBalanceRepository;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.service.LeaveBalanceService;
 import com.wfm.experts.setup.wfm.leavepolicy.entity.LeavePolicy;
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,77 +29,77 @@ import java.util.stream.Collectors;
 public class LeaveBalanceServiceImpl implements LeaveBalanceService {
 
     private final LeaveBalanceRepository leaveBalanceRepository;
+    private final LeaveBalanceLedgerRepository leaveBalanceLedgerRepository; // Injected
     private final LeaveBalanceMapper leaveBalanceMapper;
-    // Add dependencies needed for the new logic
     private final EmployeeRepository employeeRepository;
     private final LeavePolicyRepository leavePolicyRepository;
 
+    /**
+     * Reads the pre-calculated balances from the summary table.
+     * This is fast and is used by dashboards and UIs.
+     */
     @Override
+    @Transactional(Transactional.TxType.SUPPORTS)
     public List<LeaveBalanceDTO> getLeaveBalances(String employeeId) {
+        // This method now simply reads the summary table
         List<LeaveBalance> leaveBalances = leaveBalanceRepository.findByEmployee_EmployeeId(employeeId);
         return leaveBalances.stream()
                 .map(leaveBalanceMapper::toDto)
                 .collect(Collectors.toList());
     }
 
-
-
+    /**
+     * Manually overrides an employee's leave balance.
+     * This writes a new "adjustment" transaction to the ledger, sets the summary
+     * status to "MANUAL_OVERRIDE", and updates the summary values.
+     */
     @Override
     @Transactional
     public void updateLeaveBalances(LeaveBalanceUpdateDTO updateDTO) {
         for (String employeeId : updateDTO.getEmployeeIds()) {
-            // Find the employee first (or throw)
             Employee employee = employeeRepository.findByEmployeeId(employeeId)
                     .orElseThrow(() -> new RuntimeException("Employee not found: " + employeeId));
 
-            for (LeavePolicyBalanceDTO policyBalance : updateDTO.getLeavePolicies()) {
-                // Find the policy first (or throw)
-                LeavePolicy leavePolicy = leavePolicyRepository.findById(policyBalance.getId())
-                        .orElseThrow(() -> new RuntimeException("LeavePolicy not found: " + policyBalance.getId()));
+            for (LeavePolicyBalanceDTO policyBalanceDto : updateDTO.getLeavePolicies()) {
+                LeavePolicy leavePolicy = leavePolicyRepository.findById(policyBalanceDto.getId())
+                        .orElseThrow(() -> new RuntimeException("LeavePolicy not found: " + policyBalanceDto.getId()));
 
-                // Find existing balance record or create a new one
-                LeaveBalance leaveBalance = leaveBalanceRepository.findByEmployee_EmployeeIdAndLeavePolicy_Id(
+                LeaveBalance leaveBalanceMetadata = leaveBalanceRepository.findByEmployee_EmployeeIdAndLeavePolicy_Id(
                         employeeId,
-                        policyBalance.getId()
-                ).orElse(LeaveBalance.builder()
+                        policyBalanceDto.getId()
+                ).orElseThrow(() -> new IllegalStateException("LeaveBalance metadata row not found. Cannot manually adjust."));
+
+                // 1. Get the current *calculated* balance from the ledger
+                double currentCalculatedBalance = leaveBalanceLedgerRepository.sumAmountByEmployeeAndPolicy(employeeId, policyBalanceDto.getId());
+
+                // 2. Calculate the adjustment needed to reach the new target
+                double newTargetBalance = policyBalanceDto.getBalance();
+                double adjustmentAmount = newTargetBalance - currentCalculatedBalance;
+
+                // 3. Create the new ledger transaction
+                LeaveBalanceLedger ledgerEntry = LeaveBalanceLedger.builder()
                         .employee(employee)
                         .leavePolicy(leavePolicy)
-                        .currentBalance(0)  // <-- NEW: Initialize
-                        .totalGranted(0)    // <-- NEW: Initialize
-                        .usedBalance(0)     // <-- NEW: Initialize
-                        .status("ACTIVE")   // <-- NEW: Initialize
-                        .build());
+                        .transactionType(LeaveTransactionType.MANUAL_ADJUSTMENT)
+                        .amount(adjustmentAmount) // The amount to add/subtract
+                        .transactionDate(policyBalanceDto.getEffectiveDate() != null ? policyBalanceDto.getEffectiveDate() : LocalDate.now())
+                        .notes("Manual balance override by admin. Set total balance to " + newTargetBalance)
+                        .build();
+                leaveBalanceLedgerRepository.save(ledgerEntry);
 
-                // --- UPDATED LOGIC for Manual Override ---
+                // 4. Update the summary table (METADATA + MANUAL BALANCE)
+                leaveBalanceMetadata.setStatus("MANUAL_OVERRIDE"); // Set status
+                leaveBalanceMetadata.setEffectiveDate(policyBalanceDto.getEffectiveDate() != null ? policyBalanceDto.getEffectiveDate() : LocalDate.now());
+                leaveBalanceMetadata.setExpirationDate(policyBalanceDto.getExpirationDate());
+                leaveBalanceMetadata.setLastAccrualDate(null); // Stop automated accruals
+                leaveBalanceMetadata.setNextAccrualDate(null);
 
-                double newCurrentBalance = policyBalance.getBalance();
-                double oldCurrentBalance = leaveBalance.getCurrentBalance();
+                // 5. Manually set the summary fields to the new target values
+                leaveBalanceMetadata.setCurrentBalance(newTargetBalance);
+                leaveBalanceMetadata.setTotalGranted(leaveBalanceLedgerRepository.sumGrantsByEmployeeAndPolicy(employeeId, leavePolicy.getId()));
+                leaveBalanceMetadata.setUsedBalance(Math.abs(leaveBalanceLedgerRepository.sumUsageByEmployeeAndPolicy(employeeId, leavePolicy.getId())));
 
-                // Calculate the adjustment delta (the amount the admin is adding or removing)
-                double adjustmentDelta = newCurrentBalance - oldCurrentBalance;
-
-                // Apply the new balance
-                leaveBalance.setCurrentBalance(newCurrentBalance);
-
-                // Adjust total_granted by the same delta. This keeps the math consistent:
-                // (newTotalGranted) - (usedBalance) = (newCurrentBalance)
-                // (oldTotalGranted + delta) - (usedBalance) = (oldCurrentBalance + delta)
-                leaveBalance.setTotalGranted(leaveBalance.getTotalGranted() + adjustmentDelta);
-
-                // Set status to manual override to stop future accruals
-                leaveBalance.setStatus("MANUAL_OVERRIDE");
-
-                // Set the manual effective and expiration dates from the DTO
-                // If effectiveDate is null, default to today. ExpirationDate can be null.
-                leaveBalance.setEffectiveDate(policyBalance.getEffectiveDate() != null ? policyBalance.getEffectiveDate() : LocalDate.now());
-                leaveBalance.setExpirationDate(policyBalance.getExpirationDate());
-
-                // Nullify accrual dates as they are not relevant for a manual balance
-                leaveBalance.setLastAccrualDate(null);
-                leaveBalance.setNextAccrualDate(null);
-
-                leaveBalanceRepository.save(leaveBalance);
-                // --- END OF UPDATE ---
+                leaveBalanceRepository.save(leaveBalanceMetadata);
             }
         }
     }

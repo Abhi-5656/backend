@@ -257,6 +257,9 @@
 package com.wfm.experts.modules.wfm.employee.leave.service.impl;
 
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.entity.LeaveBalance;
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.entity.LeaveBalanceLedger;
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.enums.LeaveTransactionType;
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.repository.LeaveBalanceLedgerRepository;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.repository.LeaveBalanceRepository;
 import com.wfm.experts.modules.wfm.employee.leave.dto.LeaveRequestActionResponseDTO;
 import com.wfm.experts.modules.wfm.employee.leave.dto.LeaveRequestApprovalDTO;
@@ -274,12 +277,13 @@ import com.wfm.experts.modules.wfm.features.timesheet.entity.Timesheet;
 import com.wfm.experts.modules.wfm.features.timesheet.repository.TimesheetRepository;
 import com.wfm.experts.setup.wfm.leavepolicy.entity.LeavePolicy;
 import com.wfm.experts.setup.wfm.leavepolicy.repository.LeavePolicyRepository;
+import com.wfm.experts.setup.wfm.leavepolicy.service.LeaveAccrualService;
 import com.wfm.experts.setup.wfm.requesttype.entity.RequestType;
 import com.wfm.experts.setup.wfm.requesttype.enums.ApprovalModeType;
 import com.wfm.experts.setup.wfm.requesttype.repository.RequestTypeRepository;
 import com.wfm.experts.tenant.common.employees.entity.Employee;
 import com.wfm.experts.tenant.common.employees.repository.EmployeeRepository;
-import com.wfm.experts.notificationengine.service.AppNotificationService; // [NEW IMPORT]
+import com.wfm.experts.notificationengine.service.AppNotificationService;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -294,7 +298,8 @@ import java.util.stream.Collectors;
 public class LeaveRequestServiceImpl implements LeaveRequestService {
 
     private final LeaveRequestRepository leaveRequestRepository;
-    private final LeaveBalanceRepository leaveBalanceRepository;
+    private final LeaveBalanceRepository leaveBalanceRepository; // The Summary table
+    private final LeaveBalanceLedgerRepository leaveBalanceLedgerRepository; // The Ledger table
     private final EmployeeRepository employeeRepository;
     private final RequestTypeRepository requestTypeRepository;
     private final LeavePolicyRepository leavePolicyRepository;
@@ -303,8 +308,8 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
     private final LeaveRequestApprovalMapper leaveRequestApprovalMapper;
     private final LeaveRequestNotificationService notificationService;
     private final TimesheetRepository timesheetRepository;
-    private final AppNotificationService appNotificationService; // [NEW INJECTION]
-
+    private final AppNotificationService appNotificationService;
+    private final LeaveAccrualService leaveAccrualService; // Service to update summaries
 
     @Override
     public LeaveRequestDTO applyForLeave(LeaveRequestDTO leaveRequestDTO) {
@@ -317,74 +322,73 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
         RequestType requestType = requestTypeRepository.findByLeavePolicyId(leavePolicy.getId())
                 .orElseThrow(() -> new RuntimeException("No Request Type is configured for this Leave Policy."));
 
-
+        // --- UPDATED BALANCE CHECK ---
+        // 1. Get the summary balance from the main table
         LeaveBalance leaveBalance = leaveBalanceRepository.findByEmployee_EmployeeIdAndLeavePolicy_Id(employee.getEmployeeId(), leavePolicy.getId())
                 .orElseThrow(() -> new RuntimeException("Leave balance not found for this policy"));
 
-
-        // --- UPDATED LOGIC ---
-        // Check against the current_balance
+        // 2. Check sufficiency
         if (leaveBalance.getCurrentBalance() < leaveRequestDTO.getLeaveDays()) {
             throw new RuntimeException("Insufficient leave balance");
         }
-
-        // Deduct from current_balance and add to used_balance
-        leaveBalance.setCurrentBalance(leaveBalance.getCurrentBalance() - leaveRequestDTO.getLeaveDays());
-        leaveBalance.setUsedBalance(leaveBalance.getUsedBalance() + leaveRequestDTO.getLeaveDays());
-        leaveBalanceRepository.save(leaveBalance);
-        // --- END OF UPDATE ---
+        // --- END OF UPDATED BALANCE CHECK ---
 
         LeaveRequest leaveRequest = leaveRequestMapper.toEntity(leaveRequestDTO);
         leaveRequest.setEmployee(employee);
         leaveRequest.setLeavePolicy(leavePolicy);
 
-        if (requestType.getApproval() != null && requestType.getApproval().isEnabled()) {
+        LeaveRequest savedLeaveRequest = leaveRequestRepository.save(leaveRequest);
 
-            // Check for Auto-Approve mode
+        // --- NEW LEDGER LOGIC (Usage) ---
+        LeaveBalanceLedger usageLedgerEntry = LeaveBalanceLedger.builder()
+                .employee(employee)
+                .leavePolicy(leavePolicy)
+                .transactionType(LeaveTransactionType.USAGE_APPLIED)
+                .amount(-leaveRequestDTO.getLeaveDays()) // Negative amount
+                .transactionDate(leaveRequest.getStartDate())
+                .notes("Leave request submitted: ID " + savedLeaveRequest.getId())
+                .relatedRequest(savedLeaveRequest)
+                .build();
+        leaveBalanceLedgerRepository.save(usageLedgerEntry);
+
+        // --- UPDATE SUMMARY ---
+        leaveAccrualService.updateSummaryBalance(employee.getEmployeeId(), leavePolicy.getId());
+
+        // ... (rest of approval logic) ...
+        if (requestType.getApproval() != null && requestType.getApproval().isEnabled()) {
             if (requestType.getApproval().getMode() == ApprovalModeType.AUTO_APPROVE) {
-                leaveRequest.setStatus(LeaveStatus.APPROVED);
-                LeaveRequest savedLeaveRequest = leaveRequestRepository.save(leaveRequest);
-                // Send notifications for auto-approval
+                savedLeaveRequest.setStatus(LeaveStatus.APPROVED);
+                createTimesheetEntries(savedLeaveRequest);
                 notificationService.sendAutoApprovalNotifications(savedLeaveRequest);
             } else {
-                // Handle manual approval chain
-                leaveRequest.setStatus(LeaveStatus.PENDING_APPROVAL);
-                LeaveRequest savedLeaveRequest = leaveRequestRepository.save(leaveRequest);
+                savedLeaveRequest.setStatus(LeaveStatus.PENDING_APPROVAL);
                 createApprovalChain(savedLeaveRequest, requestType.getApproval().getChainSteps());
             }
         } else {
-            leaveRequest.setStatus(LeaveStatus.APPROVED);
+            savedLeaveRequest.setStatus(LeaveStatus.APPROVED);
+            createTimesheetEntries(savedLeaveRequest);
         }
 
-        LeaveRequest savedLeaveRequest = leaveRequestRepository.save(leaveRequest);
-        return leaveRequestMapper.toDto(savedLeaveRequest);
+        LeaveRequest finalSavedRequest = leaveRequestRepository.save(savedLeaveRequest);
+        return leaveRequestMapper.toDto(finalSavedRequest);
     }
 
     private void createApprovalChain(LeaveRequest leaveRequest, List<String> chainSteps) {
         Employee applicant = leaveRequest.getEmployee();
-
         for (int i = 0; i < chainSteps.size(); i++) {
             String step = chainSteps.get(i);
             Employee approver;
-
             if ("manager".equalsIgnoreCase(step)) {
                 approver = applicant.getReportingManager();
-                if (approver == null) {
-                    throw new RuntimeException("Reporting manager is not assigned for employee: " + applicant.getEmployeeId());
-                }
+                if (approver == null) throw new RuntimeException("Reporting manager not assigned for employee: " + applicant.getEmployeeId());
             } else if ("hr".equalsIgnoreCase(step)) {
                 approver = applicant.getHrManager();
-                if (approver == null) {
-                    throw new RuntimeException("HR manager is not assigned for employee: " + applicant.getEmployeeId());
-                }
+                if (approver == null) throw new RuntimeException("HR manager not assigned for employee: " + applicant.getEmployeeId());
             } else {
-                // Treat the step as a role name and find the first employee with that role
                 approver = employeeRepository.findFirstByRoles_RoleName(step)
                         .orElseThrow(() -> new RuntimeException("No employee found with the role: " + step));
             }
-
             String initialStatus = (i == 0) ? "PENDING" : "WAITING";
-
             LeaveRequestApproval approval = LeaveRequestApproval.builder()
                     .leaveRequest(leaveRequest)
                     .approver(approver)
@@ -406,6 +410,7 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
                 .collect(Collectors.toList());
     }
 
+
     @Override
     public LeaveRequestActionResponseDTO approveOrRejectLeave(Long approvalId, String approverId, boolean approved) {
         LeaveRequestApproval approval = leaveRequestApprovalRepository.findById(approvalId)
@@ -414,7 +419,6 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
         if (!approval.getApprover().getEmployeeId().equals(approverId)) {
             throw new RuntimeException("You are not authorized to approve this request");
         }
-
         if (!"PENDING".equals(approval.getStatus())) {
             throw new RuntimeException("This request is not currently pending your approval.");
         }
@@ -422,20 +426,9 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
         approval.setStatus(approved ? "APPROVED" : "REJECTED");
         leaveRequestApprovalRepository.save(approval);
 
-        // Determine the final status for the historical notification payload
         LeaveStatus historicalLeaveStatus = approved ? LeaveStatus.APPROVED : LeaveStatus.REJECTED;
-
-        // 1. Core Fix: Update the original notification's payload for accurate history in /all
-        appNotificationService.updateLeaveStatusOfNotificationByApprovalId(
-                approvalId,
-                approverId,
-                historicalLeaveStatus.name()
-        );
-
-        // 2. Cleanup: Mark the pending notification as read/cleared for the approver (cleans up /unread)
+        appNotificationService.updateLeaveStatusOfNotificationByApprovalId(approvalId, approverId, historicalLeaveStatus.name());
         appNotificationService.markPendingApprovalAsRead(approvalId, approverId);
-        // -------------------------------------------------------------------------
-
 
         LeaveRequest leaveRequest = approval.getLeaveRequest();
         if (!approved) {
@@ -443,7 +436,7 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
             leaveRequestRepository.save(leaveRequest);
 
             // --- UPDATED LOGIC ---
-            restoreLeaveBalance(leaveRequest);
+            restoreLeaveBalance(leaveRequest, LeaveTransactionType.USAGE_REVERSAL_REJECTED);
             // --- END OF UPDATE ---
 
             notificationService.sendLeaveRequestRejectionNotifications(leaveRequest, approval.getApprover());
@@ -465,18 +458,7 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
                 leaveRequest.setStatus(LeaveStatus.APPROVED);
                 leaveRequestRepository.save(leaveRequest);
 
-                // Create timesheet records for the leave period
-                LocalDate startDate = leaveRequest.getStartDate();
-                LocalDate endDate = leaveRequest.getEndDate();
-                for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
-                    Timesheet timesheet = timesheetRepository.findByEmployeeIdAndWorkDate(leaveRequest.getEmployee().getEmployeeId(), date)
-                            .orElse(new Timesheet());
-
-                    timesheet.setEmployeeId(leaveRequest.getEmployee().getEmployeeId());
-                    timesheet.setWorkDate(date);
-                    timesheet.setStatus(leaveRequest.getLeavePolicy().getPolicyName());
-                    timesheetRepository.save(timesheet);
-                }
+                createTimesheetEntries(leaveRequest);
 
                 notificationService.sendLeaveRequestApprovalNotifications(leaveRequest, approval.getApprover(), null);
                 return new LeaveRequestActionResponseDTO(leaveRequest.getId(), "APPROVED", "Leave request has been fully approved.");
@@ -501,37 +483,55 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
         leaveRequestRepository.save(leaveRequest);
 
         // --- UPDATED LOGIC ---
-        restoreLeaveBalance(leaveRequest);
+        restoreLeaveBalance(leaveRequest, LeaveTransactionType.USAGE_REVERSAL_CANCELLED);
         // --- END OF UPDATE ---
 
         notificationService.sendLeaveRequestCancellationNotifications(leaveRequest);
 
-        // 1. Update the payload status for all associated pending approvals to CANCELLED for history
+        // ... (notification cleanup) ...
         leaveRequestApprovalRepository.findAll().stream()
                 .filter(a -> a.getLeaveRequest().getId().equals(leaveRequestId))
-                .forEach(a -> {
-                    appNotificationService.updateLeaveStatusOfNotificationByApprovalId(a.getId(), a.getApprover().getEmployeeId(), LeaveStatus.CANCELLED.name());
-                });
+                .forEach(a -> appNotificationService.updateLeaveStatusOfNotificationByApprovalId(a.getId(), a.getApprover().getEmployeeId(), LeaveStatus.CANCELLED.name()));
 
-        // 2. Clear any active pending approval notifications related to this cancelled request
         leaveRequestApprovalRepository.findAll().stream()
                 .filter(a -> a.getLeaveRequest().getId().equals(leaveRequestId) && "PENDING".equals(a.getStatus()))
                 .forEach(a -> appNotificationService.markPendingApprovalAsRead(a.getId(), a.getApprover().getEmployeeId()));
-        // -----------------------------------------------------------------------------
 
         return new LeaveRequestActionResponseDTO(leaveRequestId, "CANCELLED", "Leave request has been cancelled.");
     }
 
-    // --- THIS METHOD IS NOW UPDATED ---
-    private void restoreLeaveBalance(LeaveRequest leaveRequest) {
-        LeaveBalance leaveBalance = leaveBalanceRepository.findByEmployee_EmployeeIdAndLeavePolicy_Id(
-                        leaveRequest.getEmployee().getEmployeeId(), leaveRequest.getLeavePolicy().getId())
-                .orElseThrow(() -> new RuntimeException("Leave balance not found for restoration"));
+    /**
+     * Creates a new ledger transaction to reverse a usage (e.g., add the balance back).
+     */
+    private void restoreLeaveBalance(LeaveRequest leaveRequest, LeaveTransactionType reversalType) {
+        LeaveBalanceLedger reversalLedgerEntry = LeaveBalanceLedger.builder()
+                .employee(leaveRequest.getEmployee())
+                .leavePolicy(leaveRequest.getLeavePolicy())
+                .transactionType(reversalType)
+                .amount(leaveRequest.getLeaveDays()) // Positive amount
+                .transactionDate(LocalDate.now())
+                .notes("Reversal for leave request ID: " + leaveRequest.getId())
+                .relatedRequest(leaveRequest)
+                .build();
 
-        // Add balance back to current_balance and remove from used_balance
-        leaveBalance.setCurrentBalance(leaveBalance.getCurrentBalance() + leaveRequest.getLeaveDays());
-        leaveBalance.setUsedBalance(leaveBalance.getUsedBalance() - leaveRequest.getLeaveDays());
-        leaveBalanceRepository.save(leaveBalance);
+        leaveBalanceLedgerRepository.save(reversalLedgerEntry);
+
+        // --- UPDATE SUMMARY ---
+        leaveAccrualService.updateSummaryBalance(leaveRequest.getEmployee().getEmployeeId(), leaveRequest.getLeavePolicy().getId());
+    }
+
+    private void createTimesheetEntries(LeaveRequest leaveRequest) {
+        LocalDate startDate = leaveRequest.getStartDate();
+        LocalDate endDate = leaveRequest.getEndDate();
+        for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+            Timesheet timesheet = timesheetRepository.findByEmployeeIdAndWorkDate(leaveRequest.getEmployee().getEmployeeId(), date)
+                    .orElse(new Timesheet());
+
+            timesheet.setEmployeeId(leaveRequest.getEmployee().getEmployeeId());
+            timesheet.setWorkDate(date);
+            timesheet.setStatus(leaveRequest.getLeavePolicy().getPolicyName());
+            timesheetRepository.save(timesheet);
+        }
     }
 
     @Override

@@ -60,7 +60,7 @@
 
 
 -- V22__create_leave_balance_table.sql
--- Creates the leave balance, leave request, and approval tables.
+-- Creates the leave balance (summary), leave request, and approval tables.
 -- The 'employee_leave_balances' table includes all tracking fields.
 
 CREATE TABLE employee_leave_balances (
@@ -86,17 +86,26 @@ CREATE TABLE employee_leave_balances (
                                          created_at TIMESTAMP NOT NULL DEFAULT NOW(),
                                          updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
+    -- ADDED THIS --
+                                         assignment_id BIGINT, -- Links to the profile assignment
+
                                          CONSTRAINT fk_leave_balance_employee
                                              FOREIGN KEY (employee_id) REFERENCES employees(employee_id)
                                                  ON DELETE CASCADE,
 
                                          CONSTRAINT fk_leave_balance_leave_policy
                                              FOREIGN KEY (leave_policy_id) REFERENCES leave_policy(id)
-                                                 ON DELETE CASCADE
+                                                 ON DELETE CASCADE,
+
+    -- ADDED THIS --
+                                         CONSTRAINT fk_leave_balance_assignment
+                                             FOREIGN KEY (assignment_id) REFERENCES leave_profile_assignments(id)
+                                                 ON DELETE SET NULL
 );
 
 CREATE INDEX idx_leave_balance_employee_id ON employee_leave_balances(employee_id);
 CREATE INDEX idx_leave_balance_leave_policy_id ON employee_leave_balances(leave_policy_id);
+CREATE INDEX idx_leave_balance_assignment_id ON employee_leave_balances(assignment_id); -- ADDED THIS
 
 
 -- Leave Requests Table

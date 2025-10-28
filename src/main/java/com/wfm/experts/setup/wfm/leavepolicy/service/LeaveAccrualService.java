@@ -36,4 +36,14 @@ public interface LeaveAccrualService {
      * @param month The month to process.
      */
     void incrementEarnedGrantForMonth(String employeeId, YearMonth month);
+
+    /**
+     * NEW METHOD for Summary + Ledger model
+     * Recalculates the summary fields in the 'employee_leave_balances' table
+     * by summing all transactions from the 'employee_leave_ledger' table.
+     *
+     * @param employeeId The ID of the employee.
+     * @param leavePolicyId The ID of the policy to update.
+     */
+    void updateSummaryBalance(String employeeId, Long leavePolicyId);
 }
