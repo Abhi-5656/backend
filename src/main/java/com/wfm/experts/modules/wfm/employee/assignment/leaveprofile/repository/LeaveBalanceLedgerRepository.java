@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate; // <-- IMPORT
 import java.util.List;
 
 @Repository
@@ -55,4 +56,16 @@ public interface LeaveBalanceLedgerRepository extends JpaRepository<LeaveBalance
      * Deletes all transactions of specific types, used for recalculating grants.
      */
     void deleteByEmployee_EmployeeIdAndLeavePolicy_IdAndTransactionTypeIn(String employeeId, Long leavePolicyId, List<LeaveTransactionType> transactionTypes);
+
+    // --- ADD THESE TWO METHODS TO FIX THE ERROR ---
+
+    /**
+     * Finds all transactions for a specific employee and policy on or before a given date.
+     */
+    List<LeaveBalanceLedger> findByEmployee_EmployeeIdAndLeavePolicy_IdAndTransactionDateLessThanEqualOrderByTransactionDateAsc(String employeeId, Long leavePolicyId, LocalDate asOfDate);
+
+    /**
+     * Finds all transactions for a specific employee on or before a given date.
+     */
+    List<LeaveBalanceLedger> findByEmployee_EmployeeIdAndTransactionDateLessThanEqualOrderByTransactionDateAsc(String employeeId, LocalDate asOfDate);
 }

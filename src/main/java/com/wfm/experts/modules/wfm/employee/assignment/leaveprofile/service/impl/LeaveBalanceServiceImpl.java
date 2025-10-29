@@ -1,13 +1,14 @@
 package com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.service.impl;
 
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.dto.LeaveBalanceDTO;
-import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.dto.LeaveBalanceResetDTO;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.dto.LeaveBalanceUpdateDTO;
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.dto.LeaveDetailsDTO;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.dto.LeavePolicyBalanceDTO;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.entity.LeaveBalance;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.entity.LeaveBalanceLedger;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.enums.LeaveTransactionType;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.mapper.LeaveBalanceMapper;
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.mapper.LeaveDetailsMapper; // <-- Import new mapper
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.repository.LeaveBalanceLedgerRepository;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.repository.LeaveBalanceRepository;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.service.LeaveBalanceService;
@@ -29,10 +30,11 @@ import java.util.stream.Collectors;
 public class LeaveBalanceServiceImpl implements LeaveBalanceService {
 
     private final LeaveBalanceRepository leaveBalanceRepository;
-    private final LeaveBalanceLedgerRepository leaveBalanceLedgerRepository; // Injected
+    private final LeaveBalanceLedgerRepository leaveBalanceLedgerRepository;
     private final LeaveBalanceMapper leaveBalanceMapper;
     private final EmployeeRepository employeeRepository;
     private final LeavePolicyRepository leavePolicyRepository;
+    private final LeaveDetailsMapper leaveDetailsMapper; // <-- Inject new mapper
 
     /**
      * Reads the pre-calculated balances from the summary table.
@@ -85,8 +87,6 @@ public class LeaveBalanceServiceImpl implements LeaveBalanceService {
                         .leavePolicy(leavePolicy)
                         .transactionType(LeaveTransactionType.MANUAL_ADJUSTMENT)
                         .amount(adjustmentAmount) // The amount to add/subtract
-                        // --- THIS IS THE FIX ---
-                        // The transaction date is when the adjustment is made (now).
                         .transactionDate(LocalDate.now())
                         .notes("Manual balance adjustment by admin. Amount: " + adjustmentAmount)
                         .build();
@@ -112,5 +112,30 @@ public class LeaveBalanceServiceImpl implements LeaveBalanceService {
                 leaveBalanceRepository.save(leaveBalanceMetadata);
             }
         }
+    }
+
+    /**
+     * Gets the leave ledger transaction history (details) for an employee up to a specific date.
+     * Can be filtered by a specific leave policy.
+     */
+    @Override
+    @Transactional(Transactional.TxType.SUPPORTS)
+    public List<LeaveDetailsDTO> getLeaveDetailsAsOf(String employeeId, LocalDate asOfDate, Long leavePolicyId) {
+        List<LeaveBalanceLedger> ledgerEntries;
+
+        if (leavePolicyId != null) {
+            // Filter by employee, policy, and date
+            ledgerEntries = leaveBalanceLedgerRepository
+                    .findByEmployee_EmployeeIdAndLeavePolicy_IdAndTransactionDateLessThanEqualOrderByTransactionDateAsc(
+                            employeeId, leavePolicyId, asOfDate);
+        } else {
+            // Filter by employee and date (all policies)
+            ledgerEntries = leaveBalanceLedgerRepository
+                    .findByEmployee_EmployeeIdAndTransactionDateLessThanEqualOrderByTransactionDateAsc(
+                            employeeId, asOfDate);
+        }
+
+        // Use the new mapper to convert to the new DTO
+        return leaveDetailsMapper.toDtoList(ledgerEntries);
     }
 }
