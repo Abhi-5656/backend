@@ -8,7 +8,7 @@ import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.entity.Leave
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.entity.LeaveBalanceLedger;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.enums.LeaveTransactionType;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.mapper.LeaveBalanceMapper;
-import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.mapper.LeaveDetailsMapper; // <-- Import new mapper
+import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.mapper.LeaveDetailsMapper;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.repository.LeaveBalanceLedgerRepository;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.repository.LeaveBalanceRepository;
 import com.wfm.experts.modules.wfm.employee.assignment.leaveprofile.service.LeaveBalanceService;
@@ -21,6 +21,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.ArrayList; // Import ArrayList
+import java.util.Comparator; // Import Comparator
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -34,7 +36,7 @@ public class LeaveBalanceServiceImpl implements LeaveBalanceService {
     private final LeaveBalanceMapper leaveBalanceMapper;
     private final EmployeeRepository employeeRepository;
     private final LeavePolicyRepository leavePolicyRepository;
-    private final LeaveDetailsMapper leaveDetailsMapper; // <-- Inject new mapper
+    private final LeaveDetailsMapper leaveDetailsMapper;
 
     /**
      * Reads the pre-calculated balances from the summary table.
@@ -116,26 +118,83 @@ public class LeaveBalanceServiceImpl implements LeaveBalanceService {
 
     /**
      * Gets the leave ledger transaction history (details) for an employee up to a specific date.
-     * Can be filtered by a specific leave policy.
+     * This method now calculates a "running balance" for each transaction, like a bank statement.
      */
     @Override
     @Transactional(Transactional.TxType.SUPPORTS)
     public List<LeaveDetailsDTO> getLeaveDetailsAsOf(String employeeId, LocalDate asOfDate, Long leavePolicyId) {
+
         List<LeaveBalanceLedger> ledgerEntries;
 
+        // 1. Fetch all balance summaries for the employee (to get static metadata like effective date, status)
+        Map<Long, LeaveBalance> balanceMap = leaveBalanceRepository.findByEmployee_EmployeeId(employeeId).stream()
+                .collect(Collectors.toMap(b -> b.getLeavePolicy().getId(), b -> b));
+
+        // 2. Fetch the requested ledger (transaction) entries
         if (leavePolicyId != null) {
-            // Filter by employee, policy, and date
             ledgerEntries = leaveBalanceLedgerRepository
                     .findByEmployee_EmployeeIdAndLeavePolicy_IdAndTransactionDateLessThanEqualOrderByTransactionDateAsc(
                             employeeId, leavePolicyId, asOfDate);
         } else {
-            // Filter by employee and date (all policies)
             ledgerEntries = leaveBalanceLedgerRepository
                     .findByEmployee_EmployeeIdAndTransactionDateLessThanEqualOrderByTransactionDateAsc(
                             employeeId, asOfDate);
         }
 
-        // Use the new mapper to convert to the new DTO
-        return leaveDetailsMapper.toDtoList(ledgerEntries);
+        // --- "Bank Statement" Logic ---
+        List<LeaveDetailsDTO> results = new ArrayList<>();
+
+        // Group transactions by policy to calculate running balances separately for each policy
+        Map<Long, List<LeaveBalanceLedger>> entriesByPolicy = ledgerEntries.stream()
+                .collect(Collectors.groupingBy(l -> l.getLeavePolicy().getId()));
+
+        for (Map.Entry<Long, List<LeaveBalanceLedger>> entry : entriesByPolicy.entrySet()) {
+            Long policyId = entry.getKey();
+            List<LeaveBalanceLedger> policyTransactions = entry.getValue();
+
+            // Get the static summary data for this policy
+            LeaveBalance summary = balanceMap.get(policyId);
+
+            // Initialize running totals for *this policy*
+            double runningCurrentBalance = 0.0;
+            double runningTotalGranted = 0.0;
+            double runningUsedBalance = 0.0;
+
+            for (LeaveBalanceLedger ledger : policyTransactions) {
+                // Calculate running totals *before* creating the DTO
+                double amount = ledger.getAmount();
+                if (amount > 0) {
+                    runningTotalGranted += amount;
+                } else {
+                    runningUsedBalance += Math.abs(amount);
+                }
+                runningCurrentBalance += amount;
+
+                // Create the DTO
+                LeaveDetailsDTO dto = new LeaveDetailsDTO();
+
+                // Map fields from the transaction (Ledger)
+                leaveDetailsMapper.updateFromLedger(ledger, dto);
+
+                // Map static fields from the summary (Balance)
+                if (summary != null) {
+                    leaveDetailsMapper.updateFromBalance(summary, dto);
+                }
+
+                // *** This is the key fix ***
+                // Manually set the calculated running balances, overriding
+                // any stale data that might have been mapped from the 'summary' object.
+                dto.setCurrentBalance(runningCurrentBalance);
+                dto.setTotalGranted(runningTotalGranted);
+                dto.setUsedBalance(runningUsedBalance);
+
+                results.add(dto);
+            }
+        }
+
+        // Sort the final combined list by date, as the grouping might mess up the order
+        results.sort(Comparator.comparing(LeaveDetailsDTO::getTransactionDate).thenComparing(LeaveDetailsDTO::getId));
+
+        return results;
     }
 }
