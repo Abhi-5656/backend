@@ -121,13 +121,16 @@
 //        return YearMonth.from(hireDate).equals(processingMonth);
 //    }
 //}
-
 // src/main/java/com/wfm/experts/setup/wfm/leavepolicy/rule/impl/EarnedLeaveBalanceRule.java
 package com.wfm.experts.setup.wfm.leavepolicy.rule.impl;
 
+import com.wfm.experts.modules.wfm.employee.assignment.holidayprofile.service.HolidayProfileAssignmentService;
+import com.wfm.experts.modules.wfm.features.roster.entity.EmployeeShift;
+import com.wfm.experts.modules.wfm.features.roster.repository.EmployeeShiftRepository;
 import com.wfm.experts.modules.wfm.features.timesheet.entity.Timesheet;
 import com.wfm.experts.modules.wfm.features.timesheet.repository.PunchEventRepository;
 import com.wfm.experts.modules.wfm.features.timesheet.repository.TimesheetRepository;
+import com.wfm.experts.setup.wfm.holiday.dto.HolidayDTO;
 import com.wfm.experts.setup.wfm.leavepolicy.dto.LeavePolicyRuleResultDTO;
 import com.wfm.experts.setup.wfm.leavepolicy.engine.context.LeavePolicyExecutionContext;
 import com.wfm.experts.setup.wfm.leavepolicy.entity.EarnedGrantConfig;
@@ -139,18 +142,30 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.LongStream;
+import java.util.stream.Stream;
 
 @Component
 public class EarnedLeaveBalanceRule implements LeavePolicyRule {
 
     private final TimesheetRepository timesheetRepository;
     private final PunchEventRepository punchEventRepository; // Kept for constructor consistency
+    private final EmployeeShiftRepository employeeShiftRepository;
+    private final HolidayProfileAssignmentService holidayProfileAssignmentService; // <-- INJECTED
 
-
-    public EarnedLeaveBalanceRule(TimesheetRepository timesheetRepository, PunchEventRepository punchEventRepository) {
+    public EarnedLeaveBalanceRule(TimesheetRepository timesheetRepository,
+                                  PunchEventRepository punchEventRepository,
+                                  EmployeeShiftRepository employeeShiftRepository,
+                                  HolidayProfileAssignmentService holidayProfileAssignmentService) { // <-- ADDED
         this.timesheetRepository = timesheetRepository;
         this.punchEventRepository = punchEventRepository;
+        this.employeeShiftRepository = employeeShiftRepository;
+        this.holidayProfileAssignmentService = holidayProfileAssignmentService; // <-- ADDED
     }
 
     @Override
@@ -177,37 +192,63 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
         LocalDate startOfMonth = monthToAccrue.atDay(1);
         LocalDate endOfMonth = monthToAccrue.atEndOfMonth();
 
-        // Get the total number of days in the specific month (e.g., 30 for November)
+        // Get the total number of days in the specific month (e.g., 28 for Feb)
         int daysInMonth = monthToAccrue.lengthOfMonth();
 
-        // --- THIS IS YOUR FIX ---
-        // Query the Timesheet table for processed status
+        // --- NEW LOGIC V3 ---
+        // 1. Get all "PRESENT" days from Timesheets
         List<Timesheet> timesheets = timesheetRepository.findByEmployeeIdAndWorkDateBetween(
-                employee.getEmployeeId(),
-                startOfMonth,
-                endOfMonth
+                employee.getEmployeeId(), startOfMonth, endOfMonth
         );
-
-        // Count the number of distinct days that have a status of "PRESENT"
-        long daysWorked = timesheets.stream()
-                .filter(ts -> "PRESENT".equalsIgnoreCase(ts.getStatus())) // Granting based on "PRESENT" status
+        Set<LocalDate> presentDays = timesheets.stream()
+                .filter(ts -> "PRESENT".equalsIgnoreCase(ts.getStatus()))
                 .map(Timesheet::getWorkDate)
-                .distinct()
-                .count();
-        // --- END OF YOUR FIX ---
+                .collect(Collectors.toSet());
 
-        // Check if days worked is equal to the total days in that specific month
-        if (daysWorked >= daysInMonth) {
+        // 2. Get all "Weekly Off" days from Employee Shifts
+        List<EmployeeShift> shifts = employeeShiftRepository.findByEmployeeIdAndCalendarDateBetween(
+                employee.getEmployeeId(), startOfMonth, endOfMonth
+        );
+        Set<LocalDate> weekOffDays = shifts.stream()
+                .filter(s -> s.getIsWeekOff() != null && s.getIsWeekOff())
+                .map(EmployeeShift::getCalendarDate)
+                .collect(Collectors.toSet());
+
+        // 3. Get all "Holiday" days from the Holiday Profile Assignment Service
+        List<HolidayDTO> assignedHolidays = holidayProfileAssignmentService.getAssignedHolidaysByEmployeeId(employee.getEmployeeId());
+
+        Set<LocalDate> holidayDates = assignedHolidays.stream()
+                .flatMap(holiday -> {
+                    // Create a stream of dates from the holiday's start to end
+                    // Handle multi-day holidays
+                    long daysBetween = ChronoUnit.DAYS.between(holiday.getStartDate(), holiday.getEndDate()) + 1;
+                    return LongStream.range(0, daysBetween)
+                            .mapToObj(i -> holiday.getStartDate().plusDays(i));
+                })
+                .filter(date -> !date.isBefore(startOfMonth) && !date.isAfter(endOfMonth)) // Filter for dates within the current month
+                .collect(Collectors.toSet());
+
+        // 4. Combine them. A Set automatically handles duplicates.
+        Set<LocalDate> countedDays = new HashSet<>(presentDays);
+        countedDays.addAll(weekOffDays);
+        countedDays.addAll(holidayDates); // Add the holidays from the profile
+
+        long totalCountedDays = countedDays.size();
+        // --- END OF NEW LOGIC V3 ---
+
+
+        // Check if the total "counted" days is equal to or greater than the number of days in the month
+        if (totalCountedDays >= daysInMonth) {
 
             if (isFirstAccrual(employee, context.getProcessingMonth()) && earnedGrant.getProrationConfig() != null && earnedGrant.getProrationConfig().isEnabled()) {
-                balance = calculateProratedFirstGrant(employee, earnedGrant);
-                message = "Prorated first grant applied. Worked " + daysWorked + "/" + daysInMonth + " present days.";
+                balance = calculateProratedFirstGrant(employee, earnedGrant, monthToAccrue); // Pass month
+                message = "Prorated first grant applied. Counted " + totalCountedDays + "/" + daysInMonth + " days (Present/Off/Holiday).";
             } else {
-                balance = getGrantAmount(earnedGrant); // This will be 1.25
-                message = "Monthly earned leave accrued. Worked " + daysWorked + "/" + daysInMonth + " present days.";
+                balance = getGrantAmount(earnedGrant, monthToAccrue); // Pass month
+                message = "Monthly earned leave accrued. Counted " + totalCountedDays + "/" + daysInMonth + " days (Present/Off/Holiday).";
             }
         } else {
-            message = "Leave not accrued. Present days (" + daysWorked + ") is below the threshold of " + daysInMonth + " days.";
+            message = "Leave not accrued. Counted days (Present/Off/Holiday) was " + totalCountedDays + ", which is below the threshold of " + daysInMonth + " days.";
         }
 
         return LeavePolicyRuleResultDTO.builder()
@@ -218,12 +259,15 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
                 .build();
     }
 
-    private double getGrantAmount(EarnedGrantConfig earnedGrant) {
-        // This logic correctly reads your 1.25
+    private double getGrantAmount(EarnedGrantConfig earnedGrant, YearMonth monthToAccrue) {
         if (earnedGrant.getGrantPeriod() == GrantPeriod.MONTHLY && earnedGrant.getMaxDaysPerMonth() != null) {
-            return earnedGrant.getMaxDaysPerMonth(); // This will be 1.25
+            return earnedGrant.getMaxDaysPerMonth();
         } else if (earnedGrant.getGrantPeriod() == GrantPeriod.YEARLY && earnedGrant.getMaxDaysPerYear() != null) {
-            return earnedGrant.getMaxDaysPerYear() / 12.0;
+            // DYNAMIC CALCULATION: (Total Yearly / Days in Year) * Days in Month
+            double yearlyGrant = earnedGrant.getMaxDaysPerYear();
+            int daysInThisYear = monthToAccrue.isLeapYear() ? 366 : 365;
+            int daysInThisMonth = monthToAccrue.lengthOfMonth();
+            return (yearlyGrant / daysInThisYear) * daysInThisMonth;
         } else if (earnedGrant.getGrantPeriod() == GrantPeriod.PAY_PERIOD && earnedGrant.getMaxDaysPerPayPeriod() != null) {
             return earnedGrant.getMaxDaysPerPayPeriod();
         }
@@ -231,22 +275,16 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
     }
 
 
-    private double calculateProratedFirstGrant(Employee employee, EarnedGrantConfig earnedGrant) {
+    private double calculateProratedFirstGrant(Employee employee, EarnedGrantConfig earnedGrant, YearMonth monthToAccrue) {
         LocalDate hireDate = employee.getOrganizationalInfo().getEmploymentDetails().getDateOfJoining();
         long daysInMonth = hireDate.lengthOfMonth();
         long daysWorked = daysInMonth - hireDate.getDayOfMonth() + 1;
-        double monthlyGrant = 0;
 
-        if (earnedGrant.getGrantPeriod() == GrantPeriod.MONTHLY && earnedGrant.getMaxDaysPerMonth() != null) {
-            monthlyGrant = earnedGrant.getMaxDaysPerMonth();
-        } else if (earnedGrant.getGrantPeriod() == GrantPeriod.YEARLY && earnedGrant.getMaxDaysPerYear() != null) {
-            monthlyGrant = earnedGrant.getMaxDaysPerYear() / 12.0;
-        } else if (earnedGrant.getGrantPeriod() == GrantPeriod.PAY_PERIOD && earnedGrant.getMaxDaysPerPayPeriod() != null) {
-            monthlyGrant = earnedGrant.getMaxDaysPerPayPeriod() * 2;
-        }
+        // Get the grant amount for the specific month
+        double grantForMonth = getGrantAmount(earnedGrant, monthToAccrue);
 
-
-        return (monthlyGrant / daysInMonth) * daysWorked;
+        // Prorate based on the days in the hiring month
+        return (grantForMonth / daysInMonth) * daysWorked;
     }
 
 
