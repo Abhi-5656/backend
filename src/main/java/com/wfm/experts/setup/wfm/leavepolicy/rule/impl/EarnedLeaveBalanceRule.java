@@ -121,6 +121,7 @@
 //        return YearMonth.from(hireDate).equals(processingMonth);
 //    }
 //}
+
 // src/main/java/com/wfm/experts/setup/wfm/leavepolicy/rule/impl/EarnedLeaveBalanceRule.java
 package com.wfm.experts.setup.wfm.leavepolicy.rule.impl;
 
@@ -135,7 +136,9 @@ import com.wfm.experts.setup.wfm.leavepolicy.dto.LeavePolicyRuleResultDTO;
 import com.wfm.experts.setup.wfm.leavepolicy.engine.context.LeavePolicyExecutionContext;
 import com.wfm.experts.setup.wfm.leavepolicy.entity.EarnedGrantConfig;
 import com.wfm.experts.setup.wfm.leavepolicy.entity.LeavePolicy;
+import com.wfm.experts.setup.wfm.leavepolicy.entity.ProrationConfig; // <-- IMPORT
 import com.wfm.experts.setup.wfm.leavepolicy.enums.GrantPeriod;
+import com.wfm.experts.setup.wfm.leavepolicy.enums.ProrationCutoffUnit; // <-- IMPORT
 import com.wfm.experts.setup.wfm.leavepolicy.rule.LeavePolicyRule;
 import com.wfm.experts.tenant.common.employees.entity.Employee;
 import org.springframework.stereotype.Component;
@@ -148,24 +151,23 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
-import java.util.stream.Stream;
 
 @Component
 public class EarnedLeaveBalanceRule implements LeavePolicyRule {
 
     private final TimesheetRepository timesheetRepository;
-    private final PunchEventRepository punchEventRepository; // Kept for constructor consistency
+    private final PunchEventRepository punchEventRepository;
     private final EmployeeShiftRepository employeeShiftRepository;
-    private final HolidayProfileAssignmentService holidayProfileAssignmentService; // <-- INJECTED
+    private final HolidayProfileAssignmentService holidayProfileAssignmentService;
 
     public EarnedLeaveBalanceRule(TimesheetRepository timesheetRepository,
                                   PunchEventRepository punchEventRepository,
                                   EmployeeShiftRepository employeeShiftRepository,
-                                  HolidayProfileAssignmentService holidayProfileAssignmentService) { // <-- ADDED
+                                  HolidayProfileAssignmentService holidayProfileAssignmentService) {
         this.timesheetRepository = timesheetRepository;
         this.punchEventRepository = punchEventRepository;
         this.employeeShiftRepository = employeeShiftRepository;
-        this.holidayProfileAssignmentService = holidayProfileAssignmentService; // <-- ADDED
+        this.holidayProfileAssignmentService = holidayProfileAssignmentService;
     }
 
     @Override
@@ -191,11 +193,8 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
         YearMonth monthToAccrue = context.getProcessingMonth();
         LocalDate startOfMonth = monthToAccrue.atDay(1);
         LocalDate endOfMonth = monthToAccrue.atEndOfMonth();
-
-        // Get the total number of days in the specific month (e.g., 28 for Feb)
         int daysInMonth = monthToAccrue.lengthOfMonth();
 
-        // --- NEW LOGIC V3 ---
         // 1. Get all "PRESENT" days from Timesheets
         List<Timesheet> timesheets = timesheetRepository.findByEmployeeIdAndWorkDateBetween(
                 employee.getEmployeeId(), startOfMonth, endOfMonth
@@ -219,8 +218,6 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
 
         Set<LocalDate> holidayDates = assignedHolidays.stream()
                 .flatMap(holiday -> {
-                    // Create a stream of dates from the holiday's start to end
-                    // Handle multi-day holidays
                     long daysBetween = ChronoUnit.DAYS.between(holiday.getStartDate(), holiday.getEndDate()) + 1;
                     return LongStream.range(0, daysBetween)
                             .mapToObj(i -> holiday.getStartDate().plusDays(i));
@@ -228,26 +225,54 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
                 .filter(date -> !date.isBefore(startOfMonth) && !date.isAfter(endOfMonth)) // Filter for dates within the current month
                 .collect(Collectors.toSet());
 
-        // 4. Combine them. A Set automatically handles duplicates.
+        // 4. Combine them.
         Set<LocalDate> countedDays = new HashSet<>(presentDays);
         countedDays.addAll(weekOffDays);
-        countedDays.addAll(holidayDates); // Add the holidays from the profile
+        countedDays.addAll(holidayDates);
 
         long totalCountedDays = countedDays.size();
-        // --- END OF NEW LOGIC V3 ---
 
-
-        // Check if the total "counted" days is equal to or greater than the number of days in the month
+        // Check if the employee was available for the whole month
         if (totalCountedDays >= daysInMonth) {
 
-            if (isFirstAccrual(employee, context.getProcessingMonth()) && earnedGrant.getProrationConfig() != null && earnedGrant.getProrationConfig().isEnabled()) {
-                balance = calculateProratedFirstGrant(employee, earnedGrant, monthToAccrue); // Pass month
-                message = "Prorated first grant applied. Counted " + totalCountedDays + "/" + daysInMonth + " days (Present/Off/Holiday).";
+            double fullGrantAmount = getGrantAmount(earnedGrant, monthToAccrue);
+
+            // Check if this is the first accrual AND proration is enabled
+            if (isFirstAccrual(employee, context.getProcessingMonth()) &&
+                    earnedGrant.getProrationConfig() != null &&
+                    earnedGrant.getProrationConfig().isEnabled()) {
+
+                ProrationConfig prorationConfig = earnedGrant.getProrationConfig();
+                LocalDate hireDate = employee.getOrganizationalInfo().getEmploymentDetails().getDateOfJoining();
+
+                if (prorationConfig.getCutoffUnit() == ProrationCutoffUnit.DAY_OF_MONTH) {
+                    int joiningDay = hireDate.getDayOfMonth();
+                    int cutoffDay = prorationConfig.getCutoffValue() != null ? prorationConfig.getCutoffValue() : 15; // Default to 15
+
+                    double percentageToGrant;
+                    if (joiningDay <= cutoffDay) {
+                        percentageToGrant = prorationConfig.getGrantPercentageBeforeCutoff() != null ? prorationConfig.getGrantPercentageBeforeCutoff() : 100.0;
+                        message = "Prorated first grant (Joined on/before day " + cutoffDay + "). Granting " + percentageToGrant + "%.";
+                    } else {
+                        // --- THIS IS THE FIX ---
+                        percentageToGrant = prorationConfig.getGrantPercentageAfterCutoff() != null ? prorationConfig.getGrantPercentageAfterCutoff() : 0.0;
+                        // --- END OF FIX ---
+                        message = "Prorated first grant (Joined after day " + cutoffDay + "). Granting " + percentageToGrant + "%.";
+                    }
+                    balance = fullGrantAmount * (percentageToGrant / 100.0);
+
+                } else {
+                    balance = calculateProratedFirstGrantByDays(employee, earnedGrant, monthToAccrue);
+                    message = "Prorated first grant (by exact day of month).";
+                }
+
             } else {
-                balance = getGrantAmount(earnedGrant, monthToAccrue); // Pass month
-                message = "Monthly earned leave accrued. Counted " + totalCountedDays + "/" + daysInMonth + " days (Present/Off/Holiday).";
+                // Not first accrual OR proration is disabled, so give full grant
+                balance = fullGrantAmount;
+                message = "Full monthly earned leave accrued. Counted " + totalCountedDays + "/" + daysInMonth + " days (Present/Off/Holiday).";
             }
         } else {
+            // Employee was not available for the full month
             message = "Leave not accrued. Counted days (Present/Off/Holiday) was " + totalCountedDays + ", which is below the threshold of " + daysInMonth + " days.";
         }
 
@@ -263,7 +288,6 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
         if (earnedGrant.getGrantPeriod() == GrantPeriod.MONTHLY && earnedGrant.getMaxDaysPerMonth() != null) {
             return earnedGrant.getMaxDaysPerMonth();
         } else if (earnedGrant.getGrantPeriod() == GrantPeriod.YEARLY && earnedGrant.getMaxDaysPerYear() != null) {
-            // DYNAMIC CALCULATION: (Total Yearly / Days in Year) * Days in Month
             double yearlyGrant = earnedGrant.getMaxDaysPerYear();
             int daysInThisYear = monthToAccrue.isLeapYear() ? 366 : 365;
             int daysInThisMonth = monthToAccrue.lengthOfMonth();
@@ -274,16 +298,12 @@ public class EarnedLeaveBalanceRule implements LeavePolicyRule {
         return 0;
     }
 
-
-    private double calculateProratedFirstGrant(Employee employee, EarnedGrantConfig earnedGrant, YearMonth monthToAccrue) {
+    private double calculateProratedFirstGrantByDays(Employee employee, EarnedGrantConfig earnedGrant, YearMonth monthToAccrue) {
         LocalDate hireDate = employee.getOrganizationalInfo().getEmploymentDetails().getDateOfJoining();
         long daysInMonth = hireDate.lengthOfMonth();
         long daysWorked = daysInMonth - hireDate.getDayOfMonth() + 1;
 
-        // Get the grant amount for the specific month
         double grantForMonth = getGrantAmount(earnedGrant, monthToAccrue);
-
-        // Prorate based on the days in the hiring month
         return (grantForMonth / daysInMonth) * daysWorked;
     }
 
