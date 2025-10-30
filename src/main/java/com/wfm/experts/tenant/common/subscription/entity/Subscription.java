@@ -16,7 +16,7 @@
  *
  */
 
-package com.wfm.experts.tenant.common.core;
+package com.wfm.experts.tenant.common.subscription.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;

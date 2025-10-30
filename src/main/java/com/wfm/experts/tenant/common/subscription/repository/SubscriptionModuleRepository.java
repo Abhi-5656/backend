@@ -1,6 +1,6 @@
-package com.wfm.experts.repository.core;
+package com.wfm.experts.tenant.common.subscription.repository;
 
-import com.wfm.experts.tenant.common.core.SubscriptionModule;
+import com.wfm.experts.tenant.common.subscription.entity.SubscriptionModule;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

@@ -1,7 +1,7 @@
 package com.wfm.experts.tenant.common.setup.wizard.entity;
 
 
-import com.wfm.experts.tenant.common.core.Subscription;
+import com.wfm.experts.tenant.common.subscription.entity.Subscription;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;

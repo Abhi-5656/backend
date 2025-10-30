@@ -1,12 +1,16 @@
 package com.wfm.experts.setup.wfm.shift.dto;
 
 import com.wfm.experts.setup.wfm.shift.enums.Weekday;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class ShiftRotationDayDTO {
-//    private String weekday;
-    private Weekday weekday;     // <-- Enum, not String
-    private ShiftDTO shift; // nullable if weekOff is true
+
+    @NotNull(message = "Weekday cannot be null")
+    private Weekday weekday;
+
+    private ShiftDTO shift; // Can be null if it's a week off
+
     private Boolean weekOff;
 }

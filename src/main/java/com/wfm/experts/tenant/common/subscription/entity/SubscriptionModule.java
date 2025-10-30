@@ -16,7 +16,7 @@
  *
  */
 
-package com.wfm.experts.tenant.common.core;
+package com.wfm.experts.tenant.common.subscription.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;

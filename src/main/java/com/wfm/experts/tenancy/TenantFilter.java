@@ -2,7 +2,7 @@
 //
 //import com.fasterxml.jackson.databind.ObjectMapper;
 //import com.wfm.experts.exception.JwtAuthenticationException;
-//import com.wfm.experts.repository.core.SubscriptionRepository;
+//import com.wfm.experts.tenant.common.subscription.repository.SubscriptionRepository;
 //import com.wfm.experts.security.JwtUtil;
 //import jakarta.servlet.FilterChain;
 //import jakarta.servlet.ServletException;
@@ -162,7 +162,7 @@ package com.wfm.experts.tenancy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wfm.experts.exception.JwtAuthenticationException;
-import com.wfm.experts.repository.core.SubscriptionRepository;
+import com.wfm.experts.tenant.common.subscription.repository.SubscriptionRepository;
 import com.wfm.experts.security.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -172,7 +172,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;
 

@@ -1,6 +1,6 @@
 //package com.wfm.experts.setup.wfm.leavepolicy.schedular;
 //
-//import com.wfm.experts.repository.core.SubscriptionRepository;
+//import com.wfm.experts.tenant.common.subscription.repository.SubscriptionRepository;
 //import com.wfm.experts.setup.wfm.leavepolicy.service.LeaveAccrualService;
 //import com.wfm.experts.tenancy.TenantContext;
 //import lombok.RequiredArgsConstructor;
@@ -34,7 +34,7 @@
 
 package com.wfm.experts.setup.wfm.leavepolicy.schedular;
 
-import com.wfm.experts.repository.core.SubscriptionRepository;
+import com.wfm.experts.tenant.common.subscription.repository.SubscriptionRepository;
 import com.wfm.experts.setup.wfm.leavepolicy.service.LeaveAccrualService;
 import com.wfm.experts.tenancy.TenantContext;
 import lombok.RequiredArgsConstructor;
