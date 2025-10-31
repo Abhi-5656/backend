@@ -1,6 +1,7 @@
 package com.wfm.experts.setup.wfm.leavepolicy.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,6 +17,7 @@ public class LimitsConfigDto {
     private boolean enabled;
 
     @Valid
+    @JsonProperty("accrualLimits")
     private AccrualEarningLimitsConfigDto accrualEarningLimits;
 
     @Valid
