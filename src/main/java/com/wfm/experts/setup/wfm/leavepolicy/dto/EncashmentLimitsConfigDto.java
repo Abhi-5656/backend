@@ -1,4 +1,3 @@
-// Save as: src/main/java/com/wfm/experts/setup/wfm/leavepolicy/dto/EncashmentConfigDto.java
 package com.wfm.experts.setup.wfm.leavepolicy.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -12,6 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class EncashmentConfigDto {
+public class EncashmentLimitsConfigDto {
+    private boolean enabled;
     private Integer maxEncashableDays;
 }

@@ -1,7 +1,7 @@
 package com.wfm.experts.setup.wfm.leavepolicy.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import jakarta.validation.Valid;
+import com.wfm.experts.setup.wfm.leavepolicy.enums.CarryForwardType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,15 +12,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class LimitsConfigDto {
+public class CarryForwardLimitsConfigDto {
     private boolean enabled;
-
-    @Valid
-    private AccrualEarningLimitsConfigDto accrualEarningLimits;
-
-    @Valid
-    private CarryForwardLimitsConfigDto carryForwardLimits;
-
-    @Valid
-    private EncashmentLimitsConfigDto encashmentLimits;
+    private Integer cap;
+    private CarryForwardType capType;
+    // expiryInDays removed
 }

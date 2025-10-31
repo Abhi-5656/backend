@@ -1,8 +1,7 @@
 package com.wfm.experts.controller;
-
-import com.wfm.experts.tenant.common.subscription.dto.SubscriptionDTO; // <-- changed import
 import com.wfm.experts.tenant.common.setup.wizard.dto.SetupWizardDto;
 import com.wfm.experts.tenant.common.setup.wizard.service.SetupWizardService;
+import com.wfm.experts.tenant.common.subscription.entity.Subscription;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -55,17 +54,17 @@ public class SetupWizardController {
      *
      * @param wizardId The ID of the wizard to be finalized.
      * @param adminDetailsDto A DTO containing the admin user's details.
-     * @return The newly created Subscription (DTO), confirming the successful setup.
+     * @return The newly created Subscription object, confirming the successful setup.
      */
     @PostMapping("/{wizardId}/finish")
-    public ResponseEntity<SubscriptionDTO> finishWizard(
+    public ResponseEntity<Subscription> finishWizard(
             @PathVariable Long wizardId,
             @RequestBody SetupWizardDto adminDetailsDto) {
         try {
-            SubscriptionDTO subscription = setupWizardService.finishWizard(wizardId, adminDetailsDto);
+            Subscription subscription = setupWizardService.finishWizard(wizardId, adminDetailsDto);
             return ResponseEntity.ok(subscription);
         } catch (Exception e) {
-            // Keep minimal behavior; your global handler will format errors
+            // In a real application, you would have more specific error handling here
             return ResponseEntity.status(500).body(null);
         }
     }

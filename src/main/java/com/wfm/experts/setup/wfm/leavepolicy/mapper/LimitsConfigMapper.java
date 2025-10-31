@@ -7,9 +7,10 @@ import org.mapstruct.Mapper;
 @Mapper(
         componentModel = "spring",
         uses = {
-                CarryForwardConfigMapper.class,
-                EncashmentConfigMapper.class,
-                EligibilityConfigMapper.class
+                // --- UPDATED ---
+                AccrualEarningLimitsConfigMapper.class,
+                CarryForwardLimitsConfigMapper.class,
+                EncashmentLimitsConfigMapper.class
         }
 )
 public interface LimitsConfigMapper {

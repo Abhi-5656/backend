@@ -17,14 +17,14 @@ public class LimitsConfig {
     private boolean enabled;
 
     @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "carry_forward_config_id", referencedColumnName = "id")
-    private CarryForwardConfig carryForward;
+    @JoinColumn(name = "accrual_earning_limits_config_id", referencedColumnName = "id")
+    private AccrualEarningLimitsConfig accrualEarningLimits;
 
     @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "encashment_config_id", referencedColumnName = "id")
-    private EncashmentConfig encashment;
+    @JoinColumn(name = "carry_forward_limits_config_id", referencedColumnName = "id")
+    private CarryForwardLimitsConfig carryForwardLimits;
 
     @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "eligibility_config_id", referencedColumnName = "id")
-    private EligibilityConfig eligibility;
+    @JoinColumn(name = "encashment_limits_config_id", referencedColumnName = "id")
+    private EncashmentLimitsConfig encashmentLimits;
 }

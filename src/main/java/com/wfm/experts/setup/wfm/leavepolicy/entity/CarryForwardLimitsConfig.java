@@ -6,18 +6,21 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(name = "lp_carry_forward_config")
+@Table(name = "lp_carry_forward_limits_config")
 @Getter
 @Setter
-public class CarryForwardConfig {
+public class CarryForwardLimitsConfig {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "is_enabled", nullable = false)
+    private boolean enabled;
 
     private Integer cap;
 
     @Enumerated(EnumType.STRING)
     private CarryForwardType capType;
 
-    private Integer expiryInDays;
+    // expiryInDays is removed
 }
