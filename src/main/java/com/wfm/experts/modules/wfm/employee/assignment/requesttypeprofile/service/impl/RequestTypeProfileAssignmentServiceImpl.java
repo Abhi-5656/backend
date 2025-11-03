@@ -2,6 +2,9 @@ package com.wfm.experts.modules.wfm.employee.assignment.requesttypeprofile.servi
 
 import com.wfm.experts.modules.wfm.employee.assignment.requesttypeprofile.dto.RequestTypeProfileAssignmentDTO;
 import com.wfm.experts.modules.wfm.employee.assignment.requesttypeprofile.entity.RequestTypeProfileAssignment;
+import com.wfm.experts.modules.wfm.employee.assignment.requesttypeprofile.exception.DuplicateRequestTypeProfileAssignmentException;
+import com.wfm.experts.modules.wfm.employee.assignment.requesttypeprofile.exception.RequestTypeProfileAssignmentResourceNotFoundException;
+import com.wfm.experts.modules.wfm.employee.assignment.requesttypeprofile.exception.RequestTypeProfileAssignmentValidationException;
 import com.wfm.experts.modules.wfm.employee.assignment.requesttypeprofile.mapper.RequestTypeProfileAssignmentMapper;
 import com.wfm.experts.modules.wfm.employee.assignment.requesttypeprofile.repository.RequestTypeProfileAssignmentRepository;
 import com.wfm.experts.modules.wfm.employee.assignment.requesttypeprofile.service.RequestTypeProfileAssignmentService;
@@ -11,6 +14,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,16 +30,42 @@ public class RequestTypeProfileAssignmentServiceImpl implements RequestTypeProfi
     private final RequestTypeProfileRepository requestTypeProfileRepository;
     private final RequestTypeProfileAssignmentMapper mapper;
 
+    // Define a PostgreSQL-compatible "far future" date
+    private static final LocalDate POSTGRES_MAX_DATE = LocalDate.of(9999, 12, 31);
+
     @Override
     public List<RequestTypeProfileAssignmentDTO> assignRequestTypeProfile(RequestTypeProfileAssignmentDTO dto) {
+
+        // 1. Validate Expiration Date
+        if (dto.getExpirationDate() != null && dto.getExpirationDate().isBefore(dto.getEffectiveDate())) {
+            throw new RequestTypeProfileAssignmentValidationException("Expiration date cannot be before the effective date.");
+        }
+
+        // 2. Validate Request Type Profile exists
         requestTypeProfileRepository.findById(dto.getRequestTypeProfileId())
-                .orElseThrow(() -> new RuntimeException("RequestTypeProfile not found with id: " + dto.getRequestTypeProfileId()));
+                .orElseThrow(() -> new RequestTypeProfileAssignmentResourceNotFoundException("RequestTypeProfile not found with id: " + dto.getRequestTypeProfileId()));
 
         List<RequestTypeProfileAssignment> assignments = new ArrayList<>();
         for (String employeeId : dto.getEmployeeIds()) {
+            // 3. Validate Employee exists
             employeeRepository.findByEmployeeId(employeeId)
-                    .orElseThrow(() -> new RuntimeException("Employee not found with id: " + employeeId));
+                    .orElseThrow(() -> new RequestTypeProfileAssignmentResourceNotFoundException("Employee not found with id: " + employeeId));
 
+            // 4. Check for overlapping assignments
+            LocalDate endDate = (dto.getExpirationDate() != null) ? dto.getExpirationDate() : POSTGRES_MAX_DATE;
+            if (assignmentRepository.existsOverlappingAssignment(employeeId, dto.getEffectiveDate(), endDate)) {
+                throw new DuplicateRequestTypeProfileAssignmentException("An assignment for employee " + employeeId + " already exists within the specified date range.");
+            }
+
+            // 5. Deactivate existing active assignments
+            assignmentRepository.findByEmployeeId(employeeId).stream()
+                    .filter(RequestTypeProfileAssignment::isActive)
+                    .forEach(a -> {
+                        a.setActive(false);
+                        assignmentRepository.save(a);
+                    });
+
+            // 6. Create the new assignment
             RequestTypeProfileAssignment assignment = RequestTypeProfileAssignment.builder()
                     .employeeId(employeeId)
                     .requestTypeProfileId(dto.getRequestTypeProfileId())
@@ -44,17 +74,21 @@ public class RequestTypeProfileAssignmentServiceImpl implements RequestTypeProfi
                     .assignedAt(LocalDateTime.now())
                     .active(true)
                     .build();
-            assignments.add(assignment);
+            assignments.add(assignmentRepository.save(assignment)); // Save and add to list
         }
 
-        List<RequestTypeProfileAssignment> savedAssignments = assignmentRepository.saveAll(assignments);
-        return savedAssignments.stream()
+        // Return DTOs of the newly created assignments
+        return assignments.stream()
                 .map(mapper::toDto)
                 .collect(Collectors.toList());
     }
 
     @Override
     public List<RequestTypeProfileAssignmentDTO> getAssignmentsByEmployeeId(String employeeId) {
+        // 4. Validate Employee exists before trying to find assignments
+        if (!employeeRepository.existsByEmployeeId(employeeId)) {
+            throw new RequestTypeProfileAssignmentResourceNotFoundException("Employee not found with id: " + employeeId);
+        }
         return assignmentRepository.findByEmployeeId(employeeId).stream()
                 .map(mapper::toDto)
                 .collect(Collectors.toList());

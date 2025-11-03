@@ -39,6 +39,9 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.queue.leave_balance_recalculation}")
     private String leaveBalanceRecalculationQueueName;
 
+    @Value("${rabbitmq.queue.employee_location}") // <-- NEW
+    private String employeeLocationQueueName; // <-- NEW
+
     @Value("${rabbitmq.queue.dlq.email}")
     private String emailDlqName;
 
@@ -54,6 +57,8 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.queue.dlq.leave_balance_recalculation}")
     private String leaveBalanceRecalculationDlqName;
 
+    @Value("${rabbitmq.queue.dlq.employee_location}") // <-- NEW
+    private String employeeLocationDlqName; // <-- NEW
 
     // --- Routing Keys ---
     @Value("${rabbitmq.routingkey.email}")
@@ -71,6 +76,8 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.routingkey.leave_balance_recalculation}")
     private String leaveBalanceRecalculationRoutingKey;
 
+    @Value("${rabbitmq.routingkey.employee_location}") // <-- NEW
+    private String employeeLocationRoutingKey; // <-- NEW
 
     // Routing keys for DLQs
     @Value("${rabbitmq.routingkey.dlq.email}")
@@ -88,6 +95,8 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.routingkey.dlq.leave_balance_recalculation}")
     private String leaveBalanceRecalculationDlqRoutingKey;
 
+    @Value("${rabbitmq.routingkey.dlq.employee_location}") // <-- NEW
+    private String employeeLocationDlqRoutingKey; // <-- NEW
 
     // === Exchanges ===
     @Bean
@@ -148,6 +157,16 @@ public class RabbitMQConfig {
                 .build();
     }
 
+    // <-- NEW QUEUE -->
+    @Bean
+    public Queue employeeLocationQueue() {
+        logger.info("Creating Employee Location Queue: {} with DLX: {} and DLQ routing key: {}", employeeLocationQueueName, deadLetterExchangeName, employeeLocationDlqRoutingKey);
+        return QueueBuilder.durable(employeeLocationQueueName)
+                .withArgument("x-dead-letter-exchange", deadLetterExchangeName)
+                .withArgument("x-dead-letter-routing-key", employeeLocationDlqRoutingKey)
+                .build();
+    }
+
     // --- Dead Letter Queues (DLQs) ---
     @Bean
     public Queue emailDlq() {
@@ -177,6 +196,13 @@ public class RabbitMQConfig {
     public Queue leaveBalanceRecalculationDlq() {
         logger.info("Creating Leave Balance Recalculation DLQ: {}", leaveBalanceRecalculationDlqName);
         return QueueBuilder.durable(leaveBalanceRecalculationDlqName).build();
+    }
+
+    // <-- NEW DLQ -->
+    @Bean
+    public Queue employeeLocationDlq() {
+        logger.info("Creating Employee Location DLQ: {}", employeeLocationDlqName);
+        return QueueBuilder.durable(employeeLocationDlqName).build();
     }
 
 
@@ -211,6 +237,13 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(leaveBalanceRecalculationQueue).to(notificationExchange).with(leaveBalanceRecalculationRoutingKey);
     }
 
+    // <-- NEW BINDING -->
+    @Bean
+    public Binding employeeLocationBinding(TopicExchange notificationExchange, Queue employeeLocationQueue) {
+        logger.info("Binding Employee Location Queue {} to Exchange {} with RoutingKey {}", employeeLocationQueue.getName(), notificationExchange.getName(), employeeLocationRoutingKey);
+        return BindingBuilder.bind(employeeLocationQueue).to(notificationExchange).with(employeeLocationRoutingKey);
+    }
+
 
     // --- Bindings for DLQs to Dead Letter Exchange ---
     @Bean
@@ -242,6 +275,14 @@ public class RabbitMQConfig {
         logger.info("Binding Leave Balance Recalculation DLQ {} to DLX {} with RoutingKey {}", leaveBalanceRecalculationDlq.getName(), deadLetterExchange.getName(), leaveBalanceRecalculationDlqRoutingKey);
         return BindingBuilder.bind(leaveBalanceRecalculationDlq).to(deadLetterExchange).with(leaveBalanceRecalculationDlqRoutingKey);
     }
+
+    // <-- NEW DLQ BINDING -->
+    @Bean
+    public Binding employeeLocationDlqBinding(DirectExchange deadLetterExchange, Queue employeeLocationDlq) {
+        logger.info("Binding Employee Location DLQ {} to DLX {} with RoutingKey {}", employeeLocationDlq.getName(), deadLetterExchange.getName(), employeeLocationDlqRoutingKey);
+        return BindingBuilder.bind(employeeLocationDlq).to(deadLetterExchange).with(employeeLocationDlqRoutingKey);
+    }
+
 
     // === RabbitTemplate Configuration (remains the same) ===
     @Bean

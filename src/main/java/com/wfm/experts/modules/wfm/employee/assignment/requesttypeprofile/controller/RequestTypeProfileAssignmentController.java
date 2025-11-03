@@ -2,9 +2,11 @@ package com.wfm.experts.modules.wfm.employee.assignment.requesttypeprofile.contr
 
 import com.wfm.experts.modules.wfm.employee.assignment.requesttypeprofile.dto.RequestTypeProfileAssignmentDTO;
 import com.wfm.experts.modules.wfm.employee.assignment.requesttypeprofile.service.RequestTypeProfileAssignmentService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -12,13 +14,15 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/employee/request-type-profile-assignments")
 @RequiredArgsConstructor
+@Validated // Enable validation for this controller
 public class RequestTypeProfileAssignmentController {
 
     private final RequestTypeProfileAssignmentService assignmentService;
 
     @PostMapping
 //    @PreAuthorize("hasAuthority('wfm:employee:request-type-profile-assignment:assign')")
-    public ResponseEntity<List<RequestTypeProfileAssignmentDTO>> assignRequestTypeProfile(@RequestBody RequestTypeProfileAssignmentDTO dto) {
+    public ResponseEntity<List<RequestTypeProfileAssignmentDTO>> assignRequestTypeProfile(
+            @Valid @RequestBody RequestTypeProfileAssignmentDTO dto) { // Add @Valid
         return ResponseEntity.ok(assignmentService.assignRequestTypeProfile(dto));
     }
 

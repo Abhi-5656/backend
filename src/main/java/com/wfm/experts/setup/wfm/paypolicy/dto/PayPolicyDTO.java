@@ -1,5 +1,7 @@
 package com.wfm.experts.setup.wfm.paypolicy.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import java.time.LocalDate;
 
@@ -9,8 +11,13 @@ import java.time.LocalDate;
 @Builder
 public class PayPolicyDTO {
     private Long id;
+
+    @NotBlank(message = "Policy name cannot be blank")
     private String policyName;
+
+    @NotNull(message = "Effective date cannot be null")
     private LocalDate effectiveDate;
+
     private LocalDate expirationDate;
     private Boolean useFiloCalculation;
 
@@ -22,5 +29,5 @@ public class PayPolicyDTO {
     private PayPeriodRulesDTO payPeriodRules;
     private HolidayPayRulesDTO holidayPayRules;
     private AttendanceRuleDTO attendanceRule;
-    private WeekendPayRulesDTO weekendPayRules; // Field added
+    private WeekendPayRulesDTO weekendPayRules;
 }

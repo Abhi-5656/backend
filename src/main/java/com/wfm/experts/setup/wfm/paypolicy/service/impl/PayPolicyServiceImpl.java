@@ -2,6 +2,8 @@ package com.wfm.experts.setup.wfm.paypolicy.service.impl;
 
 import com.wfm.experts.setup.wfm.paypolicy.dto.PayPolicyDTO;
 import com.wfm.experts.setup.wfm.paypolicy.entity.PayPolicy;
+import com.wfm.experts.setup.wfm.paypolicy.exception.PayPolicyAlreadyExistsException;
+import com.wfm.experts.setup.wfm.paypolicy.exception.PayPolicyNotFoundException;
 import com.wfm.experts.setup.wfm.paypolicy.mapper.PayPolicyMapper;
 import com.wfm.experts.setup.wfm.paypolicy.repository.PayPolicyRepository;
 import com.wfm.experts.setup.wfm.paypolicy.service.PayPolicyService;
@@ -21,6 +23,9 @@ public class PayPolicyServiceImpl implements PayPolicyService {
 
     @Override
     public PayPolicyDTO create(PayPolicyDTO dto) {
+        if (payPolicyRepository.existsByPolicyName(dto.getPolicyName())) {
+            throw new PayPolicyAlreadyExistsException("Pay Policy with name '" + dto.getPolicyName() + "' already exists.");
+        }
         PayPolicy entity = payPolicyMapper.toEntity(dto);
         PayPolicy saved = payPolicyRepository.save(entity);
         return payPolicyMapper.toDto(saved);
@@ -29,7 +34,14 @@ public class PayPolicyServiceImpl implements PayPolicyService {
     @Override
     public PayPolicyDTO update(Long id, PayPolicyDTO dto) {
         PayPolicy existing = payPolicyRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("PayPolicy not found with id: " + id));
+                .orElseThrow(() -> new PayPolicyNotFoundException("PayPolicy not found with id: " + id));
+
+        payPolicyRepository.findByPolicyName(dto.getPolicyName()).ifPresent(policy -> {
+            if (!policy.getId().equals(id)) {
+                throw new PayPolicyAlreadyExistsException("Pay Policy with name '" + dto.getPolicyName() + "' already exists.");
+            }
+        });
+
         PayPolicy updated = payPolicyMapper.toEntity(dto);
         updated.setId(id);
         PayPolicy saved = payPolicyRepository.save(updated);
@@ -40,7 +52,7 @@ public class PayPolicyServiceImpl implements PayPolicyService {
     @Transactional(readOnly = true)
     public PayPolicyDTO getById(Long id) {
         PayPolicy entity = payPolicyRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("PayPolicy not found with id: " + id));
+                .orElseThrow(() -> new PayPolicyNotFoundException("PayPolicy not found with id: " + id));
         return payPolicyMapper.toDto(entity);
     }
 
@@ -55,8 +67,9 @@ public class PayPolicyServiceImpl implements PayPolicyService {
 
     @Override
     public void delete(Long id) {
-        PayPolicy entity = payPolicyRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("PayPolicy not found with id: " + id));
-        payPolicyRepository.delete(entity);
+        if (!payPolicyRepository.existsById(id)) {
+            throw new PayPolicyNotFoundException("PayPolicy not found with id: " + id);
+        }
+        payPolicyRepository.deleteById(id);
     }
 }

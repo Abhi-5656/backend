@@ -3,6 +3,7 @@ package com.wfm.experts.modules.wfm.employee.assignment.holidayprofile.service;
 import com.wfm.experts.modules.wfm.employee.assignment.holidayprofile.dto.HolidayProfileAssignmentDTO;
 import com.wfm.experts.setup.wfm.holiday.dto.HolidayDTO;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public interface HolidayProfileAssignmentService {
@@ -34,7 +35,14 @@ public interface HolidayProfileAssignmentService {
     List<HolidayDTO> getAssignedHolidaysByEmployeeId(String employeeId);
 
     /**
-     * Delete (or deactivate) a HolidayProfileAssignment by its ID.
+     * Deactivate a HolidayProfileAssignment by its ID (sets isActive = false).
      */
-    void deleteAssignment(Long id);
+    void deactivateAssignment(Long id);
+
+    /**
+     * Sets the expiration date for an active assignment.
+     * @param id The ID of the assignment to expire.
+     * @param expirationDate The date it should expire on.
+     */
+    HolidayProfileAssignmentDTO expireAssignment(Long id, LocalDate expirationDate);
 }

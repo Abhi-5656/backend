@@ -10,11 +10,12 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/wfm_core_db
     username: postgres
-    password: G7xP2mQ9Zb4N8vK3
+    password: Rohit@12345
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
   jpa:
+    show-sql: false
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update
@@ -23,8 +24,8 @@ spring:
         multiTenancy: SCHEMA
         tenant_identifier_resolver: com.wfm.experts.tenancy.TenantIdentifierResolver
         multi_tenant_connection_provider: com.wfm.experts.tenancy.SchemaMultiTenantConnectionProvider
-        show_sql: true
-        format_sql: true
+        show_sql: false
+        format_sql: false
   flyway:
     enabled: false
     baseline-on-migrate: true
@@ -46,8 +47,8 @@ spring:
   rabbitmq:
     host: localhost
     port: 5672
-    username: admin
-    password: admin
+    username: guest
+    password: guest
     publisher-confirm-type: correlated
     publisher-returns: true
     listener:
@@ -77,24 +78,28 @@ rabbitmq: # Note: This is a custom key, not spring.rabbitmq
     in_app: "in_app.notification.queue" # New IN_APP queue
     punch_processing: "punch.processing.queue"
     leave_balance_recalculation: "leave.balance.recalculation.queue"
+    employee_location: "employee.location.queue" # <-- NEW LOCATION QUEUE
     dlq:
       email: "email.notification.dlq"
       push: "push.notification.dlq"
       in_app: "in_app.notification.dlq" # New IN_APP DLQ
       punch_processing: "punch.processing.dlq"
       leave_balance_recalculation: "leave.balance.recalculation.dlq"
+      employee_location: "employee.location.dlq" # <-- NEW LOCATION DLQ
   routingkey:
     email_prefix: "notification.email"
     push_prefix: "notification.push"
     in_app_prefix: "notification.inapp" # New IN_APP prefix
     punch_processing_prefix: "punch.processing"
     leave_balance_recalculation_prefix: "leave.balance.recalculation"
+    employee_location_prefix: "employee.location" # <-- NEW LOCATION PREFIX
 
     email: "notification.email.#"
     push: "notification.push.#"
     in_app: "notification.inapp.#"      # New IN_APP binding key
     punch_processing: "punch.processing.#"
     leave_balance_recalculation: "leave.balance.recalculation.#"
+    employee_location: "employee.location.#" # <-- NEW LOCATION BINDIN
 
     dlq:
       email: "dlq.email"
@@ -102,6 +107,18 @@ rabbitmq: # Note: This is a custom key, not spring.rabbitmq
       in_app: "dlq.inapp"             # New IN_APP DLQ routing key
       punch_processing: "dlq.punch.processing"
       leave_balance_recalculation: "dlq.leave.balance.recalculation"
+      employee_location: "dlq.employee.location" # <-- NEW LOCATION DLQ ROUTING KEY
+
+tracking:
+  rabbit:
+    exchange: tracking.points
+    queue:
+      prefix: tracking.points.q
+    shards: 8
+  chunk:
+    size: 10
+    maxWindowSeconds: 60
+
 
 # Notification Engine Specific Configurations
 notification:
