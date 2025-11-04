@@ -1,19 +1,16 @@
+// com/wfm/experts/modules/wfm/employee/location/tracking/dto/PointRequest.java
 package com.wfm.experts.modules.wfm.employee.location.tracking.dto;
 
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
+import java.time.Instant;
 
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class PointRequest {
     @NotNull private Long sessionId;
     @NotNull private Double lat;
     @NotNull private Double lng;
-    @NotBlank private String capturedAt;
-    @Min(0) private long seq;
+    @NotNull private Instant capturedAt;  // ISO8601 UTC
+    @NotNull private Integer seq;         // client’s monotonic counter
 }

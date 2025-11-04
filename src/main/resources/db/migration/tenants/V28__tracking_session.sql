@@ -1,23 +1,30 @@
+-- One row per tracking session; keeps rollups and (optional) merged 2D path
+
 CREATE TABLE IF NOT EXISTS tracking_session (
-  session_id        BIGSERIAL PRIMARY KEY,
-  employee_id       varchar(50) NOT NULL,
-  clock_in_time     timestamptz NOT NULL,
-  clock_out_time    timestamptz,
-  status            varchar(10) NOT NULL CHECK (status IN ('OPEN','CLOSED')),
-  path_geometry     geometry(LineStringM, 4326),
-  total_points      int NOT NULL DEFAULT 0,
-  total_distance_m  numeric(12,2) DEFAULT 0,
-  last_seq_processed bigint DEFAULT -1
+  id               BIGSERIAL PRIMARY KEY,
+  employee_id      VARCHAR(64)        NOT NULL,
+  status           VARCHAR(16)        NOT NULL,    -- 'OPEN' | 'CLOSED'
+  started_at       TIMESTAMPTZ        NOT NULL,
+  ended_at         TIMESTAMPTZ,
+  start_lat        DOUBLE PRECISION,
+  start_lng        DOUBLE PRECISION,
+  last_lat         DOUBLE PRECISION,
+  last_lng         DOUBLE PRECISION,
+  last_seq         INTEGER            NOT NULL DEFAULT 0,
+  total_points     INTEGER            NOT NULL DEFAULT 0,         -- rollup count
+  total_distance_m DOUBLE PRECISION   NOT NULL DEFAULT 0,         -- meters (geodesic)
+  path_geometry    geometry(LineString, 4326),                    -- merged 2D path at close
+  created_at       TIMESTAMPTZ        NOT NULL DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ        NOT NULL DEFAULT NOW(),
+  CONSTRAINT chk_ts_status CHECK (status IN ('OPEN','CLOSED'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_tracking_session_emp_status
-  ON tracking_session (employee_id, status);
+CREATE INDEX IF NOT EXISTS idx_ts_emp_status   ON tracking_session(employee_id, status);
+CREATE INDEX IF NOT EXISTS idx_ts_started_at   ON tracking_session(started_at);
+CREATE INDEX IF NOT EXISTS idx_ts_path_geom_gx ON tracking_session USING GIST (path_geometry);
 
-CREATE INDEX IF NOT EXISTS idx_tracking_session_geom
-  ON tracking_session USING GIST (path_geometry);
-
-
-
-
-ALTER TABLE tracking_session
-  ADD COLUMN IF NOT EXISTS last_seq_processed bigint DEFAULT -1;
+DROP TRIGGER IF EXISTS trg_ts_set_updated_at ON tracking_session;
+CREATE TRIGGER trg_ts_set_updated_at
+BEFORE UPDATE ON tracking_session
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();

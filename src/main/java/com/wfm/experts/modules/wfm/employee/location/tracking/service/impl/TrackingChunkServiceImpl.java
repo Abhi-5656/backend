@@ -2,22 +2,27 @@ package com.wfm.experts.modules.wfm.employee.location.tracking.service.impl;
 
 import com.wfm.experts.modules.wfm.employee.location.tracking.dto.TrackingCloseMessage;
 import com.wfm.experts.modules.wfm.employee.location.tracking.dto.TrackingPointMessage;
-import com.wfm.experts.modules.wfm.employee.location.tracking.entity.TrackingPathChunk;
-import com.wfm.experts.modules.wfm.employee.location.tracking.entity.TrackingSession;
+import com.wfm.experts.modules.wfm.employee.location.tracking.model.TrackingPathChunk;
 import com.wfm.experts.modules.wfm.employee.location.tracking.repository.TrackingPathChunkRepository;
 import com.wfm.experts.modules.wfm.employee.location.tracking.repository.TrackingSessionRepository;
 import com.wfm.experts.modules.wfm.employee.location.tracking.service.TrackingChunkService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.locationtech.jts.geom.*;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateXYM;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.PrecisionModel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.time.ZonedDateTime;
+import java.time.ZoneOffset;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
@@ -39,66 +44,76 @@ public class TrackingChunkServiceImpl implements TrackingChunkService {
     private static class Agg {
         long lastSeq = -1;
         int nextChunkIdx = 0;
-        OffsetDateTime lastFlushAt = OffsetDateTime.now();
-        List<TrackingPointMessage> buffer = new ArrayList<>();
+        Instant lastFlushAt = Instant.now();
+        final List<TrackingPointMessage> buffer = new ArrayList<>();
         boolean initialized = false;
     }
-    private final Map<Long, Agg> aggregators = new HashMap<>();
+
+    // sessionId -> in-memory aggregator
+    private final Map<Long, Agg> aggregators = new ConcurrentHashMap<>();
 
     @Override
     @Transactional
     public void ingestPoint(TrackingPointMessage msg) {
         var session = sessionRepo.findById(msg.getSessionId())
-                .orElseThrow(() -> new IllegalArgumentException("Unknown sessionId"));
+                .orElseThrow(() -> new IllegalArgumentException("Unknown sessionId " + msg.getSessionId()));
 
         Agg a = aggregators.computeIfAbsent(msg.getSessionId(), k -> new Agg());
 
-        // Initialize aggregator from DB if first time after restart
-        if (!a.initialized) {
-            long dbLastSeq = Optional.ofNullable(session.getLastSeqProcessed()).orElse(-1L);
-            a.lastSeq = dbLastSeq;
-            a.initialized = true;
+        synchronized (a) {
+            if (!a.initialized) {
+                long dbLastSeq = Optional.ofNullable(session.getLastSeq()).map(Integer::longValue).orElse(-1L);
+                a.lastSeq = dbLastSeq;
+                // repo should return Optional<Integer> for max(chunk_index)+1 (or 0 if none)
+                a.nextChunkIdx = chunkRepo.nextChunkIndexForSession(session.getId()).orElse(0);
+                a.initialized = true;
+            }
+
+            // idempotency / monotonic sequence
+            if (msg.getSeq() <= a.lastSeq) {
+                log.debug("Skip duplicate/old seq={} for session {}", msg.getSeq(), msg.getSessionId());
+                return;
+            }
+
+            a.buffer.add(msg);
+            a.lastSeq = msg.getSeq();
+
+            boolean bySize = a.buffer.size() >= chunkSize;
+            boolean byTime = Instant.now().minusSeconds(maxWindowSeconds).isAfter(a.lastFlushAt);
+
+            if (bySize || byTime) {
+                flush(msg.getSessionId(), a);
+            }
         }
-
-        // Idempotency / ordering
-        if (msg.getSeq() <= a.lastSeq) {
-            log.debug("Skip duplicate/old seq={} for session {}", msg.getSeq(), msg.getSessionId());
-            return;
-        }
-
-        a.buffer.add(msg);
-        a.lastSeq = msg.getSeq();
-
-        boolean bySize = a.buffer.size() >= chunkSize;
-        boolean byTime = OffsetDateTime.now().minusSeconds(maxWindowSeconds).isAfter(a.lastFlushAt);
-
-        if (bySize || byTime) flush(msg.getSessionId(), a);
     }
 
     @Override
     @Transactional
     public void closeSession(TrackingCloseMessage msg) {
         Agg a = aggregators.get(msg.getSessionId());
-        if (a != null && !a.buffer.isEmpty()) flush(msg.getSessionId(), a);
+        if (a != null) {
+            synchronized (a) {
+                if (!a.buffer.isEmpty()) flush(msg.getSessionId(), a);
+            }
+        }
 
-        // Merge chunks to header.path_geometry, compute distance, close
+        // Merge chunks into path_geometry (2D), compute distance, set CLOSED, update last_seq
         jdbc.update("""
             UPDATE tracking_session s
-               SET path_geometry = (
+               SET path_geometry = ST_Force2D((
                      SELECT ST_LineMerge(ST_Collect(c.chunk_geometry ORDER BY c.chunk_index))
                        FROM tracking_path_chunk c
-                      WHERE c.session_id = s.session_id
-                   ),
-                   clock_out_time = NOW(),
+                      WHERE c.session_id = s.id
+                   )),
+                   ended_at = NOW(),
                    status = 'CLOSED',
-                   total_distance_m = COALESCE(ST_Length(
-                       (SELECT ST_LineMerge(ST_Collect(c.chunk_geometry ORDER BY c.chunk_index))
-                          FROM tracking_path_chunk c
-                         WHERE c.session_id = s.session_id
-                       )::geography
-                   ), 0),
-                   last_seq_processed = GREATEST(COALESCE(last_seq_processed,-1), ?)
-             WHERE s.session_id = ?
+                   total_distance_m = COALESCE(ST_Length((
+                       SELECT ST_LineMerge(ST_Collect(c.chunk_geometry ORDER BY c.chunk_index))
+                         FROM tracking_path_chunk c
+                        WHERE c.session_id = s.id
+                   )::geography), 0),
+                   last_seq = GREATEST(COALESCE(last_seq,-1), ?)
+             WHERE s.id = ?
             """, (a != null ? a.lastSeq : msg.getSeq()), msg.getSessionId());
 
         aggregators.remove(msg.getSessionId());
@@ -107,18 +122,20 @@ public class TrackingChunkServiceImpl implements TrackingChunkService {
     private void flush(Long sessionId, Agg a) {
         if (a.buffer.isEmpty()) return;
 
-        // build LineStringM (lon, lat, m=epochSeconds)
+        // Build LineStringM: (lon, lat, m = epochSeconds)
         Coordinate[] coords = new Coordinate[a.buffer.size()];
         for (int i = 0; i < a.buffer.size(); i++) {
             var p = a.buffer.get(i);
-            double m = ZonedDateTime.parse(p.getCapturedAt()).toEpochSecond();
+            double m = p.getCapturedAt().getEpochSecond();
             coords[i] = new CoordinateXYM(p.getLng(), p.getLat(), m);
         }
         LineString ls = gf.createLineString(coords);
 
-        OffsetDateTime started = OffsetDateTime.parse(a.buffer.get(0).getCapturedAt());
-        OffsetDateTime ended   = OffsetDateTime.parse(a.buffer.get(a.buffer.size()-1).getCapturedAt());
+        // Convert Instant to OffsetDateTime (assume UTC offset)
+        OffsetDateTime started = a.buffer.get(0).getCapturedAt().atOffset(ZoneOffset.UTC);
+        OffsetDateTime ended = a.buffer.get(a.buffer.size() - 1).getCapturedAt().atOffset(ZoneOffset.UTC);
 
+        // Create the TrackingPathChunk with OffsetDateTime
         TrackingPathChunk chunk = TrackingPathChunk.builder()
                 .sessionId(sessionId)
                 .chunkIndex(a.nextChunkIdx)
@@ -129,22 +146,23 @@ public class TrackingChunkServiceImpl implements TrackingChunkService {
                 .build();
         chunkRepo.save(chunk);
 
-        // update totals + last_seq_processed
+        // Update totals + last_seq on header
         jdbc.update("""
-            UPDATE tracking_session s
-               SET total_points = total_points + ?,
-                   total_distance_m = total_distance_m + ST_Length(?::geography),
-                   last_seq_processed = GREATEST(COALESCE(last_seq_processed,-1), ?)
-             WHERE s.session_id = ?
-            """, a.buffer.size(), wkt(ls), a.lastSeq, sessionId);
+        UPDATE tracking_session s
+           SET total_points = total_points + ?,
+               total_distance_m = total_distance_m + ST_Length(?::public.geography),
+               last_seq = GREATEST(COALESCE(last_seq,-1), ?)
+         WHERE s.id = ?
+        """, a.buffer.size(), wkt(ls), a.lastSeq, sessionId);
 
         a.buffer.clear();
         a.nextChunkIdx++;
-        a.lastFlushAt = OffsetDateTime.now();
+        a.lastFlushAt = Instant.now();
     }
 
+
     // SRID=4326;LINESTRINGM(lon lat m, ...)
-    private String wkt(LineString ls) {
+    private static String wkt(LineString ls) {
         StringBuilder sb = new StringBuilder("SRID=4326;LINESTRINGM(");
         for (int i = 0; i < ls.getNumPoints(); i++) {
             var c = ls.getCoordinateN(i);

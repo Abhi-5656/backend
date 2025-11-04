@@ -1,7 +1,9 @@
-package com.wfm.experts.modules.wfm.employee.location.tracking.entity;
+package com.wfm.experts.modules.wfm.employee.location.tracking.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.locationtech.jts.geom.LineString;
 
 import java.time.OffsetDateTime;
@@ -25,7 +27,11 @@ public class TrackingPathChunk {
     @Column(name = "point_count", nullable = false)
     private Integer pointCount;
 
-    @Column(name = "chunk_geometry", nullable = false, columnDefinition = "geometry(LineStringM,4326)")
+//    @Column(name = "chunk_geometry", nullable = false, columnDefinition = "geometry(LineStringM,4326)")
+//    private LineString chunkGeometry;
+
+    @JdbcTypeCode(SqlTypes.GEOMETRY)
+    @Column(name = "chunk_geometry", columnDefinition = "geometry(LineStringM,4326)", nullable = false)
     private LineString chunkGeometry;
 
     @Column(name = "started_at", nullable = false)

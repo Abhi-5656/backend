@@ -1,6 +1,16 @@
 -- V25__create_employee_location_table.sql
 -- Enables PostGIS extension if not already enabled in the schema
+-- Enable PostGIS (runable on AWS RDS with a master/admin role)
 CREATE EXTENSION IF NOT EXISTS postgis;
+
+-- Common trigger to maintain updated_at
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at := NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
 -- Create a table to store employee location history
 CREATE TABLE employee_locations (

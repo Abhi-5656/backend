@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @Order(Ordered.HIGHEST_PRECEDENCE)
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.wfm.experts.tenant.common.subscription.controller")
 public class SubscriptionExceptionHandler {
 
     @ExceptionHandler(DuplicateSubscriptionException.class)

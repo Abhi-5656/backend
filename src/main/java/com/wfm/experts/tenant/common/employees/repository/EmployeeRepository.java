@@ -23,6 +23,11 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     // Check for existence by Employee ID
     boolean existsByEmployeeId(String employeeId);
 
+    // --- NEW METHODS ---
+    boolean existsByEmail(String email);
+    boolean existsByPhoneNumber(String phoneNumber);
+    // --- END NEW METHODS ---
+
     // ✅ Find Employees who have the given role in their roles list
     List<Employee> findByRoles(Role role);
 

@@ -1,20 +1,17 @@
+// com/wfm/experts/modules/wfm/employee/location/tracking/dto/LiveResponse.java
 package com.wfm.experts.modules.wfm.employee.location.tracking.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+import java.time.Instant;
+
+@Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class LiveResponse {
     private Long sessionId;
-    private String polylineGeoJson;
     private Double currentLat;
     private Double currentLng;
-    private String clockInTime;
+    private Instant clockInTime;
     private Integer totalPoints;
-    private Double totalDistanceM;
+    private Double totalDistanceM;     // approx; computed server-side
+    private String polylineGeoJson;    // optional; null if not built
 }

@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import java.util.HashMap;
 import java.util.Map;
 
-@ControllerAdvice
+@ControllerAdvice(basePackages = "com.wfm.experts.setup.wfm.shift.controller")
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class ShiftExceptionHandler {
 

@@ -19,7 +19,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@ControllerAdvice
+@ControllerAdvice(basePackages = "com.wfm.experts.setup.wfm.paypolicy.controller")
 public class PayPolicyExceptionHandler {
 
     @ExceptionHandler(PayPolicyNotFoundException.class)
@@ -41,7 +41,7 @@ public class PayPolicyExceptionHandler {
         if (ex.getCause() != null && ex.getCause().getMessage().contains("violates not-null constraint")) {
             message = "A required field was left null.";
         } else if (ex.getCause() != null && ex.getCause().getMessage().contains("violates unique constraint")) {
-            message = "A record with the same unique value already exists.";
+            message = "A record with the same unique value already exists......";
         }
         return new ResponseEntity<>(new ErrorResponse(message), HttpStatus.CONFLICT);
     }
