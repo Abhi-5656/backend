@@ -146,14 +146,14 @@ public class TrackingChunkServiceImpl implements TrackingChunkService {
                 .build();
         chunkRepo.save(chunk);
 
-        // Update totals + last_seq on header
+        // Update totals + last_seq on header, ensure the geometry is cast to 'geography'
         jdbc.update("""
         UPDATE tracking_session s
-           SET total_points = total_points + ?,
-               total_distance_m = total_distance_m + ST_Length(?::public.geography),
-               last_seq = GREATEST(COALESCE(last_seq,-1), ?)
-         WHERE s.id = ?
-        """, a.buffer.size(), wkt(ls), a.lastSeq, sessionId);
+        SET total_points = total_points + ?,
+            total_distance_m = total_distance_m + ST_Length(?::geography),  -- Cast to geography
+            last_seq = GREATEST(COALESCE(last_seq,-1), ?)
+        WHERE s.id = ?
+    """, a.buffer.size(), wkt(ls), a.lastSeq, sessionId);
 
         a.buffer.clear();
         a.nextChunkIdx++;
